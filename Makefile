@@ -1,8 +1,8 @@
 default: src
 
-.PHONY: clean test purge analysis full-analysis optimized format tags
+.PHONY: clean test purge analysis full-analysis format tags
 
-export CC = clang++
+export CC = clang
 
 prepare:
 	@ mkdir -p lib bin include/logd
