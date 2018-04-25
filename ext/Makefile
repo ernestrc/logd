@@ -1,5 +1,7 @@
 default: deps
 
+override undefine CFLAGS
+
 SLAB_TREE=2c43ec8117b7dc4371ba32e4eb9a7f5b3c9c5ae9
 LUAJIT_VERSION=2.0.5
 
@@ -12,7 +14,10 @@ LUAJIT_TAR=LuaJIT-$(LUAJIT_VERSION).tar.gz
 
 .PHONY: purge
 
-deps: $(LIBLUAJIT) $(LIBSLAB) $(INCLUDE_SLAB) $(INCLUDE_LUAJIT)
+deps: $(LIB) $(LIBLUAJIT) $(LIBSLAB) $(INCLUDE_SLAB) $(INCLUDE_LUAJIT)
+
+$(LIB):
+	@ mkdir $(LIB)
 
 $(INCLUDE_LUAJIT): $(LIBLUAJIT)
 	@ mkdir $(INCLUDE_LUAJIT) 
@@ -43,8 +48,5 @@ purge:
 	@- rm -rf lua
 	@- rm -rf $(INCLUDE_SLAB)
 	@- rm -rf $(INCLUDE_LUAJIT)
-	@- rm -rf lib/*.a
-	@- rm -rf lib/*.o
+	@- rm -rf $(LIB)
 	@- rm -f *.tar.gz*
-
-export EXT_FEATURES=

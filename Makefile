@@ -1,45 +1,73 @@
 default: src
 
-.PHONY: clean test purge analysis full-analysis format tags
+.PHONY: test analysis full-analysis fuzz format tags coverage full-coverage fuzz-coverage fuzz-full-coverage debug purge
 
 export CC = clang
 
-prepare:
-	@ mkdir -p lib bin include/logd
+TARGET=./bin
+LIB=./lib
+TEST=./test
+SRC=./src
+EXT=./ext
 
 deps:
-	@ cd ext && $(MAKE) $@
+	@ cd $(EXT) && $(MAKE) $@
 
-src: export CFLAGS = -O2
-src: prepare deps
-	@ cd src && $(MAKE) $@
-
-debug: export CFLAGS = -ggdb
-debug: prepare deps
-	@ cd src && $(MAKE) $@
-
-test: src
-	@ cd test && $(MAKE) $@
+prepare:
+	@ mkdir -p $(LIB)
+	@ mkdir -p $(TARGET)
 
 clean:
-	@ cd src && $(MAKE) $@
-	@ cd test && $(MAKE) $@
-
-purge: clean
-	@ cd ext && $(MAKE) $@
-	@ rm -rf lib bin include
+	@ rm -rf $(TARGET) $(LIB)
+	@ cd $(SRC) && $(MAKE) $@
+	@ cd $(TEST) && $(MAKE) $@
 
 # run clang-analyzer
 analysis: clean
-	@ scan-build $(MAKE) -s
+	@ scan-build $(MAKE)
 
 # run clang-analyzer on dependencies + src
 full-analysis: purge
 	@ scan-build $(MAKE) -s
 
+src: export CFLAGS = -O2 -std=c11
+src: prepare deps
+	@ cd src && $(MAKE) $@
+
+debug: export CFLAGS = -ggdb -Wall -std=c11
+debug: prepare deps
+	@ cd src && $(MAKE) src
+
+
+test: export CFLAGS = -Wall -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11 -ggdb
+test: clean src
+	@ cd $(TEST) && $(MAKE) test
+
+fuzz: src
+	@ cd $(TEST) && $(MAKE) $@
+
+coverage:
+	cd $(TEST) && $(MAKE) $@
+
+full-coverage:
+	cd $(TEST) && $(MAKE) $@
+
+fuzz-coverage:
+	cd $(TEST) && $(MAKE) $@
+
+fuzz-full-coverage:
+	cd $(TEST) && $(MAKE) $@
+
 format:
-	@ find src -name \*.h -o -name \*.c | xargs clang-format -i
-	@ find test -name \*.h -o -name \*.c | xargs clang-format -i
+	@ find $(SRC) -name \*.h -o -name \*.c | xargs clang-format -i
+	@ find $(TEST) -name \*.h -o -name \*.c | xargs clang-format -i
 
 tags:
 	@ ctags -R
+
+purge: clean
+	@ cd $(EXT) && $(MAKE) $@
+	@ cd $(SRC) && $(MAKE) $@
+	@ cd $(TEST) && $(MAKE) $@
+	@ rm -rf $(TARGET) $(BIN)
+	@ rm -f tags

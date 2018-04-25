@@ -36,3 +36,6 @@ lib/
 include/
 bin/
 tags
+
+*.profraw
+*.profdata

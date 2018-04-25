@@ -1,6 +1,5 @@
-include ../ext/Makefile
-
-override CFLAGS += -Wall -std=c11 $(EXT_FEATURES)
+CC ?= clang
+CFLAGS ?= -O2 -Wall -std=c11
 
 INCLUDE_PATH=../include
 INCLUDE=$(INCLUDE_PATH)/logd
@@ -18,7 +17,10 @@ LIB = ../lib/liblogd.a
 
 .PHONY: clean purge
 
-src: $(LIB) $(EXEC)
+src: prepare $(LIB) $(EXEC)
+
+prepare:
+	@ mkdir -p $(INCLUDE)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
@@ -32,7 +34,7 @@ $(LIB): $(OBJS) $(HDRS)
 
 $(TARGET)%: %.c $(LIB)
 	@ echo COMPILING $@
-	@ $(CC) $(CFLAGS) -I$(INCLUDE_PATH) $< -o $@ $(LIB)
+	$(CC) $(CFLAGS) -I$(INCLUDE_PATH) $< -o $@ $(LIB)
 
 clean:
 	@- rm -f $(EXEC)
@@ -41,3 +43,4 @@ clean:
 	@- rm -f $(OBJS)
 
 purge: clean
+	@- rm -rf $(INCLUDE_PATH)
