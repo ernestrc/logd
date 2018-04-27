@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "../src/log.h"
+#include "../src/debug.h"
 #include "../src/slab/rcmalloc.h"
 
 typedef struct test_ctx_s {
@@ -160,5 +161,31 @@ str_t new_str(const char* key)
 }
 
 #define MAKE_STR(str) (new_str(str))
+
+int log_cmp(log_t* la, log_t* lb)
+{
+	DEBUG_ASSERT(la != NULL);
+	DEBUG_ASSERT(lb != NULL);
+
+	prop_t* nexta;
+	prop_t* nextb;
+
+	for (nexta = la->props, nextb = lb->props; nextb != NULL && nexta != NULL;
+		 nexta = nexta->next, nextb = nextb->next) {
+		size_t aklen = LOG_GET_STRLEN(nexta->key);
+		size_t bklen = LOG_GET_STRLEN(nextb->key);
+		size_t avlen = LOG_GET_STRLEN(nexta->value);
+		size_t bvlen = LOG_GET_STRLEN(nextb->value);
+		if (aklen != bklen || avlen != bvlen ||
+		  memcmp(LOG_GET_STRVALUE(nexta->key), LOG_GET_STRVALUE(nextb->key),
+			aklen) != 0 ||
+		  memcmp(LOG_GET_STRVALUE(nextb->value), LOG_GET_STRVALUE(nextb->value),
+			avlen) != 0) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
 
 #endif // TEST_TEST_H_

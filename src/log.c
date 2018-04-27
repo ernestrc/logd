@@ -30,6 +30,7 @@ str_t log_get(log_t* l, const char* kval, size_t klen)
 {
 	DEBUG_ASSERT(l != NULL);
 	DEBUG_ASSERT(kval != NULL);
+	DEBUG_ASSERT(klen != 0);
 
 	for (prop_t* next = l->props; next != NULL; next = next->next) {
 		DEBUG_ASSERT(next->key != NULL);
@@ -45,6 +46,7 @@ prop_t* log_remove(log_t* l, const char* kval, size_t klen)
 {
 	DEBUG_ASSERT(l != NULL);
 	DEBUG_ASSERT(kval != NULL);
+	DEBUG_ASSERT(klen != 0);
 
 	prop_t* ret = NULL;
 
