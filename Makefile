@@ -39,7 +39,7 @@ debug: prepare deps
 	@ cd src && $(MAKE) src
 
 
-test: export CFLAGS = -Wall -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11 -ggdb
+test: export CFLAGS = -Wall -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11 -ggdb -DLOGD_DEBUG
 test: clean src
 	@ cd $(TEST) && $(MAKE) test
 
