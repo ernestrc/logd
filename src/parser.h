@@ -45,7 +45,7 @@ typedef struct parser_s {
 
 typedef struct presult_s {
 	bool complete;
-	char* next;
+	size_t consumed;
 } presult_t;
 
 parser_t* parser_create();

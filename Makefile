@@ -30,7 +30,7 @@ analysis: clean
 full-analysis: purge
 	@ scan-build $(MAKE) -s
 
-src: export CFLAGS = -O2 -std=c11
+src: export CFLAGS = -O2 -std=c11 -DLOGD_INLINE
 src: prepare deps
 	@ cd src && $(MAKE) $@
 

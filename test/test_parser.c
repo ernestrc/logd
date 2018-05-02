@@ -36,7 +36,7 @@ struct tcase {
 		struct tcase test = CASES[i];
 		presult_t res = parser_parse(p, test.input, test.ilen);
 		ASSERT_EQ(res.complete, true);
-		ASSERT_EQ(res.next, test.input + test.ilen);
+		ASSERT_EQ(res.consumed, test.ilen);
 		ASSERT_LOG_EQ(&p->result, test.expected);
 	}
 

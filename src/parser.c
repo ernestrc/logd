@@ -5,8 +5,16 @@
 #include "debug.h"
 #include "parser.h"
 
-#ifndef PARSER_SLAB_CAP
+#ifndef LOGD_PROP_CAP
 #define PARSER_SLAB_CAP 100
+#else
+#define PARSER_SLAB_CAP LOGD_PROP_CAP
+#endif
+
+#ifdef LOGD_INLINE
+#define INLINE inline
+#else
+#define INLINE
 #endif
 
 #define APPEND_NEW_PROP(p, prop, key)                                          \
@@ -66,7 +74,7 @@ void parser_free(parser_t* p)
 	free(p);
 }
 
-static void parser_result_reset(parser_t* p)
+INLINE static void parser_result_reset(parser_t* p)
 {
 	DEBUG_ASSERT(p != NULL);
 
@@ -80,12 +88,12 @@ static void parser_result_reset(parser_t* p)
 	log_init(&p->result);
 }
 
-void parser_parse_error(parser_t* p, const char* msg)
+INLINE void parser_parse_error(parser_t* p, const char* msg)
 {
 	p->state = ERROR_PSTATE;
 }
 
-void parser_parse_next_key(parser_t* p, char r)
+INLINE void parser_parse_next_key(parser_t* p, char r)
 {
 	prop_t* prop;
 
@@ -110,7 +118,7 @@ void parser_parse_next_key(parser_t* p, char r)
 	}
 }
 
-void parser_parse_next_multikey(parser_t* p, char r)
+INLINE void parser_parse_next_multikey(parser_t* p, char r)
 {
 	switch (r) {
 	case ',':
@@ -132,7 +140,7 @@ void parser_parse_next_multikey(parser_t* p, char r)
 	}
 }
 
-void parser_parse_next_value(parser_t* p, char r)
+INLINE void parser_parse_next_value(parser_t* p, char r)
 {
 	switch (r) {
 	case ',':
@@ -158,7 +166,7 @@ void parser_parse_next_value(parser_t* p, char r)
 	}
 }
 
-bool parser_parse_skip(parser_t* p, char r)
+INLINE bool parser_parse_skip(parser_t* p, char r)
 {
 	switch (r) {
 	case '\t':
@@ -171,7 +179,7 @@ bool parser_parse_skip(parser_t* p, char r)
 	}
 }
 
-void parser_parse_next_date(parser_t* p, const char* key, char r)
+INLINE void parser_parse_next_date(parser_t* p, const char* key, char r)
 {
 	prop_t* prop;
 
@@ -203,7 +211,7 @@ void parser_parse_next_date(parser_t* p, const char* key, char r)
 	}
 }
 
-void parser_parse_next_header(parser_t* p, const char* key, char r)
+INLINE void parser_parse_next_header(parser_t* p, const char* key, char r)
 {
 	prop_t* prop;
 
@@ -224,7 +232,7 @@ void parser_parse_next_header(parser_t* p, const char* key, char r)
 	}
 }
 
-void parser_parse_next_thread_bracket(parser_t* p, char r)
+INLINE void parser_parse_next_thread_bracket(parser_t* p, char r)
 {
 	prop_t* prop;
 
@@ -241,7 +249,7 @@ void parser_parse_next_thread_bracket(parser_t* p, char r)
 	}
 }
 
-void parser_parse_next_thread(parser_t* p, char r)
+INLINE void parser_parse_next_thread(parser_t* p, char r)
 {
 	switch (r) {
 	case '[':
@@ -255,7 +263,7 @@ void parser_parse_next_thread(parser_t* p, char r)
 	}
 }
 
-void parser_parse_next_calltype(parser_t* p, char r)
+INLINE void parser_parse_next_calltype(parser_t* p, char r)
 {
 	prop_t* prop;
 
@@ -271,7 +279,7 @@ void parser_parse_next_calltype(parser_t* p, char r)
 	}
 }
 
-void parser_parse_verify_calltype(parser_t* p, char r)
+INLINE void parser_parse_verify_calltype(parser_t* p, char r)
 {
 	switch (r) {
 	case ',':
@@ -284,60 +292,7 @@ void parser_parse_verify_calltype(parser_t* p, char r)
 	}
 }
 
-void parser_parse_next(parser_t* p, char r)
-{
-	switch (p->state) {
-	case DATE_PSTATE:
-		parser_parse_next_date(p, KEY_DATE, r);
-		break;
-	case TIME_PSTATE:
-		parser_parse_next_date(p, KEY_TIME, r);
-		break;
-	case LEVEL_PSTATE:
-		parser_parse_next_header(p, KEY_LEVEL, r);
-		break;
-	case THREAD_PSTATE:
-		parser_parse_next_thread(p, r);
-		break;
-	case THREADBRACKET_PSTATE:
-		parser_parse_next_thread_bracket(p, r);
-		break;
-	case THREADNOBRACKET_PSTATE:
-		parser_parse_next_header(p, KEY_THREAD, r);
-		break;
-	case CLASS_PSTATE:
-		parser_parse_next_header(p, KEY_CLASS, r);
-		break;
-	case CALLTYPE_PSTATE:
-		parser_parse_next_calltype(p, r);
-		break;
-	case VERIFYCALLTYPE_PSTATE:
-		parser_parse_verify_calltype(p, r);
-		break;
-	case KEY_PSTATE:
-		parser_parse_next_key(p, r);
-		break;
-	case VALUE_PSTATE:
-		parser_parse_next_value(p, r);
-		break;
-	case MULTIKEY_PSTATE:
-		parser_parse_next_multikey(p, r);
-		break;
-	case TRANSITIONLEVEL_PSTATE:
-	case TRANSITIONTHREAD_PSTATE:
-	case TRANSITIONCALLTYPE_PSTATE:
-	case TRANSITIONCLASS_PSTATE:
-		if (!parser_parse_skip(p, r)) {
-			parser_parse_next(p, r);
-		}
-		break;
-	case ERROR_PSTATE:
-		// ignore until newline is found and state is reset
-		break;
-	}
-}
-
-void parser_parse_end(parser_t* p)
+INLINE void parser_parse_end(parser_t* p)
 {
 	prop_t* prop;
 
@@ -351,6 +306,7 @@ void parser_parse_end(parser_t* p)
 
 presult_t parser_parse(parser_t* p, char* chunk, size_t clen)
 {
+
 	DEBUG_ASSERT(p != NULL);
 	DEBUG_ASSERT(chunk != NULL);
 	DEBUG_ASSERT(clen != 0);
@@ -359,22 +315,69 @@ presult_t parser_parse(parser_t* p, char* chunk, size_t clen)
 	p->blen = 0;
 	parser_result_reset(p);
 
-	while (clen > 0) {
-		char next = *chunk;
-		chunk++;
-
+	size_t consumed;
+	char next;
+	for (consumed = 0; clen > 0; clen--) {
+		next = chunk[consumed++];
 		switch (next) {
 		case '\n':
 			parser_parse_end(p);
 			p->state = DATE_PSTATE;
-			return (presult_t){true, chunk};
+			return (presult_t){true, consumed};
 		default:
-			parser_parse_next(p, next);
+		next:
+			switch (p->state) {
+			case DATE_PSTATE:
+				parser_parse_next_date(p, KEY_DATE, next);
+				break;
+			case TIME_PSTATE:
+				parser_parse_next_date(p, KEY_TIME, next);
+				break;
+			case LEVEL_PSTATE:
+				parser_parse_next_header(p, KEY_LEVEL, next);
+				break;
+			case THREAD_PSTATE:
+				parser_parse_next_thread(p, next);
+				break;
+			case THREADBRACKET_PSTATE:
+				parser_parse_next_thread_bracket(p, next);
+				break;
+			case THREADNOBRACKET_PSTATE:
+				parser_parse_next_header(p, KEY_THREAD, next);
+				break;
+			case CLASS_PSTATE:
+				parser_parse_next_header(p, KEY_CLASS, next);
+				break;
+			case CALLTYPE_PSTATE:
+				parser_parse_next_calltype(p, next);
+				break;
+			case VERIFYCALLTYPE_PSTATE:
+				parser_parse_verify_calltype(p, next);
+				break;
+			case KEY_PSTATE:
+				parser_parse_next_key(p, next);
+				break;
+			case VALUE_PSTATE:
+				parser_parse_next_value(p, next);
+				break;
+			case MULTIKEY_PSTATE:
+				parser_parse_next_multikey(p, next);
+				break;
+			case TRANSITIONLEVEL_PSTATE:
+			case TRANSITIONTHREAD_PSTATE:
+			case TRANSITIONCALLTYPE_PSTATE:
+			case TRANSITIONCLASS_PSTATE:
+				if (!parser_parse_skip(p, next)) {
+					goto next;
+				}
+				break;
+			case ERROR_PSTATE:
+				// ignore until newline is found and state is reset
+				break;
+			}
 			break;
 		}
-
-		clen--;
 	}
 
-	return (presult_t){false, chunk};
+	return (presult_t){false, consumed};
 }
