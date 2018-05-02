@@ -13,25 +13,26 @@
 #define KEY_DATE "date"
 #define KEY_TIMESTAMP "timestamp"
 #define KEY_MESSAGE "msg"
+#define KEY_CALLTYPE "callType"
 
 typedef enum pstate_s {
-	DATE_PSTATE,
-	TIME_PSTATE,
-	TRANSITIONLEVEL_PSTATE,
-	LEVEL_PSTATE,
-	TRANSITIONTHREAD_PSTATE,
-	THREAD_PSTATE,
-	THREADBRACKET_PSTATE,   // IF NEXT == '['
-	THREADNOBRACKET_PSTATE, // ELSE
-	TRANSITIONCLASS_PSTATE,
-	CLASS_PSTATE,
-	TRANSITIONCALLTYPE_PSTATE,
-	CALLTYPE_PSTATE,
-	VERIFYCALLTYPE_PSTATE,
-	KEY_PSTATE,
-	MULTIKEY_PSTATE,
-	VALUE_PSTATE,
-	ERROR_PSTATE,
+	DATE_PSTATE = 0,
+	TIME_PSTATE = 1,
+	TRANSITIONLEVEL_PSTATE = 2,
+	LEVEL_PSTATE = 3,
+	TRANSITIONTHREAD_PSTATE = 4,
+	THREAD_PSTATE = 5,
+	THREADBRACKET_PSTATE = 6, // IF NEXT == '['
+	THREADNOBRACKET_PSTATE = 7, // ELSE
+	TRANSITIONCLASS_PSTATE = 8,
+	CLASS_PSTATE = 9,
+	TRANSITIONCALLTYPE_PSTATE = 10,
+	CALLTYPE_PSTATE = 11,
+	VERIFYCALLTYPE_PSTATE = 12,
+	KEY_PSTATE = 13,
+	MULTIKEY_PSTATE = 14,
+	VALUE_PSTATE = 15,
+	ERROR_PSTATE = 16,
 } pstate_t;
 
 typedef struct parser_s {
@@ -51,10 +52,13 @@ parser_t* parser_create();
 void parser_init(parser_t* p, slab_t* pslab);
 void parser_free(parser_t* p);
 
-/* parser_parse takes a chunk of data, and attempts to consume its contents populating the parser's `result` field. 
+/* parser_parse takes a chunk of data, and attempts to consume its contents
+ * populating the parser's `result` field.
  *
- * It will return either because EOF is reached, or because a log has been consumed. The parser's return value indicates whether
- * the log in `result` is complete or partial and it contains a pointer to the next byte that should be scanned by the parser or NULL if EOF was reached.
+ * It will return either because EOF is reached, or because a log has been
+ * consumed. The parser's return value indicates whether the log in `result` is
+ * complete or partial and it contains a pointer to the next byte that should be
+ * scanned by the parser or NULL if EOF was reached.
  */
 presult_t parser_parse(parser_t* p, char* chunk, size_t clen);
 

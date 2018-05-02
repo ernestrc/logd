@@ -87,4 +87,5 @@ void printl(log_t* l)
 	}
 
 	printp(l);
+	printf("\n");
 }

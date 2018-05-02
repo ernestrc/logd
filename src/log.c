@@ -26,34 +26,30 @@ void log_init(log_t* l)
 	l->props = NULL;
 }
 
-str_t log_get(log_t* l, const char* kval, size_t klen)
+const char* log_get(log_t* l, const char* key)
 {
 	DEBUG_ASSERT(l != NULL);
-	DEBUG_ASSERT(kval != NULL);
-	DEBUG_ASSERT(klen != 0);
+	DEBUG_ASSERT(key != NULL);
 
 	for (prop_t* next = l->props; next != NULL; next = next->next) {
 		DEBUG_ASSERT(next->key != NULL);
-		if (LOG_GET_STRLEN(next->key) == klen &&
-		  memcmp(kval, LOG_GET_STRVALUE(next->key), klen) == 0)
+		if (strcmp(key, next->key) == 0)
 			return next->value;
 	}
 
 	return NULL;
 }
 
-prop_t* log_remove(log_t* l, const char* kval, size_t klen)
+prop_t* log_remove(log_t* l, const char* key)
 {
 	DEBUG_ASSERT(l != NULL);
-	DEBUG_ASSERT(kval != NULL);
-	DEBUG_ASSERT(klen != 0);
+	DEBUG_ASSERT(key != NULL);
 
 	prop_t* ret = NULL;
 
 	for (prop_t** next = &l->props; *next != NULL; next = &((*next)->next)) {
 		DEBUG_ASSERT((*next)->key != NULL);
-		if (LOG_GET_STRLEN((*next)->key) == klen &&
-		  memcmp(kval, LOG_GET_STRVALUE((*next)->key), klen) == 0) {
+		if (strcmp(key, (*next)->key) == 0) {
 			ret = (*next);
 			(*next) = (*next)->next;
 			break;
@@ -63,12 +59,10 @@ prop_t* log_remove(log_t* l, const char* kval, size_t klen)
 	return ret;
 }
 
-void log_set(log_t* l, prop_t* prop, const str_t key, const str_t value)
+void log_set(log_t* l, prop_t* prop, const char* key, const char* value)
 {
 	DEBUG_ASSERT(l != NULL);
 	DEBUG_ASSERT(prop != NULL);
-	DEBUG_ASSERT(value != NULL);
-	DEBUG_ASSERT(key != NULL);
 
 	prop->key = key;
 	prop->value = value;

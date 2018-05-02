@@ -8,9 +8,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../src/log.h"
 #include "../src/debug.h"
+#include "../src/log.h"
+#include "../src/parser.h"
 #include "../src/slab/rcmalloc.h"
+#include "../src/slab/slab.h"
+#include "../src/util.h"
 
 typedef struct test_ctx_s {
 	char* test_expr;
@@ -56,6 +59,192 @@ typedef struct test_ctx_s {
 #define ASSERT_FALSE(a) ASSERT_COND1(a, COND_FALSE)
 #define ASSERT_NULL(a) ASSERT_COND2(a, NULL, COND_EQ)
 
+static slab_t* pslab;
+
+#define LOG1                                                                   \
+	"2017-09-07 14:54:39,474	DEBUG	[pool-5-thread-6]	"                         \
+	"control.RaptorHandler	PublisherCreateRequest: flow: Publish, step: "      \
+	"Attempt, operation: CreatePublisher, traceId: "                           \
+	"Publish:Rumor:012ae1a5-3416-4458-b0c1-6eb3e0ab4c80\n"
+#define LOG2                                                                   \
+	"2017-09-07 14:54:39,474	DEBUG	[pool-5-thread-6]	"                         \
+	"control.RaptorHandler	sessionId: "                                        \
+	"1_MX4xMDB-fjE1MDQ4MjEyNzAxMjR-WThtTVpEN0J2c1Z2TlJGcndTN1lpTExGfn4, "      \
+	"flow: Publish, conId: connectionId: "                                     \
+	"f41973e5-b27c-49e4-bcaf-1d48b153683e, step: Attempt, publisherId: "       \
+	"b4da82c4-cac5-4e13-b1dc-bb1f42b475dd, fromAddress: "                      \
+	"f41973e5-b27c-49e4-bcaf-1d48b153683e, projectId: 100, operation: "        \
+	"CreatePublisher, traceId: "                                               \
+	"Publish:Rumor:112ae1a5-3416-4458-b0c1-6eb3e0ab4c80, streamId: "           \
+	"b4da82c4-cac5-4e13-b1dc-bb1f42b475dd, remoteIpAddress: 127.0.0.1, "       \
+	"correlationId: b90232b5-3ee5-4c65-bb4e-29286d6a2771\n"
+#define LOG3                                                                   \
+	"2017-04-19 18:01:11,437     INFO [Test worker]    "                       \
+	"core.InstrumentationListener	i do not want to log anything special "      \
+	"here\n"
+#define LOG4                                                                   \
+	"2017-04-19 18:01:11,437     INFO [Test worker]    "                       \
+	"core.InstrumentationListener	only: one\n"
+#define LOG5                                                                   \
+	"2017-11-16 19:07:56,883	WARN	[-]	-	flow: UpdateClientActivity, "          \
+	"operation: HandleActiveEvent, step: Failure, luaRocks: true\n"
+#define LOG6                                                                   \
+	"[2017-12-05T15:09:09.858] [WARN] main - flow: , operation: closePage, "   \
+	"step: Failure, logLevel: WARN, url: "                                     \
+	"https://10.1.6.113:6060/"                                                 \
+	"index.html?id=5NZM0okZ&wsUri=wss%3A%2F%2F10.1.6.113%3A6060%2Fws%3Fid%"    \
+	"3D5NZM0okZ, err: Error  Protocol error (Target.closeTarget)  Target "     \
+	"closed.     at Connection._onClose "                                      \
+	"(/home/ernestrc/src/tbsip/node_modules/puppeteer/lib/Connection.js 124 "  \
+	"23)     at emitTwo (events.js 125 13)     at WebSocket.emit (events.js "  \
+	"213 7)     at WebSocket.emitClose "                                       \
+	"(/home/ernestrc/src/tbsip/node_modules/ws/lib/WebSocket.js 213 10)     "  \
+	"at _receiver.cleanup "                                                    \
+	"(/home/ernestrc/src/tbsip/node_modules/ws/lib/WebSocket.js 195 41)     "  \
+	"at Receiver.cleanup "                                                     \
+	"(/home/ernestrc/src/tbsip/node_modules/ws/lib/Receiver.js 520 15)     "   \
+	"at WebSocket.finalize "                                                   \
+	"(/home/ernestrc/src/tbsip/node_modules/ws/lib/WebSocket.js 195 22)     "  \
+	"at emitNone (events.js 110 20)     at Socket.emit (events.js 207 7)     " \
+	"at endReadableNT (_stream_readable.js 1047 12), class: Endpoint, id: "    \
+	"5NZM0okZ, timestamp: 1512515349858, duration: 2.017655998468399\n"
+
+#define LEN1 strlen(LOG1)
+#define LEN2 strlen(LOG2)
+#define LEN3 strlen(LOG3)
+#define LEN4 strlen(LOG4)
+#define LEN5 strlen(LOG5)
+#define LEN6 strlen(LOG6)
+
+char* BUF1;
+char* BUF2;
+char* BUF3;
+char* BUF4;
+char* BUF5;
+char* BUF6;
+
+log_t EXPECTED1;
+log_t EXPECTED2;
+log_t EXPECTED3;
+log_t EXPECTED4;
+log_t EXPECTED5;
+log_t EXPECTED6;
+
+static void init_test_data()
+{
+	BUF1 = rcmalloc(LEN1);
+	BUF2 = rcmalloc(LEN2);
+	BUF3 = rcmalloc(LEN3);
+	BUF4 = rcmalloc(LEN4);
+	BUF5 = rcmalloc(LEN5);
+	BUF6 = rcmalloc(LEN6);
+	memcpy(BUF1, LOG1, LEN1);
+	memcpy(BUF2, LOG2, LEN2);
+	memcpy(BUF3, LOG3, LEN3);
+	memcpy(BUF4, LOG4, LEN4);
+	memcpy(BUF5, LOG5, LEN5);
+	memcpy(BUF6, LOG6, LEN6);
+
+	log_set(&EXPECTED1, slab_get(pslab), KEY_TIME, "14:54:39,474");
+	log_set(&EXPECTED1, slab_get(pslab), KEY_DATE, "2017-09-07");
+	log_set(&EXPECTED1, slab_get(pslab), KEY_LEVEL, "DEBUG");
+	log_set(&EXPECTED1, slab_get(pslab), KEY_THREAD, "pool-5-thread-6");
+	log_set(&EXPECTED1, slab_get(pslab), KEY_CLASS, "control.RaptorHandler");
+	log_set(
+	  &EXPECTED1, slab_get(pslab), KEY_CALLTYPE, "PublisherCreateRequest");
+	log_set(&EXPECTED1, slab_get(pslab), "flow", "Publish");
+	log_set(&EXPECTED1, slab_get(pslab), "step", "Attempt");
+	log_set(&EXPECTED1, slab_get(pslab), "operation", "CreatePublisher");
+	log_set(&EXPECTED1, slab_get(pslab), "traceId",
+	  "Publish:Rumor:012ae1a5-3416-4458-b0c1-6eb3e0ab4c80");
+
+	log_set(&EXPECTED2, slab_get(pslab), KEY_DATE, "2017-09-07");
+	log_set(&EXPECTED2, slab_get(pslab), KEY_TIME, "14:54:39,474");
+	log_set(&EXPECTED2, slab_get(pslab), KEY_LEVEL, "DEBUG");
+	log_set(&EXPECTED2, slab_get(pslab), KEY_THREAD, "pool-5-thread-6");
+	log_set(&EXPECTED2, slab_get(pslab), KEY_CLASS, "control.RaptorHandler");
+	log_set(&EXPECTED2, slab_get(pslab), "sessionId",
+	  "1_MX4xMDB-fjE1MDQ4MjEyNzAxMjR-WThtTVpEN0J2c1Z2TlJGcndTN1lpTExGfn4");
+	log_set(&EXPECTED2, slab_get(pslab), "flow", "Publish");
+	log_set(&EXPECTED2, slab_get(pslab), "connectionId",
+	  "f41973e5-b27c-49e4-bcaf-1d48b153683e");
+	log_set(&EXPECTED2, slab_get(pslab), "step", "Attempt");
+	log_set(&EXPECTED2, slab_get(pslab), "publisherId",
+	  "b4da82c4-cac5-4e13-b1dc-bb1f42b475dd");
+	log_set(&EXPECTED2, slab_get(pslab), "fromAddress",
+	  "f41973e5-b27c-49e4-bcaf-1d48b153683e");
+	log_set(&EXPECTED2, slab_get(pslab), "projectId", "100");
+	log_set(&EXPECTED2, slab_get(pslab), "operation", "CreatePublisher");
+	log_set(&EXPECTED2, slab_get(pslab), "traceId",
+	  "Publish:Rumor:112ae1a5-3416-4458-b0c1-6eb3e0ab4c80");
+	log_set(&EXPECTED2, slab_get(pslab), "streamId",
+	  "b4da82c4-cac5-4e13-b1dc-bb1f42b475dd");
+	log_set(&EXPECTED2, slab_get(pslab), "remoteIpAddress", "127.0.0.1");
+	log_set(&EXPECTED2, slab_get(pslab), "correlationId",
+	  "b90232b5-3ee5-4c65-bb4e-29286d6a2771");
+
+	log_set(&EXPECTED3, slab_get(pslab), KEY_DATE, "2017-04-19");
+	log_set(&EXPECTED3, slab_get(pslab), KEY_TIME, "18:01:11,437");
+	log_set(&EXPECTED3, slab_get(pslab), KEY_LEVEL, "INFO");
+	log_set(&EXPECTED3, slab_get(pslab), KEY_THREAD, "Test worker");
+	log_set(
+	  &EXPECTED3, slab_get(pslab), KEY_CLASS, "core.InstrumentationListener");
+	log_set(&EXPECTED3, slab_get(pslab), KEY_MESSAGE,
+	  "i do not want to log anything special here");
+
+	log_set(&EXPECTED4, slab_get(pslab), KEY_DATE, "2017-04-19");
+	log_set(&EXPECTED4, slab_get(pslab), KEY_TIME, "18:01:11,437");
+	log_set(&EXPECTED4, slab_get(pslab), KEY_LEVEL, "INFO");
+	log_set(&EXPECTED4, slab_get(pslab), KEY_THREAD, "Test worker");
+	log_set(
+	  &EXPECTED4, slab_get(pslab), KEY_CLASS, "core.InstrumentationListener");
+	log_set(&EXPECTED4, slab_get(pslab), KEY_MESSAGE, "one");
+	log_set(&EXPECTED4, slab_get(pslab), KEY_CALLTYPE, "only");
+
+	log_set(&EXPECTED5, slab_get(pslab), KEY_DATE, "2017-11-16");
+	log_set(&EXPECTED5, slab_get(pslab), KEY_TIME, "19:07:56,883");
+	log_set(&EXPECTED5, slab_get(pslab), KEY_LEVEL, "WARN");
+	log_set(&EXPECTED5, slab_get(pslab), KEY_THREAD, "-");
+	log_set(&EXPECTED5, slab_get(pslab), KEY_CLASS, "-");
+	log_set(&EXPECTED5, slab_get(pslab), "flow", "UpdateClientActivity");
+	log_set(&EXPECTED5, slab_get(pslab), "operation", "HandleActiveEvent");
+	log_set(&EXPECTED5, slab_get(pslab), "step", "Failure");
+	log_set(&EXPECTED5, slab_get(pslab), "luaRocks", "true");
+
+	log_set(&EXPECTED6, slab_get(pslab), KEY_DATE, "2017-12-05");
+	log_set(&EXPECTED6, slab_get(pslab), KEY_TIME, "15:09:09.858");
+	log_set(&EXPECTED6, slab_get(pslab), KEY_LEVEL, "WARN");
+	log_set(&EXPECTED6, slab_get(pslab), KEY_THREAD, "main");
+	log_set(&EXPECTED6, slab_get(pslab), KEY_CLASS, "-");
+	log_set(&EXPECTED6, slab_get(pslab), "flow", "");
+	log_set(&EXPECTED6, slab_get(pslab), "operation", "closePage");
+	log_set(&EXPECTED6, slab_get(pslab), "step", "Failure");
+	log_set(&EXPECTED6, slab_get(pslab), "logLevel", "WARN");
+	log_set(&EXPECTED6, slab_get(pslab), "url",
+	  "https://10.1.6.113:6060/"
+	  "index.html?id=5NZM0okZ&wsUri=wss%3A%2F%2F10.1.6.113%3A6060%2Fws%3Fid%"
+	  "3D5NZM0okZ");
+	log_set(&EXPECTED6, slab_get(pslab), "err",
+	  "Error  Protocol error (Target.closeTarget)  Target closed.     at "
+	  "Connection._onClose "
+	  "(/home/ernestrc/src/tbsip/node_modules/puppeteer/lib/Connection.js 124 "
+	  "23)     at emitTwo (events.js 125 13)     at WebSocket.emit (events.js "
+	  "213 7)     at WebSocket.emitClose "
+	  "(/home/ernestrc/src/tbsip/node_modules/ws/lib/WebSocket.js 213 10)     "
+	  "at _receiver.cleanup "
+	  "(/home/ernestrc/src/tbsip/node_modules/ws/lib/WebSocket.js 195 41)     "
+	  "at Receiver.cleanup "
+	  "(/home/ernestrc/src/tbsip/node_modules/ws/lib/Receiver.js 520 15)     "
+	  "at WebSocket.finalize "
+	  "(/home/ernestrc/src/tbsip/node_modules/ws/lib/WebSocket.js 195 22)     "
+	  "at emitNone (events.js 110 20)     at Socket.emit (events.js 207 7)     "
+	  "at endReadableNT (_stream_readable.js 1047 12)");
+	log_set(&EXPECTED6, slab_get(pslab), "class", "Endpoint");
+	log_set(&EXPECTED6, slab_get(pslab), "id", "5NZM0okZ");
+	log_set(&EXPECTED6, slab_get(pslab), "timestamp", "1512515349858");
+	log_set(&EXPECTED6, slab_get(pslab), "duration", "2.017655998468399");
+}
+
 static void __test_print_help(const char* prog)
 {
 	printf("usage: %s [-v] [-h] [-t]\n", prog);
@@ -70,6 +259,7 @@ static void __test_release(test_ctx_t* ctx)
 {
 	free(ctx->test_expr);
 	rcmalloc_deinit();
+	slab_free(pslab);
 	printf("\tSUITE \tSUCCESS: %d, FAILED: %d\n\n", ctx->success, ctx->failure);
 }
 
@@ -84,6 +274,12 @@ static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
 	if (rcmalloc_init(1000)) {
 		perror("rcmalloc_init()");
 	}
+
+	pslab = slab_create(1000, sizeof(prop_t));
+	if (!pslab)
+		perror("slab_create()");
+
+	init_test_data();
 
 	while (1) {
 		static struct option long_options[] = {
@@ -143,49 +339,36 @@ static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
 		}                                                                      \
 	}
 
-// takes null started and terminated char and creates a length-prefixed str_t
-str_t new_str(const char* key)
-{
-	if (key == NULL) {
-		errno = EINVAL;
-		perror("new_str_t()");
-	}
-
-	size_t klen = strlen(key);
-	char* ret = rcmalloc(klen + 1);
-
-	memcpy(&ret[1], key, klen);
-	ret[0] = (char)klen;
-
-	return (str_t)ret;
-}
-
-#define MAKE_STR(str) (new_str(str))
-
+// compares la with lb. Return will be 0 if all properties are the same and in
+// the same order.
 int log_cmp(log_t* la, log_t* lb)
 {
+	static const int bufsize = 10000;
+	char loga[bufsize];
+	char logb[bufsize];
+
 	DEBUG_ASSERT(la != NULL);
 	DEBUG_ASSERT(lb != NULL);
 
-	prop_t* nexta;
-	prop_t* nextb;
+	size_t wanta = snprintl(loga, bufsize, la);
+	size_t wantb = snprintl(logb, bufsize, lb);
 
-	for (nexta = la->props, nextb = lb->props; nextb != NULL && nexta != NULL;
-		 nexta = nexta->next, nextb = nextb->next) {
-		size_t aklen = LOG_GET_STRLEN(nexta->key);
-		size_t bklen = LOG_GET_STRLEN(nextb->key);
-		size_t avlen = LOG_GET_STRLEN(nexta->value);
-		size_t bvlen = LOG_GET_STRLEN(nextb->value);
-		if (aklen != bklen || avlen != bvlen ||
-		  memcmp(LOG_GET_STRVALUE(nexta->key), LOG_GET_STRVALUE(nextb->key),
-			aklen) != 0 ||
-		  memcmp(LOG_GET_STRVALUE(nextb->value), LOG_GET_STRVALUE(nextb->value),
-			avlen) != 0) {
-			return 1;
-		}
-	}
+	// otherwise test will always fail
+	ASSERT_EQ(wanta < sizeof(loga), true);
+	ASSERT_EQ(wantb < sizeof(logb), true);
 
-	return 0;
+	return strcmp(loga, logb);
 }
+
+#define ASSERT_LOG_EQ(la, lb)                                                  \
+	if (log_cmp(la, lb) != 0) {                                                \
+		printf(">>>>> '");                                                     \
+		printl(la);                                                            \
+		printf("'\n VS:\n");                                                  \
+		printf(">>>>> '");                                                     \
+		printl(lb);                                                            \
+		printf("'\n: %d\n", log_cmp(la, lb));                                    \
+		return 1;                                                              \
+	}
 
 #endif // TEST_TEST_H_

@@ -7,14 +7,14 @@
 	"Publish:Rumor:012ae1a5-3416-4458-b0c1-6eb3e0ab4c80, operation: "          \
 	"CreatePublisher, step: Attempt, flow: Publish, "
 
-static int check_snprintl_trunc(char* buf, size_t size)
+static int check_snprintl_trunc(log_t* log, char* buf, size_t size, char* printedlog, size_t sizeofprintedlog)
 {
 	int want;
 
 	memset(buf, 0, 1000);
-	want = snprintl(buf, size, &EXPECTED1);
-	ASSERT_EQ(want + 2, sizeof(LOG1) + 2);
-	ASSERT_MEM_EQ(PRINTEDLOG1, buf, size - 1);
+	want = snprintl(buf, size, log);
+	ASSERT_EQ(want + 1, sizeofprintedlog);
+	ASSERT_MEM_EQ(printedlog, buf, size - 1);
 
 	// test that we didn't write to invalid memory
 	ASSERT_EQ(0, buf[size + 1]);
@@ -30,16 +30,14 @@ int test_snprintl()
 	int want;
 
 	want = snprintl(buf1, size, &EXPECTED1);
-	// +2: new line and null terminator
-	// +2: last comma and space
-	ASSERT_EQ(want + 2, sizeof(LOG1) + 2);
+	ASSERT_EQ(want + 1, sizeof(PRINTEDLOG1));
 	ASSERT_MEM_EQ(buf1, PRINTEDLOG1, want);
 
-	check_snprintl_trunc(buf1, 212);
-	check_snprintl_trunc(buf1, 211);
-	check_snprintl_trunc(buf1, 150);
-	check_snprintl_trunc(buf1, 10);
-	check_snprintl_trunc(buf1, 1);
+	check_snprintl_trunc(&EXPECTED1, buf1, 212, PRINTEDLOG1, sizeof(PRINTEDLOG1));
+	check_snprintl_trunc(&EXPECTED1, buf1, 211, PRINTEDLOG1, sizeof(PRINTEDLOG1));
+	check_snprintl_trunc(&EXPECTED1, buf1, 150, PRINTEDLOG1, sizeof(PRINTEDLOG1));
+	check_snprintl_trunc(&EXPECTED1, buf1, 10, PRINTEDLOG1, sizeof(PRINTEDLOG1));
+	check_snprintl_trunc(&EXPECTED1, buf1, 1, PRINTEDLOG1, sizeof(PRINTEDLOG1));
 
 	return 0;
 }

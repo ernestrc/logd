@@ -12,18 +12,15 @@ int test_log_create()
 	return 0;
 }
 
-static int init_test_log(log_t* log, str_t* key, str_t* value)
+static int init_test_log(log_t* log)
 {
 	log_init(log);
 
-	*key = MAKE_STR("A");
-	*value = MAKE_STR("a");
-
-	ASSERT_EQ(log_get(log, "A", 1), NULL);
+	ASSERT_EQ(log_get(log, "A"), NULL);
 
 	log->props = malloc(sizeof(prop_t));
-	log->props->key = *key;
-	log->props->value = *value;
+	log->props->key = "A";
+	log->props->value = "a";
 	log->props->next = NULL;
 
 	return 0;
@@ -32,17 +29,14 @@ static int init_test_log(log_t* log, str_t* key, str_t* value)
 int test_log_get()
 {
 	log_t log;
-	str_t key;
-	str_t value;
 
-	ASSERT_EQ(init_test_log(&log, &key, &value), 0);
+	ASSERT_EQ(init_test_log(&log), 0);
 
-	str_t expected = log_get(&log, "A", 1);
+	const char* expected = log_get(&log, "A");
 	ASSERT_NEQ(expected, NULL);
-	ASSERT_MEM_EQ(LOG_GET_STRVALUE(expected), LOG_GET_STRVALUE(value),
-	  LOG_GET_STRLEN(value));
+	ASSERT_MEM_EQ(expected, "a", 2);
 
-	expected = log_get(&log, "B", 1);
+	expected = log_get(&log, "B");
 	ASSERT_EQ(expected, NULL);
 
 	free(log.props);
@@ -53,28 +47,24 @@ int test_log_set()
 {
 	log_t log;
 
-	str_t key = MAKE_STR("A");
-	str_t value = MAKE_STR("a");
 	prop_t* prop = malloc(sizeof(prop_t));
 
-	log_set(&log, prop, key, value);
+	log_set(&log, prop, "A", "a");
 
 	ASSERT_NEQ(log.props, NULL);
-	ASSERT_EQ(log.props->key, key);
-	ASSERT_EQ(log.props->value, value);
+	ASSERT_MEM_EQ(log.props->key, "A", 2);
+	ASSERT_MEM_EQ(log.props->value, "a", 2);
 
-	str_t key2 = MAKE_STR("B");
-	str_t value2 = MAKE_STR("b");
 	prop_t* prop2 = malloc(sizeof(prop_t));
-	log_set(&log, prop2, key2, value2);
+	log_set(&log, prop2, "B", "b");
 
 	ASSERT_EQ(log.props, prop2);
-	ASSERT_EQ(log.props->key, key2);
-	ASSERT_EQ(log.props->value, value2);
+	ASSERT_MEM_EQ(log.props->key, "B", 2);
+	ASSERT_MEM_EQ(log.props->value, "b", 2);
 
 	ASSERT_EQ(log.props->next, prop);
-	ASSERT_EQ(log.props->next->key, key);
-	ASSERT_EQ(log.props->next->value, value);
+	ASSERT_MEM_EQ(log.props->next->key, "A", 2);
+	ASSERT_MEM_EQ(log.props->next->value, "a", 2);
 
 	free(prop);
 	free(prop2);
@@ -84,46 +74,44 @@ int test_log_set()
 int test_log_remove()
 {
 	log_t log;
-	str_t key;
-	str_t value;
 	prop_t* removed;
 	prop_t* temp;
 
-	ASSERT_EQ(init_test_log(&log, &key, &value), 0);
+	ASSERT_EQ(init_test_log(&log), 0);
 
 	temp = log.props;
 	log.props = malloc(sizeof(prop_t));
-	log.props->key = MAKE_STR("D");
-	log.props->value = MAKE_STR("d");
+	log.props->key = "D";
+	log.props->value = "d";
 	log.props->next = temp;
 
 	temp = log.props;
 	log.props = malloc(sizeof(prop_t));
-	log.props->key = MAKE_STR("C");
-	log.props->value = MAKE_STR("c");
+	log.props->key = "C";
+	log.props->value = "c";
 	log.props->next = temp;
 
-	ASSERT_EQ(log_remove(&log, "B", 1), NULL);
+	ASSERT_EQ(log_remove(&log, "B"), NULL);
 
-	removed = log_remove(&log, "D", 1);
+	removed = log_remove(&log, "D");
 	ASSERT_NEQ(removed, NULL);
-	ASSERT_MEM_EQ(LOG_GET_STRVALUE(removed->value), "d", 1);
+	ASSERT_MEM_EQ(removed->value, "d", 2);
 	ASSERT_NEQ(log.props, NULL);
 	free(removed);
 
-	removed = log_remove(&log, "A", 1);
+	removed = log_remove(&log, "A");
 	ASSERT_NEQ(removed, NULL);
-	ASSERT_MEM_EQ(LOG_GET_STRVALUE(removed->value), "a", 1);
+	ASSERT_MEM_EQ(removed->value, "a", 2);
 	ASSERT_NEQ(log.props, NULL);
 	free(removed);
 
-	removed = log_remove(&log, "C", 1);
+	removed = log_remove(&log, "C");
 	ASSERT_NEQ(removed, NULL);
-	ASSERT_MEM_EQ(LOG_GET_STRVALUE(removed->value), "c", 1);
+	ASSERT_MEM_EQ(removed->value, "c", 2);
 	ASSERT_EQ(log.props, NULL);
 	free(removed);
 
-	removed = log_remove(&log, "A", 1);
+	removed = log_remove(&log, "A");
 	ASSERT_EQ(removed, NULL);
 
 	return 0;
