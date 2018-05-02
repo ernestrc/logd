@@ -3,11 +3,11 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include "lua.h"
 #include "parser.h"
 #include "slab/buf.h"
 #include "util.h"
 
-#define STDIN 0
 #define BUF_CAP 100000
 
 // option defaults
@@ -22,6 +22,7 @@ struct args_s {
 
 parser_t* p;
 buf_t* b;
+lua_t* l;
 
 int read_all(int fd)
 {
@@ -34,7 +35,7 @@ int read_all(int fd)
 		case 0:
 			return 0;
 		case -1:
-			perror("read()");
+			perror("read");
 			return 1;
 		default:
 			buf_extend(b, n);
@@ -45,14 +46,19 @@ int read_all(int fd)
 				if (!res.complete) {
 					break;
 				}
-				// TODO hand it off to lua vm
+#ifndef LOGD_DEBUG
+				lua_call_on_log(l, &p->result);
+#else
+				if (lua_pcall_on_log(l, &p->result) != 0)
+					return 1;
+#endif
 			}
 			break;
 		}
 	}
 }
 
-int args_init(int argc, char* argv[])
+int args_init(int argc, char* argv[], char** script)
 {
 	/* set defaults for arguments */
 	args.debug = OPT_DEFAULT_DEBUG;
@@ -74,11 +80,17 @@ int args_init(int argc, char* argv[])
 			args.debug = true;
 			break;
 		case 'f':
-			fd = open(optarg, 0);
+			if ((fd = open(optarg, O_RDONLY)) == -1) {
+				perror("open");
+				return 1;
+			}
 			args.infd = fd;
 			break;
 		case 'o':
-			fd = open(optarg, 0);
+			if ((fd = open(optarg, O_WRONLY | O_CREAT | O_APPEND)) == -1) {
+				perror("open");
+				return 1;
+			}
 			args.outfd = fd;
 			break;
 		case 'h':
@@ -88,6 +100,9 @@ int args_init(int argc, char* argv[])
 			abort();
 		}
 	}
+
+	*script = argv[optind];
+	// TODO check that optind is valid
 
 	return 0;
 }
@@ -106,20 +121,29 @@ void print_usage(const char* exe)
 
 int main(int argc, char* argv[])
 {
-	int ret;
+	char* script;
+	int ret = 0;
 
-	if ((ret = args_init(argc, argv)) == -1 || args.help) {
+	if ((ret = args_init(argc, argv, &script)) != 0 || script == NULL || args.help) {
 		print_usage(argv[0]);
 		goto exit;
 	}
 
 	if ((p = parser_create()) == NULL) {
-		perror("parser_create()");
+		perror("parser_create");
+		ret = 1;
 		goto exit;
 	}
 
 	if ((b = buf_create(BUF_CAP)) == NULL) {
-		perror("buf_create()");
+		perror("buf_create");
+		ret = 1;
+		goto exit;
+	}
+
+	if ((l = lua_create(script)) == NULL) {
+		perror("lua_create");
+		ret = 1;
 		goto exit;
 	}
 
@@ -128,5 +152,6 @@ int main(int argc, char* argv[])
 exit:
 	parser_free(p);
 	buf_free(b);
+	lua_free(l);
 	return ret;
 }

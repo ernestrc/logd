@@ -30,16 +30,14 @@ analysis: clean
 full-analysis: purge
 	@ scan-build $(MAKE) -s
 
-src: export CFLAGS = -O2 -std=c11 -DLOGD_INLINE
 src: prepare deps
 	@ cd src && $(MAKE) $@
 
-debug: export CFLAGS = -ggdb -Wall -std=c11
+debug: export CFLAGS = -ggdb -Wall -std=c11 -D_GNU_SOURCE -DLOGD_DEBUG 
 debug: prepare deps
 	@ cd src && $(MAKE) src
 
-
-test: export CFLAGS = -Wall -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11 -ggdb -DLOGD_DEBUG
+test: export CFLAGS = -Wall -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11 -ggdb -DLOGD_DEBUG -D_GNU_SOURCE
 test: clean src
 	@ cd $(TEST) && $(MAKE) test
 

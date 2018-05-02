@@ -1,5 +1,6 @@
 CC ?= clang
-CFLAGS ?= -O2 -Wall -std=c11
+CFLAGS ?= -O2 -std=c11 -DLOGD_INLINE -D_GNU_SOURCE
+LDFLAGS ?= -lm -ldl
 
 INCLUDE_PATH=../include
 INCLUDE=$(INCLUDE_PATH)/logd
@@ -34,7 +35,7 @@ $(LIB): $(OBJS) $(HDRS)
 
 $(TARGET)%: %.c $(LIB)
 	@ echo COMPILING $@
-	$(CC) $(CFLAGS) -I$(INCLUDE_PATH) $< -o $@ $(LIB)
+	$(CC) $(LDFLAGS) $(CFLAGS) -I$(INCLUDE_PATH) $< -o $@ $(LIB)
 
 clean:
 	@- rm -f $(EXEC)

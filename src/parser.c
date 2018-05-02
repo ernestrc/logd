@@ -20,7 +20,7 @@
 #define APPEND_NEW_PROP(p, prop, key)                                          \
 	prop = slab_get(p->pslab);                                                 \
 	if (prop == NULL) {                                                        \
-		parser_parse_error(p, "slab_get()");                                   \
+		parser_parse_error(p, "slab_get");                                     \
 		return;                                                                \
 	}                                                                          \
 	log_set(&p->result, prop, key, NULL);
@@ -46,7 +46,7 @@ parser_t* parser_create()
 	parser_t* p;
 
 	if ((p = calloc(1, sizeof(parser_t))) == NULL) {
-		errno = ENOMEM;
+		perror("calloc");
 		return NULL;
 	}
 
@@ -91,6 +91,7 @@ INLINE static void parser_result_reset(parser_t* p)
 INLINE void parser_parse_error(parser_t* p, const char* msg)
 {
 	p->state = ERROR_PSTATE;
+	// TODO msg
 }
 
 INLINE void parser_parse_next_key(parser_t* p, char r)
@@ -99,7 +100,7 @@ INLINE void parser_parse_next_key(parser_t* p, char r)
 
 	switch (r) {
 	case ',':
-		parser_parse_error(p, "unexpected double ',' character");
+		parser_parse_error(p, "unexpected ',' character");
 		break;
 	case ' ':
 		// trim left spaces
@@ -122,7 +123,7 @@ INLINE void parser_parse_next_multikey(parser_t* p, char r)
 {
 	switch (r) {
 	case ',':
-		parser_parse_error(p, "unexpected double ',' character");
+		parser_parse_error(p, "unexpected ',' character");
 		break;
 	case ' ':
 	case '\t':
@@ -309,7 +310,6 @@ presult_t parser_parse(parser_t* p, char* chunk, size_t clen)
 
 	DEBUG_ASSERT(p != NULL);
 	DEBUG_ASSERT(chunk != NULL);
-	DEBUG_ASSERT(clen != 0);
 
 	p->bstart = chunk;
 	p->blen = 0;
