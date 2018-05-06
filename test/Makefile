@@ -13,6 +13,8 @@ ifndef FUZZER_TOTAL_TIME
 FUZZER_TOTAL_TIME=60
 endif
 
+LDFLAGS ?= -lm -ldl
+
 TESTPROFDATA=$(TARGET)/tests.profdata
 FUZZPROFDATA=$(TARGET)/fuzz.profdata
 
@@ -22,7 +24,8 @@ test: $(TARGET_TESTS)
 	@ for f in $^; do LLVM_PROFILE_FILE="$$f.profraw" ./$$f; done
 
 $(TARGET)/test_%: test_%.c $(LIB)
-	$(CC) $(CFLAGS) -I./ $(addprefix ../src/,$(patsubst test_%.c, %.c, $<)) $< -o $@ $(LIB)
+	@ echo "  CC	$@"
+	@ $(CC) $(LDFLAGS) $(CFLAGS) -I./ $(addprefix ../src/,$(patsubst test_%.c, %.c, $<)) $< -o $@ $(LIB)
 
 $(TESTPROFDATA): $(TARGET_TESTS)
 	llvm-profdata merge -sparse $(TARGET_TPROFILES) -o $(TESTPROFDATA)
@@ -39,7 +42,8 @@ fuzz: $(TARGET_FUZZERS)
 
 # clang version >= April 2017 required (tested with 6.0.0 trunk 310227)
 $(TARGET)/fuzz_%: fuzz_%.c $(LIB)
-	$(CC) $(CFLAGS) -fsanitize=fuzzer $(addprefix ../src/,$(patsubst fuzz_%.c, %.c, $<)) $< -o $@ $(LIB)
+	@ echo "  CC	$@"
+	@ $(CC) $(LDFLAGS) $(CFLAGS) -fsanitize=fuzzer $(addprefix ../src/,$(patsubst fuzz_%.c, %.c, $<)) $< -o $@ $(LIB)
 
 $(FUZZPROFDATA): $(TARGET_FUZZERS)
 	llvm-profdata merge -sparse $(TARGET_FPROFILES) -o $(FUZZPROFDATA)

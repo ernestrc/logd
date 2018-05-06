@@ -4,3 +4,5 @@ musl
 slab
 lua
 *.tar.gz
+libuv
+luv

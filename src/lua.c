@@ -10,6 +10,7 @@
 #include "lua/lauxlib.h"
 #include "lua/lua.h"
 #include "lua/lualib.h"
+#include "luv/luv.h"
 
 #define LUA_NAME_ON_MESSAGE "on_log"
 #define LUA_NAME_LOGD_MODULE "logd"
@@ -24,7 +25,13 @@ static void lua_load_logd_lib(lua_t* l)
 	luaL_register(l->state, LUA_NAME_LOGD_MODULE, logd_functions);
 }
 
-static void lua_load_libs(lua_t* l) { lua_load_logd_lib(l); }
+static int lua_load_libs(lua_t* l) { 
+	lua_load_logd_lib(l); 
+	if (luaopen_luv(l->state) < 0)
+		return 1;
+
+	return 0;
+}
 
 static char* get_abs_path(char* path)
 {
@@ -141,7 +148,10 @@ int lua_init(lua_t* l, const char* script)
 	l->state = luaL_newstate();
 
 	luaL_openlibs(l->state);
-	lua_load_libs(l);
+	if (lua_load_libs(l) != 0) {
+		perror("lua_load_libs");
+		goto error;
+	}
 
 	if (lua_set_package_path(l, script) == -1) {
 		goto error;

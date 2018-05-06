@@ -260,7 +260,6 @@ static void __test_release(test_ctx_t* ctx)
 	free(ctx->test_expr);
 	rcmalloc_deinit();
 	slab_free(pslab);
-	printf("\tSUITE \tSUCCESS: %d, FAILED: %d\n\n", ctx->success, ctx->failure);
 }
 
 static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
@@ -330,11 +329,11 @@ static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
 		int result = test();                                                   \
 		if (result == EXIT_FAILURE) {                                          \
 			if (!ctx.silent)                                                   \
-				printf("\tTEST \t[" #test "] FAILURE\n");                      \
+				printf("  TEST\t" #test "\tFAILURE\n");                      \
 			ctx.failure++;                                                     \
 		} else {                                                               \
 			if (!ctx.silent)                                                   \
-				printf("\tTEST \t[" #test "] SUCCESS\n");                      \
+				printf("  TEST\t" #test "\n");                      \
 			ctx.success++;                                                     \
 		}                                                                      \
 	}

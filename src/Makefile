@@ -1,5 +1,5 @@
 CC ?= clang
-CFLAGS ?= -O2 -std=c11 -DLOGD_INLINE -D_GNU_SOURCE
+CFLAGS ?= -O2 -std=c11 -DLOGD_INLINE -D_GNU_SOURCE -pthread
 LDFLAGS ?= -lm -ldl
 
 INCLUDE_PATH=../include
@@ -24,18 +24,20 @@ prepare:
 	@ mkdir -p $(INCLUDE)
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $<
+	@ echo "  CC	$@"
+	@ $(CC) $(CFLAGS) -c $<
 
 $(INCLUDE)/%.h: %.h
 	@ cd ../include/logd && \
 		ln -s $(subst $(INCLUDE)/,../../src/,$@) $(subst $(INCLUDE)/,,$@)
 
 $(LIB): $(OBJS) $(HDRS)
-	@ ar rs $(LIB) $(OBJS) $(EXTOBJ)
+	@ echo "  AR	$@"
+	@ ar rs $(LIB) $(OBJS) $(EXTOBJ) 2> /dev/null
 
 $(TARGET)%: %.c $(LIB)
-	@ echo COMPILING $@
-	$(CC) $(LDFLAGS) $(CFLAGS) -I$(INCLUDE_PATH) $< -o $@ $(LIB)
+	@ echo "  CC	$@"
+	@ $(CC) $(LDFLAGS) $(CFLAGS) -I$(INCLUDE_PATH) $< -o $@ $(LIB)
 
 clean:
 	@- rm -f $(EXEC)

@@ -1,0 +1,21 @@
+CC ?= clang
+CFLAGS ?= -O2
+
+INCLUDE_LIBUV=../../../src/libuv
+INCLUDE_LUAJIT=../../../src/lua
+SRCS = $(wildcard *.c)
+OBJS = $(patsubst %.c,luv_%.o,$(SRCS))
+
+.PHONY: clean
+
+src: patch $(OBJS)
+
+patch:
+	@ sed -i 's/luaL_newlib(L, luv_functions);/luaL_register(L,"uv",luv_functions);/g' luv.c
+
+luv_%.o: %.c
+	@ echo "  CC	$@"
+	@ $(CC) $(CFLAGS) -I$(INCLUDE_LIBUV) -I$(INCLUDE_LUAJIT) -c $< -o $(patsubst %.c,luv_%.o,$<)
+
+clean:
+	@- rm -f $(OBJS)
