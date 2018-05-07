@@ -15,55 +15,45 @@
 
 struct args_s {
 	bool debug;
-	int infd;
-	int outfd;
+	const char* input_file;
+	const char* output_file;
 	int help;
 } args;
 
 parser_t* p;
-buf_t* b;
 lua_t* l;
+buf_t* b;
 
-int read_all(int fd)
-{
-	ssize_t n = 0;
-	presult_t res = {0};
+uv_file infd;
+uv_file outfd;
+uv_fs_t uv_read_in_req;
+// uv_fs_t uv_read_out_req;
+uv_fs_t uv_open_in_req;
+// uv_fs_t uv_open_out_req;
+uv_buf_t iov;
 
-	for (;;) {
-		n = read(fd, b->next_write, buf_writable(b));
-		switch (n) {
-		case 0:
-			return 0;
-		case -1:
-			perror("read");
-			return 1;
-		default:
-			buf_extend(b, n);
-			res = (presult_t){false, 0};
-			for (;;) {
-				res = parser_parse(p, b->next_read, buf_readable(b));
-				buf_consume(b, res.consumed);
-				if (!res.complete) {
-					break;
-				}
-#ifndef LOGD_DEBUG
-				lua_call_on_log(l, &p->result);
-#else
-				if (lua_pcall_on_log(l, &p->result) != 0)
-					return 1;
-#endif
-			}
-			break;
-		}
-	}
-}
-
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
+// TODO do it well now!
 int args_init(int argc, char* argv[], char** script)
 {
 	/* set defaults for arguments */
 	args.debug = OPT_DEFAULT_DEBUG;
-	args.infd = 0;
-	args.outfd = 2;
+	args.input_file = "/dev/stdin";
+	// args.output_file = "/dev/stderr";
 	args.help = 0;
 
 	static struct option long_options[] = {{"debug", no_argument, 0, 'd'},
@@ -80,18 +70,10 @@ int args_init(int argc, char* argv[], char** script)
 			args.debug = true;
 			break;
 		case 'f':
-			if ((fd = open(optarg, O_RDONLY)) == -1) {
-				perror("open");
-				return 1;
-			}
-			args.infd = fd;
+			args.input_file = optarg;
 			break;
 		case 'o':
-			if ((fd = open(optarg, O_WRONLY | O_CREAT | O_APPEND)) == -1) {
-				perror("open");
-				return 1;
-			}
-			args.outfd = fd;
+			args.output_file = optarg;
 			break;
 		case 'h':
 			args.help = 1;
@@ -102,7 +84,77 @@ int args_init(int argc, char* argv[], char** script)
 	}
 
 	*script = argv[optind];
-	// TODO check that optind is valid
+
+	return 0;
+}
+
+void files_close(uv_loop_t* loop, uv_file infd, uv_file outfd)
+{
+	uv_fs_t req_in_close;
+	// uv_fs_t req_out_close;
+
+	uv_fs_close(loop, &req_in_close, infd, NULL);
+	// uv_fs_close(loop, &req_out_close, outfd, NULL);
+
+	uv_fs_req_cleanup(&uv_open_in_req);
+	uv_fs_req_cleanup(&uv_read_in_req);
+	// uv_fs_req_cleanup(&uv_open_out_req);
+	// uv_fs_req_cleanup(&uv_read_out_req);
+}
+
+void on_read(uv_fs_t* req)
+{
+	presult_t res;
+
+	if (req->result < 0) {
+		fprintf(stderr, "Read error: %s\n", uv_strerror(req->result));
+	} else if (req->result == 0) {
+		/* done */
+	} else if (req->result > 0) {
+		buf_extend(b, req->result);
+		res = (presult_t){false, 0};
+		for (;;) {
+			res = parser_parse(p, b->next_read, buf_readable(b));
+			buf_consume(b, res.consumed);
+			if (!res.complete) {
+				break;
+			}
+#ifndef LOGD_DEBUG
+			lua_call_on_log(l, &p->result);
+#else
+			if (lua_pcall_on_log(l, &p->result) != 0)
+				return 1;
+#endif
+		}
+		iov.base = b->next_write;
+		iov.len = buf_writable(b);
+		uv_fs_read(l->loop, &uv_read_in_req, infd, &iov, 1, -1, on_read);
+	}
+}
+
+int files_init(uv_loop_t* loop, const char* input_file, const char* output_file)
+{
+	int ret;
+
+	if ((ret = uv_fs_open(
+		   loop, &uv_open_in_req, input_file, O_RDONLY, 0, NULL)) < 0) {
+		errno = -ret;
+		perror("uv_fs_open");
+		return 1;
+	}
+
+	// if ((ret = uv_fs_open(
+	// 	   loop, &out_uv, output_file, O_CREAT | O_WRONLY, 0, NULL)) < 0) {
+	// 	errno = -ret;
+	// 	perror("uv_fs_open");
+	// 	return 1;
+	// }
+
+	infd = uv_open_in_req.result;
+	iov.base = b->next_write;
+	iov.len = buf_writable(b);
+	uv_fs_read(l->loop, &uv_read_in_req, infd, &iov, 1, -1, on_read);
+	// *outfd = out_uv.result;
 
 	return 0;
 }
@@ -124,7 +176,8 @@ int main(int argc, char* argv[])
 	char* script;
 	int ret = 0;
 
-	if ((ret = args_init(argc, argv, &script)) != 0 || script == NULL || args.help) {
+	if ((ret = args_init(argc, argv, &script)) != 0 || script == NULL ||
+	  args.help) {
 		print_usage(argv[0]);
 		goto exit;
 	}
@@ -147,11 +200,18 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	ret = read_all(args.infd);
+	if ((ret = files_init(l->loop, args.input_file, args.output_file)) != 0) {
+		perror("files_init");
+		goto exit;
+	}
+
+	ret = uv_run(l->loop, UV_RUN_DEFAULT);
 
 exit:
-	parser_free(p);
+	files_close(l->loop, infd, outfd);
+	uv_stop(l->loop);
 	buf_free(b);
+	parser_free(p);
 	lua_free(l);
 	return ret;
 }

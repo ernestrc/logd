@@ -3,9 +3,11 @@
 
 #include "log.h"
 #include "lua/lua.h"
+#include "libuv/uv.h"
 
 typedef struct lua_s {
 	lua_State* state;
+	uv_loop_t* loop;
 } lua_t;
 
 lua_t* lua_create(const char* script);

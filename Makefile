@@ -1,6 +1,7 @@
 default: src
 
 .PHONY: test analysis full-analysis fuzz format tags coverage full-coverage fuzz-coverage fuzz-full-coverage debug purge
+.SILENT:
 
 export CC = clang
 

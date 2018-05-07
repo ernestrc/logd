@@ -5,8 +5,22 @@
 --
 local logd = require("logd")
 local os = require("os")
+local uv = require("uv")
 local tick = 100
 local counter = 0
+
+-- local function set_interval(callback, interval)
+--   local timer = uv.new_timer()
+--   local function ontimeout()
+--     callback(timer)
+--   end
+--   uv.timer_start(timer, interval, interval, ontimeout)
+--   return timer
+-- end
+-- 
+-- set_interval(function ()
+-- 	print('tick')
+-- end, 1000)
 
 -- TODO function logd.on_tick ()
 -- TODO 	tick = tick * 2
@@ -18,6 +32,7 @@ local counter = 0
 function logd.on_log(logptr)
 	-- TODO logd.debug(string.format("processed log: %s", logd.log_string(logptr)))
 	counter = counter + 1
+	-- print(counter)
 end
 
 -- TODO function logd.on_signal(signal)

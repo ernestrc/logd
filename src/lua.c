@@ -12,11 +12,11 @@
 #include "lua/lualib.h"
 #include "luv/luv.h"
 
-#define LUA_NAME_ON_MESSAGE "on_log"
+#define LUA_NAME_ON_LOG "on_log"
 #define LUA_NAME_LOGD_MODULE "logd"
 
 static const struct luaL_Reg logd_functions[] = {
-  {LUA_NAME_ON_MESSAGE, NULL}, {NULL, NULL}};
+  {LUA_NAME_ON_LOG, NULL}, {NULL, NULL}};
 
 static void lua_load_logd_lib(lua_t* l)
 {
@@ -25,8 +25,9 @@ static void lua_load_logd_lib(lua_t* l)
 	luaL_register(l->state, LUA_NAME_LOGD_MODULE, logd_functions);
 }
 
-static int lua_load_libs(lua_t* l) { 
-	lua_load_logd_lib(l); 
+static int lua_load_libs(lua_t* l)
+{
+	lua_load_logd_lib(l);
 	if (luaopen_luv(l->state) < 0)
 		return 1;
 
@@ -118,7 +119,7 @@ exit:
 static void lua_push_on_log(lua_t* l)
 {
 	lua_getglobal(l->state, LUA_NAME_LOGD_MODULE);
-	lua_getfield(l->state, -1, LUA_NAME_ON_MESSAGE);
+	lua_getfield(l->state, -1, LUA_NAME_ON_LOG);
 }
 
 lua_t* lua_create(const char* script)
@@ -148,7 +149,7 @@ int lua_init(lua_t* l, const char* script)
 	l->state = luaL_newstate();
 
 	luaL_openlibs(l->state);
-	if (lua_load_libs(l) != 0) {
+	if (lua_load_libs(l) != 0 || (l->loop = luv_loop(l->state)) == NULL) {
 		perror("lua_load_libs");
 		goto error;
 	}
@@ -169,7 +170,7 @@ int lua_init(lua_t* l, const char* script)
 	lua_push_on_log(l);
 	if (!lua_isfunction(l->state, -1)) {
 		fprintf(stderr,
-		  "Couldn not find '" LUA_NAME_LOGD_MODULE "." LUA_NAME_ON_MESSAGE
+		  "Couldn not find '" LUA_NAME_LOGD_MODULE "." LUA_NAME_ON_LOG
 		  "' function in loaded script\n");
 		errno = EINVAL;
 		goto error;
