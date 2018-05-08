@@ -7,27 +7,12 @@
 
 #include "debug.h"
 #include "lua.h"
-#include "lua/lauxlib.h"
-#include "lua/lua.h"
-#include "lua/lualib.h"
+#include "logd_module.h"
 #include "luv/luv.h"
-
-#define LUA_NAME_ON_LOG "on_log"
-#define LUA_NAME_LOGD_MODULE "logd"
-
-static const struct luaL_Reg logd_functions[] = {
-  {LUA_NAME_ON_LOG, NULL}, {NULL, NULL}};
-
-static void lua_load_logd_lib(lua_t* l)
-{
-	/* Register the object.func functions into the table that is at the top of
-	 * the stack. */
-	luaL_register(l->state, LUA_NAME_LOGD_MODULE, logd_functions);
-}
 
 static int lua_load_libs(lua_t* l)
 {
-	lua_load_logd_lib(l);
+	luaopen_logd(l->state);
 	if (luaopen_luv(l->state) < 0)
 		return 1;
 
