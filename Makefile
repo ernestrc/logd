@@ -34,7 +34,7 @@ full-analysis: purge
 src: prepare deps
 	@ cd src && $(MAKE) $@
 
-debug: export CFLAGS = -ggdb -Wall -std=c11 -D_GNU_SOURCE -DLOGD_DEBUG 
+debug: export CFLAGS = -ggdb -Wall -std=c11 -D_GNU_SOURCE -DLOGD_DEBUG -pthread
 debug: prepare deps
 	@ cd src && $(MAKE) src
 

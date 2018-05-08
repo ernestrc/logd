@@ -31,7 +31,7 @@ local counter = 0
 
 function logd.on_log(logptr)
 	-- TODO logd.debug(string.format("processed log: %s", logd.log_string(logptr)))
-	counter = counter + 1
+	-- counter = counter + 1
 	-- print(counter)
 end
 
