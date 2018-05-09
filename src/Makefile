@@ -10,6 +10,7 @@ TARGET =../bin/
 
 EXEC_SRC = logd.c
 LUA_MODULE=logd_module.c
+LUA_MODULE_DEPS=log.o util.o
 
 EXTOBJ = $(wildcard ../ext/lib/*.o)
 SRCS = $(wildcard *.c)
@@ -39,9 +40,9 @@ $(LIB): $(OBJS) $(HDRS)
 	@ echo "  AR	$@"
 	@ ar rs $(LIB) $(OBJS) $(EXTOBJ) 2> /dev/null
 
-$(SO): $(OBJS) $(HDRS)
+$(SO): $(OBJS) $(HDRS) $(LUA_MODULE_DEPS)
 	@ echo "  SO	$@"
-	@ $(CC) $(LDFLAGS) $(CFLAGS) -I$(SYSTEM_LUA_INCLUDE) -I$(INCLUDE_PATH) -shared -fPIC $(LUA_MODULE) -o $(SO) -l$(SYSTEM_LUA)
+	@ $(CC) $(LDFLAGS) $(CFLAGS) -I$(SYSTEM_LUA_INCLUDE) -I$(INCLUDE_PATH) -shared -fPIC $(LUA_MODULE) -o $(SO) -l$(SYSTEM_LUA) $(LUA_MODULE_DEPS)
 	
 
 $(TARGET)%: %.c $(LIB)
