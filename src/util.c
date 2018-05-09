@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "parser.h"
 #include "util.h"
@@ -15,8 +16,12 @@ static const char* util_log_get(log_t* l, const char* key)
 }
 
 #define ADD_OFFSET(want, buf, blen, res)                                       \
-	buf += want;                                                               \
 	blen -= want;                                                              \
+	if (blen < 0) {                                                            \
+		blen = 0;                                                              \
+		buf = NULL;                                                            \
+	} else                                                                     \
+		buf += want;                                                           \
 	res += want;
 
 static int snprintp(char* buf, int blen, log_t* l)
@@ -88,4 +93,32 @@ void printl(log_t* l)
 
 	printp(l);
 	printf("\n");
+}
+
+const char* util_get_date()
+{
+#define MAX_DATE_LEN 11 /* 10 + null terminator */
+	static char date_buf[MAX_DATE_LEN];
+
+	time_t raw_time = time(NULL);
+	struct tm* local_time = localtime(&raw_time);
+
+	int needs = strftime(date_buf, MAX_DATE_LEN, "%Y-%m-%d", local_time);
+	DEBUG_ASSERT(needs + 1 <= MAX_DATE_LEN);
+
+	return date_buf;
+}
+
+const char* util_get_time()
+{
+#define MAX_TIME_LEN 9 /* 8 + null terminator */
+	static char time_buf[MAX_TIME_LEN];
+
+	time_t raw_time = time(NULL);
+	struct tm* local_time = localtime(&raw_time);
+
+	int needs = strftime(time_buf, MAX_TIME_LEN, "%X", local_time);
+	DEBUG_ASSERT(needs + 1 <= MAX_TIME_LEN);
+
+	return time_buf;
 }

@@ -40,7 +40,7 @@ debug: prepare deps
 
 
 test: export CFLAGS =-pthread -Wall -Wno-unused-function -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11 -ggdb -DLOGD_DEBUG -D_GNU_SOURCE
-test: clean src
+test: src
 	@ cd $(TEST) && $(MAKE) $@
 
 fuzz: clean src

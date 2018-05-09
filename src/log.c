@@ -3,8 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "debug.h"
 #include "log.h"
+#include "util.h"
+
+#define BASE_PROP 3
 
 log_t* log_create()
 {
@@ -18,6 +20,17 @@ log_t* log_create()
 	log_init(l);
 
 	return l;
+}
+
+int log_set_base_prop(log_t* log, prop_t* props, int plen)
+{
+	DEBUG_ASSERT(plen >= BASE_PROP);
+
+	log_set(log, props++, KEY_TIME, util_get_time());
+	log_set(log, props++, KEY_DATE, util_get_date());
+	log_set(log, props, KEY_THREAD, "main");
+
+	return BASE_PROP;
 }
 
 void log_init(log_t* l)

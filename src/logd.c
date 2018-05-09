@@ -53,7 +53,8 @@ int args_init(int argc, char* argv[], char** script)
 	args.help = 0;
 
 	static struct option long_options[] = {{"debug", no_argument, 0, 'd'},
-	  {"file", required_argument, 0, 'f'}, {"help", no_argument, 0, 'h'}, {0, 0, 0, 0}};
+	  {"file", required_argument, 0, 'f'}, {"help", no_argument, 0, 'h'},
+	  {0, 0, 0, 0}};
 
 	int option_index = 0;
 	int c = 0;
@@ -96,7 +97,8 @@ void on_read(uv_fs_t* req)
 			lua_call_on_log(l, &p->result);
 #else
 			if (lua_pcall_on_log(l, &p->result) != 0) {
-				fprintf(stderr, "on_log runtime error: %s\n", uv_strerror(req->result));
+				fprintf(stderr, "on_log runtime error: %s\n",
+				  uv_strerror(req->result));
 				release_all();
 				exit(1);
 			}

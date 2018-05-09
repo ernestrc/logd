@@ -5,11 +5,12 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "debug.h"
+#include "util.h"
 #include "lua.h"
 #include "logd_module.h"
 #include "luv/luv.h"
 
+// TODO replace print for libuv write to stdout
 static int lua_load_libs(lua_t* l)
 {
 	luaopen_logd(l->state);

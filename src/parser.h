@@ -6,15 +6,6 @@
 #include "log.h"
 #include "slab/slab.h"
 
-#define KEY_THREAD "thread"
-#define KEY_CLASS "class"
-#define KEY_LEVEL "level"
-#define KEY_TIME "time"
-#define KEY_DATE "date"
-#define KEY_TIMESTAMP "timestamp"
-#define KEY_MESSAGE "msg"
-#define KEY_CALLTYPE "callType"
-
 typedef enum pstate_s {
 	DATE_PSTATE = 0,
 	TIME_PSTATE = 1,

@@ -30,9 +30,11 @@ local counter = 0
 -- TODO end
 
 function logd.on_log(logptr)
-	-- TODO logd.debug(string.format("processed log: %s", logd.log_string(logptr)))
-	-- counter = counter + 1
-	-- print(counter)
+	counter = counter + 1
+	logd.print({
+		msg = "processed new log",
+		counter = counter,
+	})
 end
 
 -- TODO function logd.on_signal(signal)

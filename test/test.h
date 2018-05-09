@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../src/debug.h"
 #include "../src/log.h"
 #include "../src/parser.h"
 #include "../src/slab/rcmalloc.h"

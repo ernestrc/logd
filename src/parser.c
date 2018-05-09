@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "debug.h"
+#include "util.h"
 #include "parser.h"
 
 #ifndef LOGD_PROP_CAP
