@@ -23,6 +23,14 @@ static int check_snprintl_trunc(log_t* log, char* buf, size_t size, char* printe
 	return 0;
 }
 
+int test_snprintl_null()
+{
+	int want;
+	want = snprintl(NULL, 0, &EXPECTED1);
+	ASSERT_EQ(want + 1, sizeof(PRINTEDLOG1));
+	return 0;
+}
+
 int test_snprintl()
 {
 	size_t size = 1000;
