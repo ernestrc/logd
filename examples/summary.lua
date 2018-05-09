@@ -5,7 +5,7 @@
 --
 local logd = require("logd")
 local os = require("os")
-local uv = require("uv")
+-- local uv = require("uv")
 local tick = 100
 local counter = 0
 
@@ -31,10 +31,10 @@ local counter = 0
 
 function logd.on_log(logptr)
 	counter = counter + 1
-	logd.print({
-		msg = "processed new log",
-		counter = counter,
-	})
+	-- logd.print({
+	-- 	msg = "processed new log",
+	-- 	counter = counter,
+	-- })
 end
 
 -- TODO function logd.on_signal(signal)

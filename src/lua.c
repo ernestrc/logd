@@ -40,7 +40,7 @@ static char* get_abs_path(char* path)
 	return abs;
 }
 
-static int lua_set_package_path(lua_t* l, const char* script)
+int lua_add_package_path(lua_State* state, const char* script)
 {
 	static const char* LUA_PATH_TEMPLATE = ";%s/?.lua";
 	int need;
@@ -85,12 +85,12 @@ static int lua_set_package_path(lua_t* l, const char* script)
 	}
 	sprintf(path, LUA_PATH_TEMPLATE, dir);
 
-	lua_getglobal(l->state, "package");
-	lua_getfield(l->state, -1, "path");
-	lua_pushstring(l->state, path);
-	lua_concat(l->state, 2);
-	lua_setfield(l->state, -2, "path");
-	lua_pop(l->state, 1);
+	lua_getglobal(state, "package");
+	lua_getfield(state, -1, "path");
+	lua_pushstring(state, path);
+	lua_concat(state, 2);
+	lua_setfield(state, -2, "path");
+	lua_pop(state, 1);
 
 exit:
 	if (scriptdup)
@@ -140,7 +140,7 @@ int lua_init(lua_t* l, const char* script)
 		goto error;
 	}
 
-	if (lua_set_package_path(l, script) == -1) {
+	if (lua_add_package_path(l->state, script) == -1) {
 		goto error;
 	}
 
@@ -220,8 +220,6 @@ void lua_call_on_log(lua_t* l, log_t* log)
 	lua_call(l->state, 1, 0);
 	lua_pop(l->state, 1); // logd module
 }
-
-// int lua_protected_on_log(lua_t* l, log_t* log)
 
 void lua_free(lua_t* l)
 {

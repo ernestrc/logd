@@ -1,13 +1,22 @@
 TARGET = ../bin
 
 TESTS=$(wildcard test_*.c)
+LUA_TESTS=$(wildcard test_*.lua)
 FUZZERS=$(wildcard fuzz_*.c)
 TARGET_TESTS = $(addprefix $(TARGET)/,$(patsubst %.c,%,$(TESTS)))
 TARGET_FUZZERS = $(addprefix $(TARGET)/,$(patsubst %.c,%,$(FUZZERS)))
-TARGET_TPROFILES = $(addprefix $(TARGET)/,$(patsubst %.c,%.profraw,$(TESTS)))
+TARGET_TPROFILES = $(addprefix $(TARGET)/,$(patsubst %.c,%.profraw,$(TESTS))) $(addprefix $(TARGET)/,$(patsubst %.lua,%.lua.profraw,$(LUA_TESTS)))
 TARGET_FPROFILES = $(addprefix $(TARGET)/,$(patsubst %.c,%.profraw,$(FUZZERS)))
 
 LIB = ../lib/liblogd.a
+SO = ../lib/logd.so
+LINK_SO = logd.so
+
+# a regular lua interpreter should suffice but
+# we compile a test runner with instrumentation so lua tests are 
+# considered for code coverage
+TEST_RUNNER = runner.c
+TARGET_TEST_RUNNER = $(TARGET)/logd_test
 
 ifndef FUZZER_TOTAL_TIME
 FUZZER_TOTAL_TIME=60
@@ -20,12 +29,24 @@ FUZZPROFDATA=$(TARGET)/fuzz.profdata
 
 .PHONY: clean test fuzz coverage full-coverage fuzz-coverage purge
 
-test: $(TARGET_TESTS)
+test: unit_test $(TARGET_TEST_RUNNER) $(LINK_SO) lua_test
+
+$(LINK_SO):
+	ln -s $(SO) $(LINK_SO)
+
+unit_test: $(TARGET_TESTS)
 	@ for f in $^; do LLVM_PROFILE_FILE="$$f.profraw" ./$$f; done
+
+lua_test: $(LUA_TESTS)
+	@ for f in $^; do LLVM_PROFILE_FILE="$$f.profraw" $(TARGET_TEST_RUNNER) $$f; done
 
 $(TARGET)/test_%: test_%.c $(LIB)
 	@ echo "  CC	$@"
 	@ $(CC) $(LDFLAGS) $(CFLAGS) -I./ $(addprefix ../src/,$(patsubst test_%.c, %.c, $<)) $< -o $@ $(LIB)
+
+$(TARGET_TEST_RUNNER): $(TEST_RUNNER) $(LIB)
+	@ echo "  CC	$@"
+	@ $(CC) $(LDFLAGS) $(CFLAGS) -I./ $< -o $@ $(LIB)
 
 $(TESTPROFDATA): $(TARGET_TESTS)
 	llvm-profdata merge -sparse $(TARGET_TPROFILES) -o $(TESTPROFDATA)
@@ -56,7 +77,7 @@ fuzz-full-coverage: $(FUZZPROFDATA) BROWSER
 	@$(BROWSER) $(shell pwd)/$(TARGET)/fuzz-coverage.html
 
 clean:
-	@rm -f $(TARGET_TESTS) $(TARGET_FUZZERS) $(FUZZPROFDATA) $(TESTPROFDATA) $(TARGET_TPROFILES) $(TARGET_FPROFILES)
+	@rm -f $(TARGET_TESTS) $(TARGET_FUZZERS) $(FUZZPROFDATA) $(TESTPROFDATA) $(TARGET_TPROFILES) $(TARGET_FPROFILES) $(LINK_SO) $(TARGET_TEST_RUNNER)
 
 BROWSER:
 ifndef BROWSER

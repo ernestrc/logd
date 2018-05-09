@@ -1,5 +1,5 @@
 CC ?= clang
-CFLAGS ?= -O2 -std=c11 -DLOGD_INLINE -D_GNU_SOURCE -pthread
+CFLAGS ?= -O2 -std=c11 -DLOGD_INLINE -D_GNU_SOURCE -pthread -flto
 LDFLAGS ?= -lm -ldl
 
 INCLUDE_PATH=../include
