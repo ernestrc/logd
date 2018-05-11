@@ -50,11 +50,9 @@ $(TARGET)%: %.c $(LIB)
 	@ $(CC) $(LDFLAGS) $(CFLAGS) -I$(INCLUDE_PATH) $< -o $@ $(LIB)
 
 clean:
+	@- rm -rf $(INCLUDE_PATH)
 	@- rm -f $(EXEC)
 	@- rm -f $(HDRS)
 	@- rm -f $(LIB)
 	@- rm -f $(SO)
 	@- rm -f $(OBJS)
-
-purge: clean
-	@- rm -rf $(INCLUDE_PATH)

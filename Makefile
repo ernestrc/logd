@@ -4,6 +4,7 @@ default: src
 .SILENT:
 
 export CC = clang
+TEST_CFLAGS=-pthread -Wall -Wno-unused-function -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11 -ggdb -DLOGD_DEBUG -D_GNU_SOURCE
 
 TARGET=./bin
 LIB=./lib
@@ -34,16 +35,16 @@ full-analysis: purge
 src: prepare deps
 	@ cd src && $(MAKE) $@
 
-debug: export CFLAGS = -ggdb -Wall -std=c11 -D_GNU_SOURCE -DLOGD_DEBUG -pthread
+debug: export CFLAGS = $(TEST_CFLAGS)
 debug: prepare deps
 	@ cd src && $(MAKE) src
 
 
-test: export CFLAGS =-pthread -Wall -Wno-unused-function -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11 -ggdb -DLOGD_DEBUG -D_GNU_SOURCE
-test: src
+test: export CFLAGS = $(TEST_CFLAGS)
+test: debug
 	@ cd $(TEST) && $(MAKE) $@
 
-fuzz: clean src
+fuzz: clean debug
 	@ cd $(TEST) && $(MAKE) $@
 
 coverage:

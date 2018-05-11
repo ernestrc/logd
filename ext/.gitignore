@@ -6,3 +6,4 @@ lua
 *.tar.gz
 libuv
 luv
+lua_test

@@ -2,6 +2,8 @@ default: deps
 
 override undefine CFLAGS
 
+TARGET=../bin
+
 SLAB_TREE=2c43ec8117b7dc4371ba32e4eb9a7f5b3c9c5ae9
 LUAJIT_VERSION=2.0.5
 LIBUV_TREE=v1.9.1
@@ -9,6 +11,8 @@ LUV_TREE=1.9.1-1
 
 LIB = lib
 LIBLUAJIT = lua/src/libluajit.so
+TESTING_LUAJIT_TARGET = $(shell pwd)/$(TARGET)/luajit # adds gcc instrumentation to use with lua unit tests
+TESTING_LUAJIT_BIN=$(shell pwd)/lua_test/src/luajit
 LIBUV = libuv/libuv.la
 LUVOBJ = lib/luv_luv.o
 LIBSLAB = $(LIB)/libslab.a
@@ -18,9 +22,12 @@ INCLUDE_SLAB=../src/slab
 INCLUDE_LIBUV=../src/libuv
 INCLUDE_LUV=../src/luv
 
+TEST_CFLAGS=-fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping
+TEST_CC=clang
+
 .PHONY: purge
 
-deps: $(LIB) $(LIBLUAJIT) $(LIBSLAB) $(INCLUDE_SLAB) $(INCLUDE_LUAJIT) $(INCLUDE_LUV) $(LUVOBJ) $(LIBUV) $(INCLUDE_LIBUV)
+deps: $(LIB) $(LIBLUAJIT) $(LIBSLAB) $(INCLUDE_SLAB) $(INCLUDE_LUAJIT) $(INCLUDE_LUV) $(LUVOBJ) $(LIBUV) $(INCLUDE_LIBUV) $(TESTING_LUAJIT_TARGET) 
 
 $(LIB):
 	@ mkdir $(LIB)
@@ -62,6 +69,17 @@ $(LIBLUAJIT):
 	@ cd lua && $(MAKE)
 	@ for file in `ls lua/src/*.o`; do cp $$file $(LIB)/luajit_`basename $$file`; done
 
+$(TESTING_LUAJIT_BIN): $(LIBLUAJIT)
+	@ tar -xzvf $(LUAJIT_TAR)
+	@ mv LuaJIT-$(LUAJIT_VERSION) lua_test
+	@ sed -i 's/TARGET_ACFLAGS= $$(CCOPTIONS) $$(TARGET_XCFLAGS) $$(TARGET_FLAGS) $$(TARGET_CFLAGS)/TARGET_ACFLAGS=$(TEST_CFLAGS)/g' lua_test/src/Makefile
+	@ sed -i 's/TARGET_ALDFLAGS= $$(LDOPTIONS) $$(TARGET_XLDFLAGS) $$(TARGET_FLAGS) $$(TARGET_LDFLAGS)/TARGET_ALDFLAGS=$(TEST_CFLAGS)/g' lua_test/src/Makefile
+	@ sed -i 's/DEFAULT_CC = gcc/DEFAULT_CC = clang/g' lua_test/src/Makefile
+	@ cd lua_test && $(MAKE)
+
+$(TESTING_LUAJIT_TARGET): $(TESTING_LUAJIT_BIN)
+	@ ln -s $(TESTING_LUAJIT_BIN) $(TESTING_LUAJIT_TARGET)
+
 $(INCLUDE_SLAB): $(LIBSLAB)
 	@ mkdir -p $(INCLUDE_SLAB)
 	@ cp slab/src/*.h $(INCLUDE_SLAB)
@@ -80,6 +98,8 @@ purge:
 	@- rm -rf luv
 	@- rm -rf libuv
 	@- rm -rf lua
+	@- rm -rf lua_test
+	@- rm -rf $(TESTING_LUAJIT_TARGET)
 	@- rm -rf $(INCLUDE_SLAB)
 	@- rm -rf $(INCLUDE_LUAJIT)
 	@- rm -rf $(INCLUDE_LUV)

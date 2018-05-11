@@ -1,13 +1,15 @@
-local logd = require("logd")
+local logd = require "logd"
 local passed_str
 
-_G.print = function(str)
-	passed_str = str
+module("test_print", lunit.testcase, package.seeall)
+
+function setup()
 end
 
-function test_print()
+function test_table()
 	logd.print({
-		it = "works"
+		it = "works",
+		callType = "letsee"
 	})
-	assert(passed_str == "", "not the same")
+	assert_equal("DEBUG	[main]	-	letsee: it: works, ", passed_str)
 end

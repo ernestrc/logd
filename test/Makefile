@@ -15,8 +15,11 @@ LINK_SO = logd.so
 # a regular lua interpreter should suffice but
 # we compile a test runner with instrumentation so lua tests are 
 # considered for code coverage
-TEST_RUNNER = runner.c
-TARGET_TEST_RUNNER = $(TARGET)/logd_test
+LUNIT = lunit
+LUNIT_RUNNER = $(shell pwd)/$(TARGET)/lunit
+TARGET_LUAJIT= $(TARGET)/luajit
+LUNIT_FLAGS ?= --interpreter $(TARGET_LUAJIT)
+LUA_PATH=./?.lua;./lunit/lua/?.lua;
 
 ifndef FUZZER_TOTAL_TIME
 FUZZER_TOTAL_TIME=60
@@ -29,24 +32,27 @@ FUZZPROFDATA=$(TARGET)/fuzz.profdata
 
 .PHONY: clean test fuzz coverage full-coverage fuzz-coverage purge
 
-test: unit_test $(TARGET_TEST_RUNNER) $(LINK_SO) lua_test
+test: unit_test $(LUNIT_RUNNER) $(LINK_SO) lua_test
 
 $(LINK_SO):
-	ln -s $(SO) $(LINK_SO)
+	@ ln -s $(SO) $(LINK_SO)
 
 unit_test: $(TARGET_TESTS)
 	@ for f in $^; do LLVM_PROFILE_FILE="$$f.profraw" ./$$f; done
 
 lua_test: $(LUA_TESTS)
-	@ for f in $^; do LLVM_PROFILE_FILE="$$f.profraw" $(TARGET_TEST_RUNNER) $$f; done
+	@ for f in $^; do LUA_PATH="$(LUA_PATH)" LLVM_PROFILE_FILE="../bin/$$f.profraw" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
 
 $(TARGET)/test_%: test_%.c $(LIB)
 	@ echo "  CC	$@"
 	@ $(CC) $(LDFLAGS) $(CFLAGS) -I./ $(addprefix ../src/,$(patsubst test_%.c, %.c, $<)) $< -o $@ $(LIB)
 
-$(TARGET_TEST_RUNNER): $(TEST_RUNNER) $(LIB)
-	@ echo "  CC	$@"
-	@ $(CC) $(LDFLAGS) $(CFLAGS) -I./ $< -o $@ $(LIB)
+$(LUNIT):
+	@ git clone --quiet https://github.com/dcurrie/lunit
+
+$(LUNIT_RUNNER): $(LUNIT)
+	@ echo "  LN	$@"
+	@ ln -s  $(shell pwd)/$(LUNIT)/extra/lunit.sh  $(LUNIT_RUNNER)
 
 $(TESTPROFDATA): $(TARGET_TESTS)
 	llvm-profdata merge -sparse $(TARGET_TPROFILES) -o $(TESTPROFDATA)
@@ -77,7 +83,7 @@ fuzz-full-coverage: $(FUZZPROFDATA) BROWSER
 	@$(BROWSER) $(shell pwd)/$(TARGET)/fuzz-coverage.html
 
 clean:
-	@rm -f $(TARGET_TESTS) $(TARGET_FUZZERS) $(FUZZPROFDATA) $(TESTPROFDATA) $(TARGET_TPROFILES) $(TARGET_FPROFILES) $(LINK_SO) $(TARGET_TEST_RUNNER)
+	@rm -f $(TARGET_TESTS) $(TARGET_FUZZERS) $(FUZZPROFDATA) $(TESTPROFDATA) $(TARGET_TPROFILES) $(TARGET_FPROFILES) $(LINK_SO) $(LUNIT_RUNNER)
 
 BROWSER:
 ifndef BROWSER
@@ -85,3 +91,4 @@ ifndef BROWSER
 endif
 
 purge: clean
+	@rm -rf $(LUNIT)
