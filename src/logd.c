@@ -38,8 +38,10 @@ void input_close(uv_loop_t* loop, uv_file infd)
 
 void release_all()
 {
-	input_close(l->loop, infd);
-	uv_stop(l->loop);
+	if (l) {
+		input_close(l->loop, infd);
+		uv_stop(l->loop);
+	}
 	buf_free(b);
 	parser_free(p);
 	lua_free(l);
