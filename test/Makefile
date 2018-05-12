@@ -16,6 +16,7 @@ LINK_SO = logd.so
 # we compile a test runner with instrumentation so lua tests are 
 # considered for code coverage
 LUNIT = lunit
+LUNIT_RUNNER_SRC=$(shell pwd)/$(LUNIT)/extra/lunit.sh
 LUNIT_RUNNER = $(shell pwd)/$(TARGET)/lunit
 TARGET_LUAJIT= $(TARGET)/luajit
 LUNIT_FLAGS ?= --interpreter $(TARGET_LUAJIT)
@@ -50,9 +51,9 @@ $(TARGET)/test_%: test_%.c $(LIB)
 $(LUNIT):
 	@ git clone --quiet https://github.com/dcurrie/lunit
 
-$(LUNIT_RUNNER): $(LUNIT)
+$(LUNIT_RUNNER): $(LUNIT_RUNNER_SRC)
 	@ echo "  LN	$@"
-	@ ln -s  $(shell pwd)/$(LUNIT)/extra/lunit.sh  $(LUNIT_RUNNER)
+	@- ln -s $(LUNIT_RUNNER_SRC) $(LUNIT_RUNNER)
 
 $(TESTPROFDATA): $(TARGET_TESTS)
 	llvm-profdata merge -sparse $(TARGET_TPROFILES) -o $(TESTPROFDATA)
