@@ -37,17 +37,17 @@ function test_logd_print()
 			},
 		},
 		{
-			output = "2018-05-12 12:52:28 INFO	[hello]	hello	",
+			output = "2018-05-12 12:52:28 INFO	[my  thread ]	hello	",
 			input = {
 				level = "INFO",
-				thread = "hello",
+				thread = "my:\nthread,",
 				class = "hello",
 			},
 		},
-		-- TODO {
-		-- TODO 	output = "2018-05-12 12:52:28 DEBUG	[main]	-	sup",
-		-- TODO 	input = "sup",
-		-- TODO }
+		{
+			output = "2018-05-12 12:52:28 DEBUG	[main]	-	msg: it  should  sanitize  input, ",
+			input = "it: should, sanitize: input",
+		}
 	}
 
 	for n, c in pairs(cases) do

@@ -57,6 +57,11 @@ static void push_log_table(lua_State* L, int idx)
 			return;
 		}
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types-discards-qualifiers"
+		sanitize_prop_key(key);
+#pragma GCC diagnostic pop
+
 		if (!level_added && strcmp(key, KEY_LEVEL) == 0)
 			level_added = true;
 
@@ -66,6 +71,11 @@ static void push_log_table(lua_State* L, int idx)
 			  "table value must be a string in call to '" LUA_NAME_PRINT "'");
 			return;
 		}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-pointer-types-discards-qualifiers"
+		sanitize_prop_value(value);
+#pragma GCC diagnostic pop
 
 		log_set(&log, &props[all_props], key, value);
 
@@ -87,14 +97,21 @@ static void push_log_table(lua_State* L, int idx)
 
 static int logd_print(lua_State* L)
 {
-	lua_getglobal(L, "print");
-
 	switch (lua_type(L, 1)) {
 	case LUA_TTABLE:
+		lua_getglobal(L, "print");
 		push_log_table(L, 1);
+		lua_call(L, 1, 0);
 		break;
 	case LUA_TSTRING:
-		lua_pushstring(L, lua_tostring(L, 1));
+		lua_newtable(L);
+		lua_pushliteral(L, "msg");
+		lua_pushvalue(L, 1);
+		lua_settable(L, 2);
+		lua_getglobal(L, "print");
+		push_log_table(L, 2);
+		lua_call(L, 1, 0);
+		lua_pop(L, 1);
 		break;
 	default:
 		luaL_error(L,
@@ -103,8 +120,6 @@ static int logd_print(lua_State* L)
 		  lua_typename(L, lua_type(L, 1)));
 		break;
 	}
-
-	lua_call(L, 1, 0);
 
 	return 0;
 }

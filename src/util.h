@@ -14,6 +14,8 @@
 
 void printl(log_t* l);
 int snprintl(char* buf, int blen, log_t* l);
+void sanitize_prop_key(char* str);
+void sanitize_prop_value(char* str);
 const char* util_get_time();
 const char* util_get_date();
 
