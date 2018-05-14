@@ -14,6 +14,7 @@
 #define LUA_NAME_LOG_GET "log_get"
 #define LUA_NAME_LOG_SET "log_set"
 #define LUA_NAME_LOG_REMOVE "log_remove"
+#define LUA_NAME_LOG_RESET "log_reset"
 #define LUA_NAME_TABLE_TO_LOGPTR "to_logptr"
 #define LUA_NAME_LOG_TO_STR "to_str"
 // #define LUA_NAME_TO_LOG_JSON "to_json"
@@ -258,11 +259,22 @@ static int logd_log_get(lua_State* L)
 	return 1;
 }
 
+static int logd_log_reset(lua_State* L)
+{
+	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_RESET);
+	log_t* log = (log_t*)lua_touserdata(L, 1);
+
+	log_init(log);
+
+	return 0;
+}
+
 static const struct luaL_Reg logd_functions[] = {{LUA_NAME_ON_LOG, NULL},
   {LUA_NAME_PRINT, &logd_print}, {LUA_LEGACY_NAME_DEBUG, &logd_print},
   {LUA_NAME_TABLE_TO_LOGPTR, &logd_table_to_logptr},
   {LUA_NAME_LOG_TO_STR, &logd_log_to_str}, {LUA_NAME_LOG_GET, &logd_log_get},
   {LUA_NAME_LOG_SET, &logd_log_set}, {LUA_NAME_LOG_REMOVE, &logd_log_remove},
+  {LUA_NAME_LOG_RESET, &logd_log_reset},
   {NULL, NULL}};
 
 int luaopen_logd(lua_State* L)

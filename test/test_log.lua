@@ -49,3 +49,11 @@ function test_logd_log_remove()
 		lunit.assert_equal(nil, logd.log_get(ptr, k))
 	end
 end
+
+function test_logd_log_reset()
+	local ptr = logd.to_logptr(sample_log)
+	logd.log_reset(ptr)
+	for k,v in pairs(sample_log) do
+		lunit.assert_equal(nil, logd.log_get(ptr, k))
+	end
+end
