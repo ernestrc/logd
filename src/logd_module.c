@@ -35,19 +35,18 @@
 static void table_to_log(
   lua_State* L, int idx, prop_t* props, int props_len, log_t* log)
 {
-	int base_props, all_props, added_props;
+	int added_props;
 	const char* key;
 	const char* value;
 	bool level_added = false;
+	bool time_added = false;
+	bool date_added = false;
 
-	all_props = base_props = log_set_base_prop(log, props, props_len);
-
-	for (lua_pushnil(L), added_props = 0; lua_next(L, idx);
-		 added_props++, all_props++) {
-		if (all_props >= props_len) {
+	for (lua_pushnil(L), added_props = 0; lua_next(L, idx); added_props++) {
+		if (added_props >= props_len) {
 			luaL_error(L,
 			  "table exceeds max table len of %d in call to table_to_log",
-			  props_len - base_props);
+			  props_len);
 			return;
 		}
 		key = lua_tostring(L, -2);
@@ -64,6 +63,10 @@ static void table_to_log(
 
 		if (!level_added && strcmp(key, KEY_LEVEL) == 0)
 			level_added = true;
+		else if (!time_added && strcmp(key, KEY_TIME) == 0)
+			time_added = true;
+		else if (!date_added && strcmp(key, KEY_DATE) == 0)
+			date_added = true;
 
 		value = lua_tostring(L, -1);
 		if (value == NULL) {
@@ -78,19 +81,25 @@ static void table_to_log(
 		sanitize_prop_value(value);
 #pragma GCC diagnostic pop
 
-		log_set(log, &props[all_props], key, value);
+		log_set(log, &props[added_props], key, value);
 
 		lua_pop(L, 1);
 	}
 
 	if (!level_added) {
-		log_set(log, &props[all_props], KEY_LEVEL, "DEBUG");
+		log_set(log, &props[added_props++], KEY_LEVEL, "DEBUG");
+	}
+	if (!time_added) {
+		log_set(log, &props[added_props++], KEY_TIME, util_get_time());
+	}
+	if (!date_added) {
+		log_set(log, &props[added_props], KEY_DATE, util_get_date());
 	}
 }
 
-/* 
- * logd_table_to_logptr will convert a table into a logptr userdata. 
- * The returned pointer will be valid until the original table is GC'd. 
+/*
+ * logd_table_to_logptr will convert a table into a logptr userdata.
+ * The returned pointer will be valid until the original table is GC'd.
  *
  * TODO: use weak tables to prevent props from being GCd
  */
@@ -185,36 +194,75 @@ static int logd_print(lua_State* L)
 	return 0;
 }
 
-// static int logd_log_set(lua_State* L) {}
-// static int logd_log_remove(lua_State* L) {}
-// static int logd_log_get(lua_State* L)
-// {
-// 	log_t* log;
-// 	const char* key;
-// 	const char* value;
-//
-//	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_TO_STR);
-// 	log = (log_t*)lua_touserdata(L, 1);
-// 	key = lua_tostring(L, 2);
-// 	if (key == NULL) {
-// 		luaL_error(L,
-// 		  "2nd argument must be a string in call to '" LUA_NAME_LOG_GET
-// 		  "': found %s",
-// 		  lua_typename(L, lua_type(L, 2)));
-// 	}
-// 	value = log_get(log, key);
-// 	lua_pushstring(L, value);
-//
-// 	return 1;
-// }
+/*
+ * TODO: use weak tables to prevent props from being GCd
+ */
+static int logd_log_set(lua_State* L)
+{
+	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_TO_STR);
+	log_t* log = (log_t*)lua_touserdata(L, 1);
+	const char* key = lua_tostring(L, 2);
+	if (key == NULL) {
+		luaL_error(L,
+		  "2nd argument must be a string in call to '" LUA_NAME_LOG_SET
+		  "': found %s",
+		  lua_typename(L, lua_type(L, 2)));
+	}
+	const char* value = lua_tostring(L, 3);
+	if (value == NULL) {
+		luaL_error(L,
+		  "3rd argument must be a string in call to '" LUA_NAME_LOG_SET
+		  "': found %s",
+		  lua_typename(L, lua_type(L, 3)));
+	}
+
+	prop_t* prop = lua_newuserdata(L, sizeof(prop_t));
+	log_set(log, prop, key, value);
+	return 1;
+}
+
+static int logd_log_remove(lua_State* L)
+{
+	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_TO_STR);
+	log_t* log = (log_t*)lua_touserdata(L, 1);
+	const char* key = lua_tostring(L, 2);
+	if (key == NULL) {
+		luaL_error(L,
+		  "2nd argument must be a string in call to '" LUA_NAME_LOG_REMOVE
+		  "': found %s",
+		  lua_typename(L, lua_type(L, 2)));
+	}
+
+	log_remove(log, key);
+
+	return 0;
+}
+
+static int logd_log_get(lua_State* L)
+{
+	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_TO_STR);
+	log_t* log = (log_t*)lua_touserdata(L, 1);
+	const char* key = lua_tostring(L, 2);
+	if (key == NULL) {
+		luaL_error(L,
+		  "2nd argument must be a string in call to '" LUA_NAME_LOG_GET
+		  "': found %s",
+		  lua_typename(L, lua_type(L, 2)));
+	}
+	const char* value = log_get(log, key);
+	if (value != NULL)
+		lua_pushstring(L, value);
+	else
+		lua_pushnil(L);
+
+	return 1;
+}
 
 static const struct luaL_Reg logd_functions[] = {{LUA_NAME_ON_LOG, NULL},
   {LUA_NAME_PRINT, &logd_print}, {LUA_LEGACY_NAME_DEBUG, &logd_print},
   {LUA_NAME_TABLE_TO_LOGPTR, &logd_table_to_logptr},
-  {LUA_NAME_LOG_TO_STR, &logd_log_to_str},
-  // {LUA_NAME_LOG_GET, &logd_log_get},
-  /* {LUA_NAME_LOG_SET, &logd_log_set}, {LUA_NAME_LOG_REMOVE,
-	 &logd_log_remove}, */
+  {LUA_NAME_LOG_TO_STR, &logd_log_to_str}, {LUA_NAME_LOG_GET, &logd_log_get},
+  {LUA_NAME_LOG_SET, &logd_log_set}, {LUA_NAME_LOG_REMOVE, &logd_log_remove},
   {NULL, NULL}};
 
 int luaopen_logd(lua_State* L)
