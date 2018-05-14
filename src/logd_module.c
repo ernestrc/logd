@@ -17,6 +17,7 @@
 #define LUA_NAME_LOG_RESET "log_reset"
 #define LUA_NAME_TABLE_TO_LOGPTR "to_logptr"
 #define LUA_NAME_LOG_TO_STR "to_str"
+#define LUA_LEGACY_NAME_LOG_STRING "log_string"
 // #define LUA_NAME_TO_LOG_JSON "to_json"
 
 #define MAX_LOG_TABLE_LEN 25
@@ -200,7 +201,7 @@ static int logd_print(lua_State* L)
  */
 static int logd_log_set(lua_State* L)
 {
-	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_TO_STR);
+	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_SET);
 	log_t* log = (log_t*)lua_touserdata(L, 1);
 	const char* key = lua_tostring(L, 2);
 	if (key == NULL) {
@@ -224,7 +225,7 @@ static int logd_log_set(lua_State* L)
 
 static int logd_log_remove(lua_State* L)
 {
-	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_TO_STR);
+	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_REMOVE);
 	log_t* log = (log_t*)lua_touserdata(L, 1);
 	const char* key = lua_tostring(L, 2);
 	if (key == NULL) {
@@ -241,7 +242,7 @@ static int logd_log_remove(lua_State* L)
 
 static int logd_log_get(lua_State* L)
 {
-	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_TO_STR);
+	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_GET);
 	log_t* log = (log_t*)lua_touserdata(L, 1);
 	const char* key = lua_tostring(L, 2);
 	if (key == NULL) {
@@ -272,10 +273,10 @@ static int logd_log_reset(lua_State* L)
 static const struct luaL_Reg logd_functions[] = {{LUA_NAME_ON_LOG, NULL},
   {LUA_NAME_PRINT, &logd_print}, {LUA_LEGACY_NAME_DEBUG, &logd_print},
   {LUA_NAME_TABLE_TO_LOGPTR, &logd_table_to_logptr},
-  {LUA_NAME_LOG_TO_STR, &logd_log_to_str}, {LUA_NAME_LOG_GET, &logd_log_get},
+  {LUA_NAME_LOG_TO_STR, &logd_log_to_str},
+  {LUA_LEGACY_NAME_LOG_STRING, &logd_log_to_str}, {LUA_NAME_LOG_GET, &logd_log_get},
   {LUA_NAME_LOG_SET, &logd_log_set}, {LUA_NAME_LOG_REMOVE, &logd_log_remove},
-  {LUA_NAME_LOG_RESET, &logd_log_reset},
-  {NULL, NULL}};
+  {LUA_NAME_LOG_RESET, &logd_log_reset}, {NULL, NULL}};
 
 int luaopen_logd(lua_State* L)
 {
