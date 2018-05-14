@@ -2,6 +2,8 @@
 #define LOGD_UTIL_H
 
 #include "log.h"
+#include "lua/lua.h"
+#include "lua/lauxlib.h"
 
 #define __STR_HELPER(x) #x
 #define STR(x) __STR_HELPER(x)

@@ -4,8 +4,8 @@ LDFLAGS ?= -lm -ldl
 
 INCLUDE_PATH=../include
 INCLUDE=$(INCLUDE_PATH)/logd
-SYSTEM_LUA_INCLUDE ?= /usr/include/luajit-2.0/
-SYSTEM_LUA ?= luajit-5.1
+SYSTEM_LUA_INCLUDE ?= /usr/include/luajit-2.0/ # TODO should use local luajit
+SYSTEM_LUA ?= luajit-5.1 # TODO should use local luajit
 TARGET =../bin/
 
 EXEC_SRC = logd.c

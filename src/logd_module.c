@@ -9,9 +9,112 @@
 #include "logd_module.h"
 #include "util.h"
 
-#define MAX_PRINT_TABLE_LEN 25
 #define LUA_NAME_PRINT "print"
 #define LUA_LEGACY_NAME_DEBUG "debug"
+#define LUA_NAME_LOG_GET "log_get"
+#define LUA_NAME_LOG_SET "log_set"
+#define LUA_NAME_LOG_REMOVE "log_remove"
+#define LUA_NAME_TABLE_TO_LOGPTR "to_logptr"
+#define LUA_NAME_LOG_TO_STR "to_str"
+// #define LUA_NAME_TO_LOG_JSON "to_json"
+
+#define MAX_LOG_TABLE_LEN 25
+
+#define ASSERT_LOG_PTR(L, idx, fn_name)                                        \
+	switch (lua_type(L, idx)) {                                                \
+	case LUA_TLIGHTUSERDATA:                                                   \
+	case LUA_TUSERDATA:                                                        \
+		break;                                                                 \
+	default:                                                                   \
+		luaL_error(L,                                                          \
+		  "1st argument must be a logptr in call to '" fn_name "': found %s",  \
+		  lua_typename(L, lua_type(L, idx)));                                  \
+		break;                                                                 \
+	}
+
+static void table_to_log(
+  lua_State* L, int idx, prop_t* props, int props_len, log_t* log)
+{
+	int base_props, all_props, added_props;
+	const char* key;
+	const char* value;
+	bool level_added = false;
+
+	all_props = base_props = log_set_base_prop(log, props, props_len);
+
+	for (lua_pushnil(L), added_props = 0; lua_next(L, idx);
+		 added_props++, all_props++) {
+		if (all_props >= props_len) {
+			luaL_error(L,
+			  "table exceeds max table len of %d in call to table_to_log",
+			  props_len - base_props);
+			return;
+		}
+		key = lua_tostring(L, -2);
+		if (key == NULL) {
+			luaL_error(L, "table key must be a string in call to table_to_log");
+			return;
+		}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored                                                 \
+  "-Wincompatible-pointer-types-discards-qualifiers"
+		sanitize_prop_key(key);
+#pragma GCC diagnostic pop
+
+		if (!level_added && strcmp(key, KEY_LEVEL) == 0)
+			level_added = true;
+
+		value = lua_tostring(L, -1);
+		if (value == NULL) {
+			luaL_error(
+			  L, "table value must be a string in call to table_to_log");
+			return;
+		}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored                                                 \
+  "-Wincompatible-pointer-types-discards-qualifiers"
+		sanitize_prop_value(value);
+#pragma GCC diagnostic pop
+
+		log_set(log, &props[all_props], key, value);
+
+		lua_pop(L, 1);
+	}
+
+	if (!level_added) {
+		log_set(log, &props[all_props], KEY_LEVEL, "DEBUG");
+	}
+}
+
+/* 
+ * logd_table_to_logptr will convert a table into a logptr userdata. 
+ * The returned pointer will be valid until the original table is GC'd. 
+ *
+ * TODO: use weak tables to prevent props from being GCd
+ */
+static int logd_table_to_logptr(lua_State* L)
+{
+	log_t* log = (log_t*)lua_newuserdata(L, sizeof(log_t));
+	prop_t* props =
+	  (prop_t*)lua_newuserdata(L, MAX_LOG_TABLE_LEN * sizeof(prop_t));
+	log_init(log);
+
+	switch (lua_type(L, 1)) {
+	case LUA_TTABLE:
+		table_to_log(L, 1, props, MAX_LOG_TABLE_LEN, log);
+		break;
+	default:
+		luaL_error(L,
+		  "1st argument must be a table in call to '" LUA_NAME_TABLE_TO_LOGPTR
+		  "': found %s",
+		  lua_typename(L, lua_type(L, 1)));
+		break;
+	}
+
+	return 2;
+}
 
 static char* force_snprintl(lua_State* L, log_t* log)
 {
@@ -27,72 +130,30 @@ static char* force_snprintl(lua_State* L, log_t* log)
 	return str;
 }
 
-static void push_log_table(lua_State* L, int idx)
+static void table_to_log_str(lua_State* L, int idx)
 {
-	int base_props, all_props, added_props;
-	const char* key;
-	const char* value;
+	prop_t props[MAX_LOG_TABLE_LEN];
 	log_t log;
-	prop_t props[MAX_PRINT_TABLE_LEN];
-	bool level_added = false;
-
 	log_init(&log);
 
-	all_props = base_props =
-	  log_set_base_prop(&log, props, MAX_PRINT_TABLE_LEN);
-
-	for (lua_pushnil(L), added_props = 0; lua_next(L, idx);
-		 added_props++, all_props++) {
-		if (all_props >= MAX_PRINT_TABLE_LEN) {
-			luaL_error(L,
-			  "table exceeds max table len of %d in call to '" LUA_NAME_PRINT
-			  "'",
-			  MAX_PRINT_TABLE_LEN - base_props);
-			return;
-		}
-		key = lua_tostring(L, -2);
-		if (key == NULL) {
-			luaL_error(
-			  L, "table key must be a string in call to '" LUA_NAME_PRINT "'");
-			return;
-		}
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wincompatible-pointer-types-discards-qualifiers"
-		sanitize_prop_key(key);
-#pragma GCC diagnostic pop
-
-		if (!level_added && strcmp(key, KEY_LEVEL) == 0)
-			level_added = true;
-
-		value = lua_tostring(L, -1);
-		if (value == NULL) {
-			luaL_error(L,
-			  "table value must be a string in call to '" LUA_NAME_PRINT "'");
-			return;
-		}
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wincompatible-pointer-types-discards-qualifiers"
-		sanitize_prop_value(value);
-#pragma GCC diagnostic pop
-
-		log_set(&log, &props[all_props], key, value);
-
-		// push key back in front for lua_next but
-		// keep original key and value in the stack until
-		// we have serialized log
-		lua_pushvalue(L, -2);
-	}
-
-	if (!level_added) {
-		log_set(&log, &props[all_props], KEY_LEVEL, "DEBUG");
-	}
+	table_to_log(L, idx, props, MAX_LOG_TABLE_LEN, &log);
 
 	char* str = force_snprintl(L, &log);
-	lua_pop(L, added_props * 2);
+	lua_pushstring(L, str);
+
+	free(str);
+}
+
+static int logd_log_to_str(lua_State* L)
+{
+	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_TO_STR);
+
+	log_t* log = (log_t*)lua_touserdata(L, 1);
+	char* str = force_snprintl(L, log);
 	lua_pushstring(L, str);
 	free(str);
+
+	return 1;
 }
 
 static int logd_print(lua_State* L)
@@ -100,7 +161,7 @@ static int logd_print(lua_State* L)
 	switch (lua_type(L, 1)) {
 	case LUA_TTABLE:
 		lua_getglobal(L, "print");
-		push_log_table(L, 1);
+		table_to_log_str(L, 1);
 		lua_call(L, 1, 0);
 		break;
 	case LUA_TSTRING:
@@ -109,7 +170,7 @@ static int logd_print(lua_State* L)
 		lua_pushvalue(L, 1);
 		lua_settable(L, 2);
 		lua_getglobal(L, "print");
-		push_log_table(L, 2);
+		table_to_log_str(L, 2);
 		lua_call(L, 1, 0);
 		lua_pop(L, 1);
 		break;
@@ -124,8 +185,36 @@ static int logd_print(lua_State* L)
 	return 0;
 }
 
+// static int logd_log_set(lua_State* L) {}
+// static int logd_log_remove(lua_State* L) {}
+// static int logd_log_get(lua_State* L)
+// {
+// 	log_t* log;
+// 	const char* key;
+// 	const char* value;
+//
+//	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_TO_STR);
+// 	log = (log_t*)lua_touserdata(L, 1);
+// 	key = lua_tostring(L, 2);
+// 	if (key == NULL) {
+// 		luaL_error(L,
+// 		  "2nd argument must be a string in call to '" LUA_NAME_LOG_GET
+// 		  "': found %s",
+// 		  lua_typename(L, lua_type(L, 2)));
+// 	}
+// 	value = log_get(log, key);
+// 	lua_pushstring(L, value);
+//
+// 	return 1;
+// }
+
 static const struct luaL_Reg logd_functions[] = {{LUA_NAME_ON_LOG, NULL},
   {LUA_NAME_PRINT, &logd_print}, {LUA_LEGACY_NAME_DEBUG, &logd_print},
+  {LUA_NAME_TABLE_TO_LOGPTR, &logd_table_to_logptr},
+  {LUA_NAME_LOG_TO_STR, &logd_log_to_str},
+  // {LUA_NAME_LOG_GET, &logd_log_get},
+  /* {LUA_NAME_LOG_SET, &logd_log_set}, {LUA_NAME_LOG_REMOVE,
+	 &logd_log_remove}, */
   {NULL, NULL}};
 
 int luaopen_logd(lua_State* L)

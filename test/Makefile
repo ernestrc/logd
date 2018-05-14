@@ -39,10 +39,10 @@ $(LINK_SO):
 	@ ln -s $(SO) $(LINK_SO)
 
 unit_test: $(TARGET_TESTS)
-	@ for f in $^; do LLVM_PROFILE_FILE="$$f.profraw" ./$$f; done
+	@ for f in $^; do echo "  CTEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" ./$$f --silent; done
 
 lua_test: $(LUA_TESTS)
-	@ for f in $^; do LUA_PATH="$(LUA_PATH)" LLVM_PROFILE_FILE="../bin/$$f.profraw" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
+	@ for f in $^; do echo "  LTEST	$$f" && LUA_PATH="$(LUA_PATH)" LLVM_PROFILE_FILE="../bin/$$f.profraw" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
 
 $(TARGET)/test_%: test_%.c $(LIB)
 	@ echo "  CC	$@"

@@ -1,56 +1,17 @@
 local lunit = require('lunit')
+local fixture = require('fixture')
+local helper = require('helper')
 local logd = require('logd')
-local string = string
 
 module("test_print", lunit.testcase, package.seeall)
 
-function trim_ts(str)
-	local sample_ts = "2018-05-12 12:52:28"
-	return string.sub(str, string.len(sample_ts) + 2, string.len(str))
-end
-
 function assert_equal_log(input, output, env)
 	logd.print(input)
-	lunit.assert_equal(trim_ts(output), trim_ts(env.passed_str))
+	lunit.assert_equal(helper.trim_ts(output), helper.trim_ts(env.passed_str))
 end
 
 function test_logd_print()
-	local cases = {
-		{
-			output = "2018-05-12 12:52:28 DEBUG	[main]	-	it: works, ",
-			input = {
-				it = "works",
-			},
-		},
-		{
-			output = "2018-05-12 12:52:28 DEBUG	[main]	-	letsee: it: works, ",
-			input = {
-				it = "works",
-				callType = "letsee"
-			},
-		},
-		{
-			output = "2018-05-12 12:52:28 ERROR	[main]	-	a: b, ",
-			input = {
-				level = "ERROR",
-				a = "b"
-			},
-		},
-		{
-			output = "2018-05-12 12:52:28 INFO	[my  thread ]	hello	",
-			input = {
-				level = "INFO",
-				thread = "my:\nthread,",
-				class = "hello",
-			},
-		},
-		{
-			output = "2018-05-12 12:52:28 DEBUG	[main]	-	msg: it  should  sanitize  input, ",
-			input = "it: should, sanitize: input",
-		}
-	}
-
-	for n, c in pairs(cases) do
+	for n, c in pairs(fixture.cases) do
 		local new_env = {unpack(_G)}
 		new_env.print = function(str)
 			new_env.passed_str = str
