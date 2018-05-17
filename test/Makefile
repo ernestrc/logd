@@ -33,7 +33,7 @@ FUZZPROFDATA=$(TARGET)/fuzz.profdata
 
 .PHONY: clean test fuzz coverage full-coverage fuzz-coverage purge
 
-test: unit_test $(LUNIT_RUNNER) $(LINK_SO) lua_test
+test: unit_test $(LUNIT) $(LUNIT_RUNNER) $(LINK_SO) lua_test
 
 $(LINK_SO):
 	@ ln -s $(SO) $(LINK_SO)
