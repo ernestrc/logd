@@ -19,6 +19,7 @@ static struct args_s {
 	int help;
 } args;
 
+static char* script;
 static parser_t* p;
 static lua_t* l;
 static uv_loop_t* loop;
@@ -51,7 +52,7 @@ void release_all()
 	lua_free(l);
 }
 
-int args_init(int argc, char* argv[], char** script)
+char* args_init(int argc, char* argv[])
 {
 	/* set defaults for arguments */
 	args.debug = OPT_DEFAULT_DEBUG;
@@ -81,9 +82,7 @@ int args_init(int argc, char* argv[], char** script)
 		}
 	}
 
-	*script = argv[optind];
-
-	return 0;
+	return argv[optind];
 }
 
 void on_read(uv_fs_t* req)
@@ -120,6 +119,34 @@ void on_read(uv_fs_t* req)
 	}
 }
 
+void sigusr1_signal_handler(uv_signal_t *handle, int signum)
+{
+    fprintf(stderr, "SIGUSR1 received: reloading script...\n");
+	lua_free(l);
+	if ((l = lua_create(loop, script)) == NULL) {
+		perror("lua_create");
+		fprintf(stderr, "error reloading script\n");
+		exit(1);
+	}
+}
+
+int signals_init(uv_loop_t* loop)
+{
+	int ret;
+    static uv_signal_t sigh;
+
+    if ((ret = uv_signal_init(loop, &sigh)) < 0)
+		goto error;
+
+    if ((ret = uv_signal_start(&sigh, sigusr1_signal_handler, SIGUSR1)) < 0)
+		goto error;
+
+	return 0;
+error:
+	fprintf(stderr, "uv_signal_init: %s: %s\n", uv_err_name(ret), uv_strerror(ret));
+	return ret;
+}
+
 int input_init(uv_loop_t* loop, const char* input_file)
 {
 	int ret;
@@ -152,11 +179,9 @@ void print_usage(const char* exe)
 
 int main(int argc, char* argv[])
 {
-	char* script;
 	int ret = 0;
 
-	if ((ret = args_init(argc, argv, &script)) != 0 || script == NULL ||
-	  args.help) {
+	if ((script = args_init(argc, argv)) == NULL || args.help) {
 		print_usage(argv[0]);
 		goto exit;
 	}
@@ -194,6 +219,9 @@ int main(int argc, char* argv[])
 		perror("input_init");
 		goto exit;
 	}
+
+	if ((ret = signals_init(loop)) != 0)
+		goto exit;
 
 	ret = uv_run(loop, UV_RUN_DEFAULT);
 

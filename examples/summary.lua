@@ -49,3 +49,4 @@ end
 
 -- example usage of "config_set" builtin
 -- TODO logd.config_set("tick", tick)
+print('test2')

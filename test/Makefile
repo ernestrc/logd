@@ -2,8 +2,8 @@ TARGET = ../bin
 
 TESTS=$(wildcard test_*.c)
 LUA_TESTS=$(wildcard test_*.lua)
+INT_TESTS=$(wildcard test_*.sh)
 FUZZERS=$(wildcard fuzz_*.c)
-TARGET_TESTS = $(addprefix $(TARGET)/,$(patsubst %.c,%,$(TESTS)))
 TARGET_FUZZERS = $(addprefix $(TARGET)/,$(patsubst %.c,%,$(FUZZERS)))
 TARGET_TPROFILES = $(addprefix $(TARGET)/,$(patsubst %.c,%.profraw,$(TESTS))) $(addprefix $(TARGET)/,$(patsubst %.lua,%.lua.profraw,$(LUA_TESTS)))
 TARGET_FPROFILES = $(addprefix $(TARGET)/,$(patsubst %.c,%.profraw,$(FUZZERS)))
@@ -11,6 +11,7 @@ TARGET_FPROFILES = $(addprefix $(TARGET)/,$(patsubst %.c,%.profraw,$(FUZZERS)))
 LIB = ../lib/liblogd.a
 SO = ../lib/logd.so
 LINK_SO = logd.so
+EXEC = $(TARGET)/logd
 
 # a regular lua interpreter should suffice but
 # we compile a test runner with instrumentation so lua tests are 
@@ -33,16 +34,19 @@ FUZZPROFDATA=$(TARGET)/fuzz.profdata
 
 .PHONY: clean test fuzz coverage full-coverage fuzz-coverage purge
 
-test: unit_test $(LUNIT) $(LUNIT_RUNNER) $(LINK_SO) lua_test
+test: unit_test $(LUNIT) $(LUNIT_RUNNER) $(LINK_SO) lua_test int_test
 
 $(LINK_SO):
 	@ ln -s $(SO) $(LINK_SO)
 
 unit_test: $(TARGET_TESTS)
-	@ for f in $^; do echo "  CTEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" ./$$f --silent; done
+	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" ./$$f --silent; done
+
+int_test: $(INT_TESTS)
+	@ for f in $^; do echo "  TEST	$$f" && LUA_PATH="$(LUA_PATH)" ./$$f; done
 
 lua_test: $(LUA_TESTS)
-	@ for f in $^; do echo "  LTEST	$$f" && LUA_PATH="$(LUA_PATH)" LLVM_PROFILE_FILE="../bin/$$f.profraw" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
+	@ for f in $^; do echo "  TEST	$$f" && LUA_PATH="$(LUA_PATH)" LLVM_PROFILE_FILE="$(TARGET)/$$f.profraw" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
 
 $(TARGET)/test_%: test_%.c $(LIB)
 	@ echo "  CC	$@"
