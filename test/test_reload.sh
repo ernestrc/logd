@@ -15,30 +15,33 @@ function finish {
 	exit $CODE;
 }
 
-# trap finish EXIT
+trap finish EXIT
 
 function makescript() {
-	echo '' > $script
+	truncate -s 0 $script
 	cat >$script << EOF
 local logd = require("logd")
 function logd.on_log(logptr)
 end
-print('load')
+io.write("load")
+io.flush()
 EOF
 }
 
 function updatescript() {
-	echo '' > $script
+	truncate -s 0 $script
 	cat >$script << EOF
 local logd = require("logd")
 function logd.on_log(logptr)
 end
-print('reload')
+io.write("reload")
+io.flush()
 EOF
 }
 
 function test_out {
-	OUT=$(cat $out)
+	OUT=$(tr -d '\0' < $out)
+	
 
 	if [ "$OUT" != "$1" ]; then
 		echo "expected '$1' but found '$OUT'"
@@ -55,7 +58,7 @@ sleep 1
 test_out "load"
 
 updatescript
-echo '' > $out
+truncate -s 0 $out
 kill -s 10 $PID
 sleep 1
 test_out "reload"

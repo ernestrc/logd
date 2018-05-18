@@ -121,7 +121,6 @@ void on_read(uv_fs_t* req)
 
 void sigusr1_signal_handler(uv_signal_t *handle, int signum)
 {
-    fprintf(stderr, "SIGUSR1 received: reloading script...\n");
 	lua_free(l);
 	if ((l = lua_create(loop, script)) == NULL) {
 		perror("lua_create");
