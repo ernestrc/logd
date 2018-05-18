@@ -10,8 +10,8 @@ typedef struct lua_s {
 	uv_loop_t* loop;
 } lua_t;
 
-lua_t* lua_create(const char* script);
-int lua_init(lua_t* l, const char* script);
+lua_t* lua_create(uv_loop_t* loop, const char* script);
+int lua_init(lua_t* l, uv_loop_t* loop, const char* script);
 void lua_call_on_log(lua_t*, log_t* log);
 int lua_pcall_on_log(lua_t* l, log_t* log);
 int lua_add_package_path(lua_State* state, const char* script);

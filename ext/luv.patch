@@ -1,0 +1,57 @@
+diff --git a/src/luv.c b/src/luv.c
+index f9385d6..d9f9e4b 100644
+--- a/src/luv.c
++++ b/src/luv.c
+@@ -484,9 +484,9 @@ static int loop_gc(lua_State *L) {
+   return 0;
+ }
+ 
+-LUALIB_API int luaopen_luv (lua_State *L) {
+-
+-  uv_loop_t* loop;
++/* this should be called first before client uses luaopen_luv via 'require' */
++int luaopen_luv_loop (lua_State *L, uv_loop_t* loop)
++{
+   int ret;
+ 
+   // Setup the uv_loop meta table for a proper __gc
+@@ -495,11 +495,6 @@ LUALIB_API int luaopen_luv (lua_State *L) {
+   lua_pushcfunction(L, loop_gc);
+   lua_settable(L, -3);
+ 
+-  loop = (uv_loop_t*)lua_newuserdata(L, sizeof(*loop));
+-  ret = uv_loop_init(loop);
+-  if (ret < 0) {
+-    return luaL_error(L, "%s: %s\n", uv_err_name(ret), uv_strerror(ret));
+-  }
+   // setup the metatable for __gc
+   luaL_getmetatable(L, "uv_loop.meta");
+   lua_setmetatable(L, -2);
+@@ -517,8 +512,12 @@ LUALIB_API int luaopen_luv (lua_State *L) {
+   luv_thread_init(L);
+   luv_work_init(L);
+ 
+-  luaL_newlib(L, luv_functions);
++  luaL_register(L,"uv",luv_functions);
+   luv_constants(L);
+   lua_setfield(L, -2, "constants");
+-  return 1;
++}
++
++LUALIB_API int luaopen_luv (lua_State *L) {
++	fprintf(stderr, "tried to open luv but luv should have been loaded already\n");
++	abort();
+ }
+diff --git a/src/luv.h b/src/luv.h
+index 681384d..32b8939 100644
+--- a/src/luv.h
++++ b/src/luv.h
+@@ -77,6 +77,8 @@ LUALIB_API uv_loop_t* luv_loop(lua_State* L);
+ */
+ LUALIB_API int luaopen_luv (lua_State *L);
+ 
++int luaopen_luv_loop (lua_State *L, uv_loop_t* loop);
++
+ #include "util.h"
+ #include "lhandle.h"
+ #include "lreq.h"

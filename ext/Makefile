@@ -43,6 +43,8 @@ $(LUVOBJ): $(INCLUDE_LIBUV) $(INCLUDE_LUAJIT)
 	@- git clone --quiet https://github.com/luvit/luv.git luv
 	@ cd luv && git checkout --quiet $(LUV_TREE)
 	@ cp Makefile.luv luv/src/Makefile
+	@ cp luv.patch luv/luv.patch
+	@ cd luv && patch -p1 < luv.patch
 	@ cd luv/src/ && $(MAKE)
 	@ cp luv/src/*.o $(LIB)
 

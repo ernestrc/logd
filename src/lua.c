@@ -9,12 +9,13 @@
 #include "lua.h"
 #include "logd_module.h"
 #include "luv/luv.h"
+#include "libuv/uv.h"
 
 // TODO replace print for libuv write to stdout
-static int lua_load_libs(lua_t* l)
+static int lua_load_libs(lua_t* l, uv_loop_t* loop)
 {
 	luaopen_logd(l->state);
-	if (luaopen_luv(l->state) < 0)
+	if (luaopen_luv_loop(l->state, loop) < 0)
 		return 1;
 
 	return 0;
@@ -108,7 +109,7 @@ static void lua_push_on_log(lua_t* l)
 	lua_getfield(l->state, -1, LUA_NAME_ON_LOG);
 }
 
-lua_t* lua_create(const char* script)
+lua_t* lua_create(uv_loop_t* loop, const char* script)
 {
 	lua_t* l = NULL;
 
@@ -117,7 +118,7 @@ lua_t* lua_create(const char* script)
 		goto error;
 	}
 
-	if (lua_init(l, script) == -1) {
+	if (lua_init(l, loop, script) == -1) {
 		goto error;
 	}
 
@@ -128,14 +129,15 @@ error:
 	return NULL;
 }
 
-int lua_init(lua_t* l, const char* script)
+int lua_init(lua_t* l, uv_loop_t* loop, const char* script)
 {
 	int status;
 
 	l->state = luaL_newstate();
+	l->loop = loop;
 
 	luaL_openlibs(l->state);
-	if (lua_load_libs(l) != 0 || (l->loop = luv_loop(l->state)) == NULL) {
+	if (lua_load_libs(l, l->loop) != 0) {
 		perror("lua_load_libs");
 		goto error;
 	}
@@ -223,6 +225,8 @@ void lua_call_on_log(lua_t* l, log_t* log)
 
 void lua_free(lua_t* l)
 {
-	if (l)
+	if (l) {
+		lua_close(l->state);
 		free(l);
+	}
 }

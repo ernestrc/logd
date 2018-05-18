@@ -21,6 +21,7 @@ static struct args_s {
 
 static parser_t* p;
 static lua_t* l;
+static uv_loop_t* loop;
 static buf_t* b;
 static uv_file infd;
 static uv_fs_t uv_read_in_req;
@@ -39,8 +40,11 @@ void input_close(uv_loop_t* loop, uv_file infd)
 void release_all()
 {
 	if (l) {
-		input_close(l->loop, infd);
-		uv_stop(l->loop);
+		input_close(loop, infd);
+	}
+	if (loop) {
+		uv_stop(loop);
+		free(loop);
 	}
 	buf_free(b);
 	parser_free(p);
@@ -108,7 +112,7 @@ void on_read(uv_fs_t* req)
 		}
 		iov.base = b->next_write;
 		iov.len = buf_writable(b);
-		uv_fs_read(l->loop, &uv_read_in_req, infd, &iov, 1, -1, on_read);
+		uv_fs_read(loop, &uv_read_in_req, infd, &iov, 1, -1, on_read);
 	} else if (req->result < 0) {
 		fprintf(stderr, "input read error: %s\n", uv_strerror(req->result));
 		release_all();
@@ -130,7 +134,7 @@ int input_init(uv_loop_t* loop, const char* input_file)
 	infd = uv_open_in_req.result;
 	iov.base = b->next_write;
 	iov.len = buf_writable(b);
-	uv_fs_read(l->loop, &uv_read_in_req, infd, &iov, 1, -1, on_read);
+	uv_fs_read(loop, &uv_read_in_req, infd, &iov, 1, -1, on_read);
 
 	return 0;
 }
@@ -169,18 +173,29 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	if ((l = lua_create(script)) == NULL) {
+	if ((loop = calloc(1, sizeof(uv_loop_t))) == NULL) {
+		perror("calloc uv_loop_t");
+		ret = 1;
+		goto exit;
+	}
+
+	if ((ret = uv_loop_init(loop)) < 0) {
+		fprintf(stderr, "%s: %s\n", uv_err_name(ret), uv_strerror(ret));
+		goto exit;
+	}
+
+	if ((l = lua_create(loop, script)) == NULL) {
 		perror("lua_create");
 		ret = 1;
 		goto exit;
 	}
 
-	if ((ret = input_init(l->loop, args.input_file)) != 0) {
+	if ((ret = input_init(loop, args.input_file)) != 0) {
 		perror("input_init");
 		goto exit;
 	}
 
-	ret = uv_run(l->loop, UV_RUN_DEFAULT);
+	ret = uv_run(loop, UV_RUN_DEFAULT);
 
 exit:
 	release_all();

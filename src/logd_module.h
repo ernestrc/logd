@@ -6,6 +6,6 @@
 #define LUA_NAME_ON_LOG "on_log"
 #define LUA_NAME_LOGD_MODULE "logd"
 
-int luaopen_logd(lua_State* L);
+LUALIB_API int luaopen_logd(lua_State* L);
 
 #endif
