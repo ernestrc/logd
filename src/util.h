@@ -1,5 +1,6 @@
 #ifndef LOGD_UTIL_H
 #define LOGD_UTIL_H
+#include <stdio.h>
 
 #include "log.h"
 #include "lua/lua.h"
@@ -15,6 +16,7 @@
 #endif
 
 void printl(log_t* l);
+void fprintl(FILE *stream, log_t* l);
 int snprintl(char* buf, int blen, log_t* l);
 void sanitize_prop_key(char* str);
 void sanitize_prop_value(char* str);

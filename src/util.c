@@ -68,31 +68,36 @@ int snprintl(char* buf, int blen, log_t* l)
 	return res;
 }
 
-static void printp(log_t* l)
+static void fprintp(FILE* stream, log_t* l)
 {
 	prop_t* p;
 	for (p = l->props; p != NULL && p->key != NULL; p = p->next) {
 		if (strcmp(p->key, KEY_DATE) != 0 && strcmp(p->key, KEY_TIME) != 0 &&
 		  strcmp(p->key, KEY_LEVEL) != 0 && strcmp(p->key, KEY_CLASS) != 0 &&
 		  strcmp(p->key, KEY_THREAD) != 0 && strcmp(p->key, KEY_CALLTYPE)) {
-			printf("%s: %s, ", p->key, p->value == NULL ? "null" : p->value);
+			fprintf(stream, "%s: %s, ", p->key, p->value == NULL ? "null" : p->value);
 		}
 	}
 }
 
-void printl(log_t* l)
+void fprintl(FILE* stream, log_t* log) 
 {
-	printf("%s %s\t%s\t[%s]\t%s\t", util_log_get(l, KEY_DATE),
-	  util_log_get(l, KEY_TIME), util_log_get(l, KEY_LEVEL),
-	  util_log_get(l, KEY_THREAD), util_log_get(l, KEY_CLASS));
+	fprintf(stream, "%s %s\t%s\t[%s]\t%s\t", util_log_get(log, KEY_DATE),
+	  util_log_get(log, KEY_TIME), util_log_get(log, KEY_LEVEL),
+	  util_log_get(log, KEY_THREAD), util_log_get(log, KEY_CLASS));
 
-	const char* call_type = log_get(l, KEY_CALLTYPE);
+	const char* call_type = log_get(log, KEY_CALLTYPE);
 	if (call_type != NULL) {
-		printf("%s: ", call_type);
+		fprintf(stream, "%s: ", call_type);
 	}
 
-	printp(l);
-	printf("\n");
+	fprintp(stream, log);
+	fprintf(stream, "\n");
+}
+
+void printl(log_t* log)
+{
+	fprintl(stdout, log);
 }
 
 const char* util_get_date()
