@@ -98,16 +98,7 @@ void on_read(uv_fs_t* req)
 			if (!res.complete) {
 				break;
 			}
-#ifndef LOGD_DEBUG
 			lua_call_on_log(l, &p->result);
-#else
-			if (lua_pcall_on_log(l, &p->result) != 0) {
-				fprintf(stderr, "on_log runtime error: %s\n",
-				  uv_strerror(req->result));
-				release_all();
-				exit(1);
-			}
-#endif
 		}
 		iov.base = b->next_write;
 		iov.len = buf_writable(b);

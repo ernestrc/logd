@@ -175,43 +175,6 @@ error:
 	return -1;
 }
 
-static int lua_lua_handler_error(lua_State* l)
-{
-	const char* err = lua_tostring(l, -1);
-	fprintf(stderr, "runtime error: %s\n", err);
-	// TODO
-	// err, ok := l.ToString(-1)
-	// if !ok {
-	// 	panic(fmt.Errorf(
-	// 		"no error in call to system error handler: found %s", l.TypeOf(-1)))
-	// }
-	// lua.Traceback(l, l, err, 1)
-	// return 1
-	return 1;
-}
-
-int lua_pcall_on_log(lua_t* l, log_t* log)
-{
-	int ret;
-
-	// push error handler
-	lua_pushcfunction(l->state, lua_lua_handler_error);
-	DEBUG_ASSERT(lua_isfunction(l->state, -1));
-
-	lua_push_on_log(l);
-	DEBUG_ASSERT(lua_isfunction(l->state, -1));
-
-	lua_pushlightuserdata(l->state, log);
-	ret = lua_pcall(l->state, 1, 0, 1);
-
-	if (ret == 0)
-		lua_pop(l->state, 2); // pop error handler
-	else
-		lua_pop(l->state, 1); // logd module
-
-	return ret;
-}
-
 void lua_call_on_log(lua_t* l, log_t* log)
 {
 	lua_push_on_log(l);
