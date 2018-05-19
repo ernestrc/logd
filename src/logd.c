@@ -21,7 +21,7 @@ static struct args_s {
 
 static char* script;
 static parser_t* p;
-static lua_t* l;
+static lua_t* lstate;
 static uv_loop_t* loop;
 static buf_t* b;
 static uv_file infd;
@@ -40,16 +40,14 @@ void input_close(uv_loop_t* loop, uv_file infd)
 
 void release_all()
 {
-	if (l) {
-		input_close(loop, infd);
-	}
+	input_close(loop, infd);
+	lua_free(lstate);
 	if (loop) {
 		uv_stop(loop);
 		free(loop);
 	}
 	buf_free(b);
 	parser_free(p);
-	lua_free(l);
 }
 
 char* args_init(int argc, char* argv[])
@@ -98,7 +96,7 @@ void on_read(uv_fs_t* req)
 			if (!res.complete) {
 				break;
 			}
-			lua_call_on_log(l, &p->result);
+			lua_call_on_log(lstate, &p->result);
 		}
 		iov.base = b->next_write;
 		iov.len = buf_writable(b);
@@ -107,13 +105,17 @@ void on_read(uv_fs_t* req)
 		fprintf(stderr, "input read error: %s\n", uv_strerror(req->result));
 		release_all();
 		exit(1);
+	} else {
+		lua_call_on_eof(lstate);
+		release_all();
+		exit(0);
 	}
 }
 
 void sigusr1_signal_handler(uv_signal_t *handle, int signum)
 {
-	lua_free(l);
-	if ((l = lua_create(loop, script)) == NULL) {
+	lua_free(lstate);
+	if ((lstate = lua_create(loop, script)) == NULL) {
 		perror("lua_create");
 		fprintf(stderr, "error reloading script\n");
 		exit(1);
@@ -199,7 +201,7 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	if ((l = lua_create(loop, script)) == NULL) {
+	if ((lstate = lua_create(loop, script)) == NULL) {
 		perror("lua_create");
 		ret = 1;
 		goto exit;

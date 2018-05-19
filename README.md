@@ -10,11 +10,12 @@ Logd is an open source data collector with an embedded Lua VM. The collector tak
 | `function logd.log_reset (logptr)` | Reset all log properties |
 | `function logd.to_str (logptr) str` | Serialize a log into a string |
 | `function logd.to_logptr (table) logptr` | Map a table into a logptr |
-| `function logd.print (string | table)` | Serialize message or table into a log string and print it to stdout |
+| `function logd.print (string\|table)` | Serialize message or table into a log string and print it to stdout |
 
 | Hook | Description |
 | --- | --- |
 | `function logd.on_log (logptr)` | Logs are parsed and supplied to this handler. Use `logd.log_*` set of functions to manipulate them. |
+| `function logd.on_eof ()` | Called when collector has reached EOF reading the input file. The program will exit after this function returns.  |
 
 
 ## Parser

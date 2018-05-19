@@ -11,7 +11,6 @@
 #include "luv/luv.h"
 #include "libuv/uv.h"
 
-// TODO replace print for libuv write to stdout
 static int lua_load_libs(lua_t* l, uv_loop_t* loop)
 {
 	luaopen_logd(l->state);
@@ -32,7 +31,7 @@ static char* get_abs_path(char* path)
 	}
 
 	int want = snprintf(NULL, 0, ABS_TEMPLATE, cwd, path);
-	if ((abs = malloc(want)) == NULL) {
+	if ((abs = malloc(want + 1)) == NULL) {
 		perror("malloc");
 		return NULL;
 	}
@@ -105,6 +104,7 @@ exit:
 
 static void lua_push_on_log(lua_t* l)
 {
+	// TODO optimize by pre-loading
 	lua_getglobal(l->state, LUA_NAME_LOGD_MODULE);
 	lua_getfield(l->state, -1, LUA_NAME_ON_LOG);
 }
@@ -125,7 +125,8 @@ lua_t* lua_create(uv_loop_t* loop, const char* script)
 	return l;
 
 error:
-	free(l);
+	if (l)
+		free(l);
 	return NULL;
 }
 
@@ -183,6 +184,16 @@ void lua_call_on_log(lua_t* l, log_t* log)
 	lua_pushlightuserdata(l->state, log);
 
 	lua_call(l->state, 1, 0);
+	lua_pop(l->state, 1); // logd module
+}
+
+void lua_call_on_eof(lua_t* l)
+{
+	lua_getglobal(l->state, LUA_NAME_LOGD_MODULE);
+	lua_getfield(l->state, -1, LUA_NAME_ON_EOF);
+	DEBUG_ASSERT(lua_isfunction(l->state, -1));
+
+	lua_call(l->state, 0, 0);
 	lua_pop(l->state, 1); // logd module
 }
 

@@ -13,6 +13,7 @@ typedef struct lua_s {
 lua_t* lua_create(uv_loop_t* loop, const char* script);
 int lua_init(lua_t* l, uv_loop_t* loop, const char* script);
 void lua_call_on_log(lua_t*, log_t* log);
+void lua_call_on_eof(lua_t*);
 int lua_add_package_path(lua_State* state, const char* script);
 void lua_free(lua_t* l);
 

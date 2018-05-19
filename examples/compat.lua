@@ -1,7 +1,7 @@
 local uv = require('uv')
 
 local compat = {}
-local t
+local __t
 
 local function clear_timeout(timer)
   uv.timer_stop(timer)
@@ -30,12 +30,17 @@ end
 local clear_interval = clear_timeout
 
 function compat.load(logd)
+	logd.on_eof = function()
+		if __t ~= nil then
+			clear_interval(__t)
+		end
+	end
 	logd.config_set = function(key, value)
 		if (key == "tick") then
-			if t ~= nil then
-				clear_interval(t)
+			if __t ~= nil then
+				clear_interval(__t)
 			end
-			t = set_interval(logd.on_tick, value)
+			__t = set_interval(logd.on_tick, value)
 		end
 	end
 end
