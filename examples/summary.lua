@@ -4,49 +4,27 @@
 -- This can suplied to the logd executable: logd -R examples/summary.lua -f /var/log/mylog.log
 --
 local logd = require("logd")
-local os = require("os")
--- local uv = require("uv")
+local compat = require('compat')
 local tick = 100
 local counter = 0
 
--- local function set_interval(callback, interval)
---   local timer = uv.new_timer()
---   local function ontimeout()
---     callback(timer)
---   end
---   uv.timer_start(timer, interval, interval, ontimeout)
---   return timer
--- end
--- 
--- set_interval(function ()
--- 	print('tick')
--- end, 1000)
+function logd.on_tick ()
+	tick = tick * 2
+	logd.config_set("tick", tick)
 
--- TODO function logd.on_tick ()
--- TODO 	tick = tick * 2
--- TODO 	logd.config_set("tick", tick)
--- TODO 
--- TODO 	logd.debug({ next_tick = tick, msg = "triggered!" })
--- TODO end
+	logd.print({ level = 'INFO', next_tick = tick, msg = "triggered!" })
+end
 
 function logd.on_log(logptr)
 	counter = counter + 1
-	-- logd.print({
-	-- 	msg = "processed new log",
-	-- 	counter = counter,
-	-- })
+	logd.print({
+		msg = "processed new log",
+		counter = counter,
+	})
 end
 
--- TODO function logd.on_signal(signal)
--- TODO 	logd.debug({ msg = string.format("My Lua script received signal: %s", signal) })
--- TODO 
--- TODO 	if signal == "SIGUSR1" then
--- TODO 		logd.debug({ msg = "realoading after this function returns.." })
--- TODO 	else
--- TODO 		os.exit(1)
--- TODO 	end
--- TODO end
+-- load backwards compatibility layer with logd-go
+compat.load(logd)
 
 -- example usage of "config_set" builtin
--- TODO logd.config_set("tick", tick)
-print('test2')
+logd.config_set("tick", tick)
