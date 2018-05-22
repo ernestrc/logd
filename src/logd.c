@@ -108,6 +108,9 @@ void on_read(uv_fs_t* req)
 		release_all();
 		exit(1);
 	} else {
+		DEBUG_LOG("EOF while reading input file %d", infd);
+		if (lua_on_eof_defined(lstate))
+			lua_call_on_eof(lstate);
 		release_all();
 		exit(0);
 	}
@@ -116,6 +119,8 @@ void on_read(uv_fs_t* req)
 void on_open(uv_fs_t* req)
 {
 	infd = uv_open_in_req.result;
+
+	DEBUG_LOG("input file open with fd %d", infd);
 
 	iov.base = b->next_write;
 	iov.len = buf_writable(b);
@@ -138,6 +143,8 @@ int input_init(uv_loop_t* loop, const char* input_file)
 
 void sigusr1_signal_handler(uv_signal_t* handle, int signum)
 {
+	DEBUG_LOG("received signal %d", signum);
+
 	lua_free(lstate);
 	if ((lstate = lua_create(loop, script)) == NULL) {
 		perror("lua_create");
@@ -156,6 +163,7 @@ int signals_init(uv_loop_t* loop)
 	if ((ret = uv_signal_start(&sigh, sigusr1_signal_handler, SIGUSR1)) < 0)
 		goto error;
 
+	DEBUG_LOG("initialized SIGUSR1 signal handler %p", &sigh);
 	return 0;
 error:
 	fprintf(
@@ -177,6 +185,7 @@ int loop_create()
 		goto error;
 	}
 
+	DEBUG_LOG("initialized event loop %p", loop);
 	return 0;
 
 error:

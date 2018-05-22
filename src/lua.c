@@ -102,11 +102,17 @@ exit:
 	return ret;
 }
 
-static void lua_push_on_log(lua_t* l)
+static void lua_push_on_eof(lua_State* state)
+{
+	lua_getglobal(state, LUA_NAME_LOGD_MODULE);
+	lua_getfield(state, -1, LUA_NAME_ON_EOF);
+}
+
+static void lua_push_on_log(lua_State* state)
 {
 	// TODO optimize by pre-loading
-	lua_getglobal(l->state, LUA_NAME_LOGD_MODULE);
-	lua_getfield(l->state, -1, LUA_NAME_ON_LOG);
+	lua_getglobal(state, LUA_NAME_LOGD_MODULE);
+	lua_getfield(state, -1, LUA_NAME_ON_LOG);
 }
 
 lua_t* lua_create(uv_loop_t* loop, const char* script)
@@ -156,7 +162,7 @@ int lua_init(lua_t* l, uv_loop_t* loop, const char* script)
 		goto error;
 	}
 
-	lua_push_on_log(l);
+	lua_push_on_log(l->state);
 	if (!lua_isfunction(l->state, -1)) {
 		fprintf(stderr,
 		  "Couldn not find '" LUA_NAME_LOGD_MODULE "." LUA_NAME_ON_LOG
@@ -178,7 +184,7 @@ error:
 
 void lua_call_on_log(lua_t* l, log_t* log)
 {
-	lua_push_on_log(l);
+	lua_push_on_log(l->state);
 	DEBUG_ASSERT(lua_isfunction(l->state, -1));
 
 	lua_pushlightuserdata(l->state, log);
@@ -187,10 +193,20 @@ void lua_call_on_log(lua_t* l, log_t* log)
 	lua_pop(l->state, 1); // logd module
 }
 
+bool lua_on_eof_defined(lua_t* l)
+{
+	bool ret;
+
+	lua_push_on_eof(l->state);
+	ret = lua_isfunction(l->state, -1);
+	lua_pop(l->state, 2);
+
+	return ret;
+}
+
 void lua_call_on_eof(lua_t* l)
 {
-	lua_getglobal(l->state, LUA_NAME_LOGD_MODULE);
-	lua_getfield(l->state, -1, LUA_NAME_ON_EOF);
+	lua_push_on_eof(l->state);
 	DEBUG_ASSERT(lua_isfunction(l->state, -1));
 
 	lua_call(l->state, 0, 0);

@@ -1,25 +1,31 @@
 #!/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-pipe=$DIR/reload_pipe.pipe
-script=$DIR/reload_fixture.lua
-out=$DIR/reload_out.log
-LOGD_EXEC=$DIR/../bin/logd
+IN="$DIR/reload.in"
+SCRIPT="$DIR/reload.lua"
+OUT="$DIR/reload.out"
+LOGD_EXEC="$DIR/../bin/logd"
 PID=
+WRITER_PID=0
+
+source $DIR/helper.sh
 
 function finish {
 	CODE=$?
-	rm -f $script
-	rm -f $out
-	rm -f $pipe
+	rm -f $SCRIPT
+	rm -f $OUT
+	rm -f $IN
 	kill $PID
+	if [ $WRITER_PID -ne 0 ]; then
+		kill $WRITER_PID
+	fi
 	exit $CODE;
 }
 
 trap finish EXIT
 
 function makescript() {
-	truncate -s 0 $script
-	cat >$script << EOF
+	truncate -s 0 $SCRIPT
+	cat >$SCRIPT << EOF
 local logd = require("logd")
 function logd.on_log(logptr)
 end
@@ -29,8 +35,8 @@ EOF
 }
 
 function updatescript() {
-	truncate -s 0 $script
-	cat >$script << EOF
+	truncate -s 0 $SCRIPT
+	cat >$SCRIPT << EOF
 local logd = require("logd")
 function logd.on_log(logptr)
 end
@@ -39,28 +45,22 @@ io.flush()
 EOF
 }
 
-function test_out {
-	OUT=$(tr -d '\0' < $out)
-	
+touch $OUT
+mkfifo $IN 2> /dev/null 1> /dev/null
 
-	if [ "$OUT" != "$1" ]; then
-		echo "expected '$1' but found '$OUT'"
-		exit 1;
-	fi
-}
-
-touch $out
-mkfifo $pipe; echo
+while sleep 1; do :; done >$IN &
+WRITER_PID=$!
 
 makescript
-PID=`$LOGD_EXEC $script > $out & echo $!`
+$LOGD_EXEC $SCRIPT -f $IN 2> /dev/null 1> $OUT & 
+PID=$!
 sleep 1
-test_out "load"
+assert_file_content "load" $OUT
 
 updatescript
-truncate -s 0 $out
+truncate -s 0 $OUT
 kill -s 10 $PID
 sleep 1
-test_out "reload"
+assert_file_content "reload" $OUT
 
 exit 0
