@@ -22,6 +22,7 @@ static struct args_s {
 static char* script;
 static parser_t* p;
 static lua_t* lstate;
+static uv_signal_t sigh;
 static uv_loop_t* loop;
 static buf_t* b;
 static uv_file infd;
@@ -43,6 +44,7 @@ void release_all()
 	input_close(loop, infd);
 	lua_free(lstate);
 	if (loop) {
+		uv_signal_stop(&sigh);
 		uv_stop(loop);
 		free(loop);
 	}
@@ -106,13 +108,35 @@ void on_read(uv_fs_t* req)
 		release_all();
 		exit(1);
 	} else {
-		lua_call_on_eof(lstate);
 		release_all();
 		exit(0);
 	}
 }
 
-void sigusr1_signal_handler(uv_signal_t *handle, int signum)
+void on_open(uv_fs_t* req)
+{
+	infd = uv_open_in_req.result;
+
+	iov.base = b->next_write;
+	iov.len = buf_writable(b);
+	uv_fs_read(loop, &uv_read_in_req, infd, &iov, 1, -1, on_read);
+}
+
+int input_init(uv_loop_t* loop, const char* input_file)
+{
+	int ret;
+
+	if ((ret = uv_fs_open(
+		   loop, &uv_open_in_req, input_file, O_RDONLY, 0, on_open)) < 0) {
+		errno = -ret;
+		perror("uv_fs_open");
+		return 1;
+	}
+
+	return 0;
+}
+
+void sigusr1_signal_handler(uv_signal_t* handle, int signum)
 {
 	lua_free(lstate);
 	if ((lstate = lua_create(loop, script)) == NULL) {
@@ -125,37 +149,42 @@ void sigusr1_signal_handler(uv_signal_t *handle, int signum)
 int signals_init(uv_loop_t* loop)
 {
 	int ret;
-    static uv_signal_t sigh;
 
-    if ((ret = uv_signal_init(loop, &sigh)) < 0)
+	if ((ret = uv_signal_init(loop, &sigh)) < 0)
 		goto error;
 
-    if ((ret = uv_signal_start(&sigh, sigusr1_signal_handler, SIGUSR1)) < 0)
+	if ((ret = uv_signal_start(&sigh, sigusr1_signal_handler, SIGUSR1)) < 0)
 		goto error;
 
 	return 0;
 error:
-	fprintf(stderr, "uv_signal_init: %s: %s\n", uv_err_name(ret), uv_strerror(ret));
+	fprintf(
+	  stderr, "uv_signal_init: %s: %s\n", uv_err_name(ret), uv_strerror(ret));
 	return ret;
 }
 
-int input_init(uv_loop_t* loop, const char* input_file)
+int loop_create()
 {
 	int ret;
 
-	if ((ret = uv_fs_open(
-		   loop, &uv_open_in_req, input_file, O_RDONLY, 0, NULL)) < 0) {
-		errno = -ret;
-		perror("uv_fs_open");
-		return 1;
+	if ((loop = calloc(1, sizeof(uv_loop_t))) == NULL) {
+		errno = ENOMEM;
+		goto error;
 	}
 
-	infd = uv_open_in_req.result;
-	iov.base = b->next_write;
-	iov.len = buf_writable(b);
-	uv_fs_read(loop, &uv_read_in_req, infd, &iov, 1, -1, on_read);
+	if ((ret = uv_loop_init(loop)) < 0) {
+		fprintf(stderr, "%s: %s\n", uv_err_name(ret), uv_strerror(ret));
+		goto error;
+	}
 
 	return 0;
+
+error:
+	if (loop) {
+		free(loop);
+		loop = NULL;
+	}
+	return 1;
 }
 
 void print_usage(const char* exe)
@@ -190,9 +219,8 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	if ((loop = calloc(1, sizeof(uv_loop_t))) == NULL) {
-		perror("calloc uv_loop_t");
-		ret = 1;
+	if ((ret = loop_create()) != 0) {
+		perror("loop_create");
 		goto exit;
 	}
 
