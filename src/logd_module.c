@@ -70,11 +70,31 @@ static void table_to_log(
 		else if (!date_added && strcmp(key, KEY_DATE) == 0)
 			date_added = true;
 
-		value = lua_tostring(L, -1);
-		if (value == NULL) {
-			luaL_error(
-			  L, "table value must be a string in call to table_to_log");
-			return;
+		switch (lua_type(L, -1)) {
+		case LUA_TNONE:
+		case LUA_TNIL:
+			value = "nil";
+			break;
+		case LUA_TBOOLEAN:
+			value = lua_toboolean(L, -1) ? "true" : "false";
+			break;
+		case LUA_TNUMBER:
+		case LUA_TSTRING:
+			value = lua_tostring(L, -1);
+			break;
+		case LUA_TTABLE:
+			value = "<table>";
+			break;
+		case LUA_TFUNCTION:
+			value = "<func>";
+			break;
+		case LUA_TLIGHTUSERDATA:
+		case LUA_TUSERDATA:
+			value = "<ptr>";
+			break;
+		case LUA_TTHREAD:
+			value = "<thread>";
+			break;
 		}
 
 #pragma GCC diagnostic push
@@ -274,8 +294,9 @@ static const struct luaL_Reg logd_functions[] = {{LUA_NAME_ON_LOG, NULL},
   {LUA_NAME_PRINT, &logd_print}, {LUA_LEGACY_NAME_DEBUG, &logd_print},
   {LUA_NAME_TABLE_TO_LOGPTR, &logd_table_to_logptr},
   {LUA_NAME_LOG_TO_STR, &logd_log_to_str},
-  {LUA_LEGACY_NAME_LOG_STRING, &logd_log_to_str}, {LUA_NAME_LOG_GET, &logd_log_get},
-  {LUA_NAME_LOG_SET, &logd_log_set}, {LUA_NAME_LOG_REMOVE, &logd_log_remove},
+  {LUA_LEGACY_NAME_LOG_STRING, &logd_log_to_str},
+  {LUA_NAME_LOG_GET, &logd_log_get}, {LUA_NAME_LOG_SET, &logd_log_set},
+  {LUA_NAME_LOG_REMOVE, &logd_log_remove},
   {LUA_NAME_LOG_RESET, &logd_log_reset}, {NULL, NULL}};
 
 LUALIB_API int luaopen_logd(lua_State* L)

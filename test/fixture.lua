@@ -1,3 +1,4 @@
+local logd = require('logd')
 local fixture = {}
 fixture.table_cases = {
 	{
@@ -26,6 +27,18 @@ fixture.table_cases = {
 			level = "INFO",
 			thread = "my:\nthread,",
 			class = "hello",
+		},
+	},
+	{
+		output = "2018-05-12 12:52:28 DEBUG	[-]	-	userdata: <ptr>, tbl: <table>, fun: <func>, boolean: true, thr: <thread>, number: 45330342000000, ",
+		input = {
+			number = 45330342000000,
+			boolean = true,
+			void = nil, -- not inserted
+			tbl = { my = 'table' },
+			thr = coroutine.create(function() end),
+			userdata = logd.to_logptr({ key_year = '1714' }),
+			fun = function() end,
 		},
 	},
 }
