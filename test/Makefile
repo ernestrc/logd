@@ -4,6 +4,7 @@ TESTS=$(wildcard test_*.c)
 LUA_TESTS=$(wildcard test_*.lua)
 INT_TESTS=$(wildcard test_*.sh)
 FUZZERS=$(wildcard fuzz_*.c)
+TARGET_TESTS = $(addprefix $(TARGET)/,$(patsubst %.c,%,$(TESTS)))
 TARGET_FUZZERS = $(addprefix $(TARGET)/,$(patsubst %.c,%,$(FUZZERS)))
 TARGET_TPROFILES = $(addprefix $(TARGET)/,$(patsubst %.c,%.profraw,$(TESTS))) $(addprefix $(TARGET)/,$(patsubst %.lua,%.lua.profraw,$(LUA_TESTS)))
 TARGET_FPROFILES = $(addprefix $(TARGET)/,$(patsubst %.c,%.profraw,$(FUZZERS)))
@@ -46,7 +47,7 @@ int_test: $(INT_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LUA_PATH="$(LUA_PATH)" ./$$f 2>&1; done
 
 lua_test: $(LUA_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LUA_PATH="$(LUA_PATH)" LLVM_PROFILE_FILE="$(TARGET)/$$f.profraw" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
+	@ for f in $^; do echo "  TEST	$$f" && LUA_PATH="$(LUA_PATH)" LLVM_PROFILE_FILE="$(TARGET)/$$f.profraw" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f 2>/dev/null 1>/dev/null; done
 
 $(TARGET)/test_%: test_%.c $(LIB)
 	@ echo "  CC	$@"
