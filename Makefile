@@ -44,7 +44,7 @@ test: export CFLAGS = $(TEST_CFLAGS)
 test: debug
 	@ cd $(TEST) && $(MAKE) $@
 
-fuzz: clean debug
+fuzz: debug
 	@ cd $(TEST) && $(MAKE) $@
 
 coverage:

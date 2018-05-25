@@ -1,0 +1,4 @@
+kw1="2018-05-12 12:52:28 DEBUG	[-]	-	userdata: <ptr>, tbl: <table>, fun: <func>, boolean: true, thr: <thread>, number: 45330342000000, \\n"
+kw2="2018-05-12 12:52:28 INFO	[my  thread ]	hello	\\n"
+kw3="2018-05-12 12:52:28 ERROR	[-]	-	a: b, \\n"
+kw4="2017-09-07 14:54:39,474	DEBUG	[pool-5-thread-6]	control.RaptorHandler	sessionId: 1_MX4xMDB-fjE1MDQ4MjEyNzAxMjR-WThtTVpEN0J2c1Z2TlJGcndTN1lpTExGfn4, flow: Publish, conId: connectionId: f41973e5-b27c-49e4-bcaf-1d48b153683e, step: Attempt, publisherId: b4da82c4-cac5-4e13-b1dc-bb1f42b475dd, fromAddress: f41973e5-b27c-49e4-bcaf-1d48b153683e, projectId: 100, operation: CreatePublisher, traceId: Publish:Rumor:112ae1a5-3416-4458-b0c1-6eb3e0ab4c80, streamId: b4da82c4-cac5-4e13-b1dc-bb1f42b475dd, remoteIpAddress: 127.0.0.1, correlationId: b90232b5-3ee5-4c65-bb4e-29286d6a2771\\n"

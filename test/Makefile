@@ -8,6 +8,8 @@ TARGET_TESTS = $(addprefix $(TARGET)/,$(patsubst %.c,%,$(TESTS)))
 TARGET_FUZZERS = $(addprefix $(TARGET)/,$(patsubst %.c,%,$(FUZZERS)))
 TARGET_TPROFILES = $(addprefix $(TARGET)/,$(patsubst %.c,%.profraw,$(TESTS))) $(addprefix $(TARGET)/,$(patsubst %.lua,%.lua.profraw,$(LUA_TESTS)))
 TARGET_FPROFILES = $(addprefix $(TARGET)/,$(patsubst %.c,%.profraw,$(FUZZERS)))
+TESTPROFDATA=$(TARGET)/tests.profdata
+FUZZPROFDATA=$(TARGET)/fuzz.profdata
 
 LIB = ../lib/liblogd.a
 SO = ../lib/logd.so
@@ -24,14 +26,8 @@ TARGET_LUAJIT= $(TARGET)/luajit
 LUNIT_FLAGS ?= --interpreter $(TARGET_LUAJIT)
 LUA_PATH=./?.lua;./lunit/lua/?.lua;
 
-ifndef FUZZER_TOTAL_TIME
-FUZZER_TOTAL_TIME=60
-endif
-
 LDFLAGS ?= -lm -ldl
-
-TESTPROFDATA=$(TARGET)/tests.profdata
-FUZZPROFDATA=$(TARGET)/fuzz.profdata
+FZFLAGS ?= -max_total_time=60 -timeout=30 -use_value_profile=1
 
 .PHONY: clean test fuzz coverage full-coverage fuzz-coverage purge
 
@@ -71,11 +67,10 @@ full-coverage: $(TESTPROFDATA) BROWSER
 	@$(BROWSER) $(shell pwd)/$(TARGET)/coverage.html
 
 fuzz: $(TARGET_FUZZERS)
-	@ for f in $^; do mkdir -p $$f.corpus && LLVM_PROFILE_FILE="$$f.profraw" $$f $$f.corpus -max_total_time=$(FUZZER_TOTAL_TIME); done; wait
+	@ for f in $^; do echo "  FZ	$$f" && mkdir -p $$f.corpus && LLVM_PROFILE_FILE="$(TARGET)/$$f.profraw" ./$$f $$f.corpus $(FZFLAGS) -dict=./fuzz.dict; done; wait
 
-# clang version >= April 2017 required (tested with 6.0.0 trunk 310227)
+# clang version >= 6.0.0
 $(TARGET)/fuzz_%: fuzz_%.c $(LIB)
-	@ echo "  CC	$@"
 	@ $(CC) $(LDFLAGS) $(CFLAGS) -fsanitize=fuzzer $(addprefix ../src/,$(patsubst fuzz_%.c, %.c, $<)) $< -o $@ $(LIB)
 
 $(FUZZPROFDATA): $(TARGET_FUZZERS)
