@@ -138,6 +138,26 @@ int test_parse_error()
 	return 0;
 }
 
+int test_parse_multiple()
+{
+	parser_t* p = parser_create();
+	parse_res_t res;
+
+	/* feed partial data */
+	res = parser_parse(p, BUF7, LEN7 - 2);
+	ASSERT_EQ(res.type, PARSE_PARTIAL);
+	ASSERT_EQ(res.consumed, LEN7 - 2);
+	parser_reset(p);
+
+	/* check that we are able to re-parse the data */
+	res = parser_parse(p, BUF7, LEN7);
+	ASSERT_EQ(res.type, PARSE_COMPLETE);
+	ASSERT_EQ(res.consumed, LEN7);
+	ASSERT_LOG_EQ(res.result.log, &EXPECTED7);
+
+	return 0;
+}
+
 int test_parse_reset()
 {
 	parser_t* p = parser_create();
@@ -169,6 +189,7 @@ int main(int argc, char* argv[])
 	TEST_RUN(ctx, test_parse_reset);
 	TEST_RUN(ctx, test_parse_error);
 	TEST_RUN(ctx, test_parse_partial);
+	TEST_RUN(ctx, test_parse_multiple);
 
 	TEST_RELEASE(ctx);
 }

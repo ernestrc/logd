@@ -108,12 +108,17 @@ static slab_t* pslab;
 	"at endReadableNT (_stream_readable.js 1047 12), class: Endpoint, id: "    \
 	"5NZM0okZ, timestamp: 1512515349858, duration: 2.017655998468399\n"
 
+#define LOG7                                                                   \
+	"2017-04-19 18:01:11,477     INFO [Test worker]    "                       \
+	"core.InstrumentationListener	nothing special here\n"
+
 #define LEN1 strlen(LOG1)
 #define LEN2 strlen(LOG2)
 #define LEN3 strlen(LOG3)
 #define LEN4 strlen(LOG4)
 #define LEN5 strlen(LOG5)
 #define LEN6 strlen(LOG6)
+#define LEN7 strlen(LOG7)
 
 char* BUF1;
 char* BUF2;
@@ -121,6 +126,7 @@ char* BUF3;
 char* BUF4;
 char* BUF5;
 char* BUF6;
+char* BUF7;
 
 log_t EXPECTED1;
 log_t EXPECTED2;
@@ -128,6 +134,7 @@ log_t EXPECTED3;
 log_t EXPECTED4;
 log_t EXPECTED5;
 log_t EXPECTED6;
+log_t EXPECTED7;
 
 static void init_test_data()
 {
@@ -137,12 +144,14 @@ static void init_test_data()
 	BUF4 = rcmalloc(LEN4);
 	BUF5 = rcmalloc(LEN5);
 	BUF6 = rcmalloc(LEN6);
+	BUF7 = rcmalloc(LEN7);
 	memcpy(BUF1, LOG1, LEN1);
 	memcpy(BUF2, LOG2, LEN2);
 	memcpy(BUF3, LOG3, LEN3);
 	memcpy(BUF4, LOG4, LEN4);
 	memcpy(BUF5, LOG5, LEN5);
 	memcpy(BUF6, LOG6, LEN6);
+	memcpy(BUF7, LOG7, LEN7);
 
 	log_set(&EXPECTED1, slab_get(pslab), KEY_TIME, "14:54:39,474");
 	log_set(&EXPECTED1, slab_get(pslab), KEY_DATE, "2017-09-07");
@@ -242,6 +251,16 @@ static void init_test_data()
 	log_set(&EXPECTED6, slab_get(pslab), "id", "5NZM0okZ");
 	log_set(&EXPECTED6, slab_get(pslab), "timestamp", "1512515349858");
 	log_set(&EXPECTED6, slab_get(pslab), "duration", "2.017655998468399");
+
+	log_set(&EXPECTED7, slab_get(pslab), KEY_DATE, "2017-04-19");
+	log_set(&EXPECTED7, slab_get(pslab), KEY_TIME, "18:01:11,477");
+	log_set(&EXPECTED7, slab_get(pslab), KEY_LEVEL, "INFO");
+	log_set(&EXPECTED7, slab_get(pslab), KEY_THREAD, "Test worker");
+	log_set(
+	  &EXPECTED7, slab_get(pslab), KEY_CLASS, "core.InstrumentationListener");
+	log_set(&EXPECTED7, slab_get(pslab), KEY_MESSAGE,
+	  "nothing special here");
+
 }
 
 static void __test_print_help(const char* prog)
@@ -269,11 +288,11 @@ static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
 	ctx->success = 0;
 	ctx->silent = 0;
 
-	if (rcmalloc_init(1000)) {
+	if (rcmalloc_init(100000)) {
 		perror("rcmalloc_init()");
 	}
 
-	pslab = slab_create(1000, sizeof(prop_t));
+	pslab = slab_create(10000, sizeof(prop_t));
 	if (!pslab)
 		perror("slab_create()");
 
@@ -356,6 +375,17 @@ int log_cmp(log_t* la, log_t* lb)
 	ASSERT_EQ(wantb < sizeof(logb), true);
 
 	return strcmp(loga, logb);
+}
+
+void print_bytes(const char* bytes, size_t size)
+{
+	size_t i;
+
+	printf("<");
+	for (i = 0; i < size; i++) {
+		printf("%c", bytes[i]);
+	}
+	printf(">");
 }
 
 #define ASSERT_LOG_EQ(la, lb)                                                  \

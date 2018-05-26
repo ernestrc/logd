@@ -116,6 +116,7 @@ INLINE static void parser_parse_next_key(parser_t* p, parse_ctx_t* ctx)
 		}
 		break;
 	case ':':
+	case '\x00': /* re-submitted partial data */
 		COMMIT_KEY(ctx);
 		SET_VALUE(p, ctx->chunk);
 		p->state = VALUE_PSTATE;
@@ -131,6 +132,7 @@ INLINE void parser_parse_next_multikey(parser_t* p, parse_ctx_t* ctx)
 	switch (ctx->token) {
 	case ' ':
 	case '\t':
+	case '\x00':
 		/* backtrack, clean first key and skip space */
 		SET_KEY(p, ctx->chunk);
 		ctx->blen--;
@@ -151,6 +153,7 @@ INLINE void parser_parse_next_value(parser_t* p, parse_ctx_t* ctx)
 {
 	switch (ctx->token) {
 	case ',':
+	case '\x00':
 		COMMIT_VALUE(ctx);
 		TRY_ADD_PROP(p, ctx);
 		SET_KEY(p, ctx->chunk);
@@ -217,6 +220,7 @@ INLINE void parser_parse_next_date(
 	case ' ':
 	case ']':
 	case '\t':
+	case '\x00':
 		COMMIT_VALUE(ctx);
 		TRY_ADD_PROP(p, ctx);
 		SET_KEY(p, next_key);
@@ -239,6 +243,7 @@ INLINE void parser_parse_next_header(
 	case '\t':
 	case ' ':
 	case ']':
+	case '\x00':
 		COMMIT_VALUE(ctx);
 		TRY_ADD_PROP(p, ctx);
 		SET_KEY(p, next_key);
@@ -256,6 +261,7 @@ INLINE void parser_parse_next_thread_bracket(parser_t* p, parse_ctx_t* ctx)
 	switch (ctx->token) {
 	case ']':
 	case '\t':
+	case '\x00':
 		COMMIT_VALUE(ctx);
 		TRY_ADD_PROP(p, ctx);
 		SET_KEY(p, KEY_CLASS);
@@ -286,6 +292,7 @@ INLINE void parser_parse_next_calltype(parser_t* p, parse_ctx_t* ctx)
 {
 	switch (ctx->token) {
 	case ':':
+	case '\x00':
 		COMMIT_VALUE(ctx);
 		TRY_ADD_PROP(p, ctx);
 		SET_KEY(p, ctx->chunk);

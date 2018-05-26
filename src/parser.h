@@ -79,7 +79,8 @@ void parser_free(parser_t* p);
  * - Should return a log pointer that is valid until parser_reset is called
  * - Should skip until next log if error is encountered while parsing
  * - Should parse partial logs and return the appropiate consumed bytes
- * - TODO Should be able to parse its input twice if required
+ * - Should be able to parse partial input data twice. This does not apply to
+ * completely parsed logs.
  */
 parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen);
 
