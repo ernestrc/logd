@@ -10,7 +10,7 @@ TARGET =../bin/
 
 EXEC_SRC = logd.c
 LUA_MODULE=logd_module.c
-LUA_MODULE_DEPS=log.o util.o
+LUA_MODULE_DEPS=log.c util.c
 
 EXTOBJ = $(wildcard ../ext/lib/*.o)
 SRCS = $(wildcard *.c)

@@ -127,7 +127,7 @@ INLINE static void parser_parse_next_key(parser_t* p, parse_ctx_t* ctx)
 	}
 }
 
-INLINE void parser_parse_next_multikey(parser_t* p, parse_ctx_t* ctx)
+INLINE static void parser_parse_next_multikey(parser_t* p, parse_ctx_t* ctx)
 {
 	switch (ctx->token) {
 	case ' ':
@@ -149,7 +149,7 @@ INLINE void parser_parse_next_multikey(parser_t* p, parse_ctx_t* ctx)
 	}
 }
 
-INLINE void parser_parse_next_value(parser_t* p, parse_ctx_t* ctx)
+INLINE static void parser_parse_next_value(parser_t* p, parse_ctx_t* ctx)
 {
 	switch (ctx->token) {
 	case ',':
@@ -178,7 +178,7 @@ INLINE void parser_parse_next_value(parser_t* p, parse_ctx_t* ctx)
 	}
 }
 
-INLINE bool parser_parse_skip(parser_t* p, parse_ctx_t* ctx)
+INLINE static bool parser_parse_skip(parser_t* p, parse_ctx_t* ctx)
 {
 	switch (ctx->token) {
 	case '\t':
@@ -191,7 +191,7 @@ INLINE bool parser_parse_skip(parser_t* p, parse_ctx_t* ctx)
 	}
 }
 
-INLINE void parser_parse_next_date(
+INLINE static void parser_parse_next_date(
   parser_t* p, parse_ctx_t* ctx, const char* next_key)
 {
 	switch (ctx->token) {
@@ -233,7 +233,7 @@ INLINE void parser_parse_next_date(
 	}
 }
 
-INLINE void parser_parse_next_header(
+INLINE static void parser_parse_next_header(
   parser_t* p, parse_ctx_t* ctx, const char* next_key)
 {
 	switch (ctx->token) {
@@ -256,7 +256,7 @@ INLINE void parser_parse_next_header(
 	}
 }
 
-INLINE void parser_parse_next_thread_bracket(parser_t* p, parse_ctx_t* ctx)
+INLINE static void parser_parse_next_thread_bracket(parser_t* p, parse_ctx_t* ctx)
 {
 	switch (ctx->token) {
 	case ']':
@@ -274,7 +274,7 @@ INLINE void parser_parse_next_thread_bracket(parser_t* p, parse_ctx_t* ctx)
 	}
 }
 
-INLINE void parser_parse_next_thread(parser_t* p, parse_ctx_t* ctx)
+INLINE static void parser_parse_next_thread(parser_t* p, parse_ctx_t* ctx)
 {
 	switch (ctx->token) {
 	case '[':
@@ -288,7 +288,7 @@ INLINE void parser_parse_next_thread(parser_t* p, parse_ctx_t* ctx)
 	}
 }
 
-INLINE void parser_parse_next_calltype(parser_t* p, parse_ctx_t* ctx)
+INLINE static void parser_parse_next_calltype(parser_t* p, parse_ctx_t* ctx)
 {
 	switch (ctx->token) {
 	case ':':
@@ -304,7 +304,7 @@ INLINE void parser_parse_next_calltype(parser_t* p, parse_ctx_t* ctx)
 	}
 }
 
-INLINE void parser_parse_verify_calltype(parser_t* p, parse_ctx_t* ctx)
+INLINE static void parser_parse_verify_calltype(parser_t* p, parse_ctx_t* ctx)
 {
 	switch (ctx->token) {
 	case ',':
@@ -320,7 +320,7 @@ INLINE void parser_parse_verify_calltype(parser_t* p, parse_ctx_t* ctx)
 	}
 }
 
-INLINE void parser_parse_end(parser_t* p, parse_ctx_t* ctx, parse_res_t* res)
+INLINE static void parser_parse_end(parser_t* p, parse_ctx_t* ctx, parse_res_t* res)
 {
 	DEBUG_ASSERT(p->result.props != NULL);
 
@@ -363,7 +363,7 @@ INLINE void parser_parse_end(parser_t* p, parse_ctx_t* ctx, parse_res_t* res)
 	res->result.log = &p->result;
 }
 
-parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen)
+INLINE parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen)
 {
 	DEBUG_ASSERT(p != NULL);
 	DEBUG_ASSERT(chunk != NULL);

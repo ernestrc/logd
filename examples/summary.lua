@@ -17,10 +17,10 @@ end
 
 function logd.on_log(logptr)
 	counter = counter + 1
-	logd.print({
-		msg = "processed new log",
-		counter = counter,
-	})
+end
+
+function logd.on_eof()
+	logd.print({ level = 'INFO', msg = string.format('processed %d logs', counter) })
 end
 
 -- load backwards compatibility layer with logd-go
