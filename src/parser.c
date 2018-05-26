@@ -1,15 +1,10 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include "util.h"
 #include "parser.h"
-
-#ifndef LOGD_PROP_CAP
-#define PARSER_SLAB_CAP 100
-#else
-#define PARSER_SLAB_CAP LOGD_PROP_CAP
-#endif
+#include "util.h"
 
 #ifdef LOGD_INLINE
 #define INLINE inline
@@ -17,29 +12,53 @@
 #define INLINE
 #endif
 
-#define APPEND_NEW_PROP(p, prop, key)                                          \
-	prop = slab_get(p->pslab);                                                 \
-	if (prop == NULL) {                                                        \
-		parser_parse_error(p, "slab_get");                                     \
+#define TRY_ADD_PROP(p, ctx)                                                   \
+	if (p->pnext == PARSER_SLAB_CAP) {                                         \
+		parser_parse_error(p, ctx,                                             \
+		  "reached max number of log properties: " STR(PARSER_SLAB_CAP));      \
 		return;                                                                \
 	}                                                                          \
-	log_set(&p->result, prop, key, NULL);
+	p->pslab[p->pnext].next = p->result.props;                                 \
+	p->result.props = &p->pslab[p->pnext];                                     \
+	p->pnext++;
 
-#define RESET_OFFSET(p)                                                        \
-	p->bstart += p->blen + 1;                                                  \
-	p->blen = 0;
+#define SET_VALUE(p, chunk) p->result.props->value = chunk;
 
-#define CONSUME_KEY(p)                                                         \
-	p->bstart[p->blen] = 0;                                                    \
-	p->result.props->key = p->bstart;                                          \
-	RESET_OFFSET(p);
+#define SET_KEY(p, chunk) p->result.props->key = chunk;
 
-#define CONSUME_VALUE(p)                                                       \
-	p->bstart[p->blen] = 0;                                                    \
-	p->result.props->value = p->bstart;                                        \
-	RESET_OFFSET(p);
+#define COMMIT_OFFSET(ctx)                                                     \
+	(ctx)->chunk += (ctx)->blen + 1;                                           \
+	(ctx)->blen = 0;
 
-#define SKIP(p) p->bstart++;
+#define COMMIT_KEY(ctx)                                                        \
+	(ctx)->chunk[(ctx)->blen] = 0;                                             \
+	COMMIT_OFFSET(ctx);
+
+#define COMMIT_VALUE(ctx)                                                      \
+	(ctx)->chunk[(ctx)->blen] = 0;                                             \
+	COMMIT_OFFSET(ctx);
+
+#define SKIP_KEY(p, ctx)                                                       \
+	(ctx)->chunk++;                                                            \
+	SET_KEY(p, (ctx)->chunk)
+
+#define SKIP_VALUE(p, ctx)                                                     \
+	(ctx)->chunk++;                                                            \
+	SET_VALUE(p, (ctx)->chunk)
+
+typedef struct parse_ctx_s {
+	char token;
+	char* chunk;
+	int blen;
+	const char* error;
+} parse_ctx_t;
+
+INLINE static void parser_parse_error(
+  parser_t* p, parse_ctx_t* ctx, const char* msg)
+{
+	p->state = ERROR_PSTATE;
+	ctx->error = msg;
+}
 
 parser_t* parser_create()
 {
@@ -50,19 +69,31 @@ parser_t* parser_create()
 		return NULL;
 	}
 
-	slab_t* slab = slab_create(PARSER_SLAB_CAP, sizeof(prop_t));
+	prop_t* slab = calloc(PARSER_SLAB_CAP, sizeof(prop_t));
 	parser_init(p, slab);
 
 	return p;
 }
 
-void parser_init(parser_t* p, slab_t* pslab)
+INLINE void parser_reset(parser_t* p)
 {
-	p->bstart = NULL;
-	p->blen = 0;
-	p->state = DATE_PSTATE;
-	p->pslab = pslab;
+	DEBUG_ASSERT(p != NULL);
+
+	p->state = INIT_PSTATE;
+	p->pnext = 0;
+	memset(p->pslab, 0, PARSER_SLAB_CAP);
 	log_init(&p->result);
+
+	TRY_ADD_PROP(p, NULL);
+	SET_KEY(p, KEY_DATE);
+}
+
+void parser_init(parser_t* p, prop_t* pslab)
+{
+	DEBUG_ASSERT(p != NULL);
+
+	p->pslab = pslab;
+	parser_reset(p);
 }
 
 void parser_free(parser_t* p)
@@ -70,109 +101,86 @@ void parser_free(parser_t* p)
 	if (p == NULL)
 		return;
 
-	slab_free(p->pslab);
+	free(p->pslab);
 	free(p);
 }
 
-INLINE static void parser_result_reset(parser_t* p)
+INLINE static void parser_parse_next_key(parser_t* p, parse_ctx_t* ctx)
 {
-	DEBUG_ASSERT(p != NULL);
-
-	for (prop_t* prop = p->result.props; prop != NULL; prop = prop->next) {
-		prop->next = NULL;
-		prop->key = NULL;
-		prop->value = NULL;
-		slab_put(p->pslab, prop);
-	}
-
-	log_init(&p->result);
-}
-
-INLINE void parser_parse_error(parser_t* p, const char* msg)
-{
-	p->state = ERROR_PSTATE;
-	// TODO msg
-}
-
-INLINE void parser_parse_next_key(parser_t* p, char r)
-{
-	prop_t* prop;
-
-	switch (r) {
-	case ',':
-		parser_parse_error(p, "unexpected ',' character");
-		break;
+	switch (ctx->token) {
+	/* trim left spaces */
 	case ' ':
-		// trim left spaces
-		if (p->blen == 0) {
-			SKIP(p);
+	case '\t':
+		if (ctx->blen == 0) {
+			SKIP_KEY(p, ctx);
 		}
 		break;
 	case ':':
-		APPEND_NEW_PROP(p, prop, NULL);
-		CONSUME_KEY(p);
+		COMMIT_KEY(ctx);
+		SET_VALUE(p, ctx->chunk);
 		p->state = VALUE_PSTATE;
 		break;
 	default:
-		p->blen++;
+		ctx->blen++;
 		break;
 	}
 }
 
-INLINE void parser_parse_next_multikey(parser_t* p, char r)
+INLINE void parser_parse_next_multikey(parser_t* p, parse_ctx_t* ctx)
 {
-	switch (r) {
-	case ',':
-		parser_parse_error(p, "unexpected ',' character");
-		break;
+	switch (ctx->token) {
 	case ' ':
 	case '\t':
-		// backtrack, clean first key and skip space
-		p->blen--;
-		CONSUME_KEY(p);
-		p->bstart++;
+		/* backtrack, clean first key and skip space */
+		SET_KEY(p, ctx->chunk);
+		ctx->blen--;
+		COMMIT_KEY(ctx);
+		ctx->chunk++;
+		SET_VALUE(p, ctx->chunk);
 		p->state = VALUE_PSTATE;
 		break;
 	default:
-		// reset state as char:char is valid
+		/* reset state as char:char is valid */
 		p->state = VALUE_PSTATE;
-		p->blen++;
+		ctx->blen++;
 		break;
 	}
 }
 
-INLINE void parser_parse_next_value(parser_t* p, char r)
+INLINE void parser_parse_next_value(parser_t* p, parse_ctx_t* ctx)
 {
-	switch (r) {
+	switch (ctx->token) {
 	case ',':
-		CONSUME_VALUE(p);
+		COMMIT_VALUE(ctx);
+		TRY_ADD_PROP(p, ctx);
+		SET_KEY(p, ctx->chunk);
 		p->state = KEY_PSTATE;
 		break;
 	case ':':
 		p->state = MULTIKEY_PSTATE;
-		p->blen++;
+		ctx->blen++;
 		break;
+	/* trim left spaces */
 	case ' ':
 	case '\t':
-		// trim left spaces
-		if (p->blen == 0) {
-			SKIP(p);
+		if (ctx->blen == 0) {
+			SKIP_VALUE(p, ctx);
 		} else {
-			p->blen++;
+			ctx->blen++;
 		}
 		break;
 	default:
-		p->blen++;
+		ctx->blen++;
 		break;
 	}
 }
 
-INLINE bool parser_parse_skip(parser_t* p, char r)
+INLINE bool parser_parse_skip(parser_t* p, parse_ctx_t* ctx)
 {
-	switch (r) {
+	switch (ctx->token) {
 	case '\t':
 	case ' ':
-		SKIP(p);
+		SKIP_VALUE(p, ctx);
 		return true;
 	default:
 		p->state++;
@@ -180,13 +188,12 @@ INLINE bool parser_parse_skip(parser_t* p, char r)
 	}
 }
 
-INLINE void parser_parse_next_date(parser_t* p, const char* key, char r)
+INLINE void parser_parse_next_date(
+  parser_t* p, parse_ctx_t* ctx, const char* next_key)
 {
-	prop_t* prop;
-
-	switch (r) {
+	switch (ctx->token) {
 	case '[':
-		SKIP(p);
+		SKIP_VALUE(p, ctx);
 		break;
 	case '0':
 	case '1':
@@ -202,182 +209,238 @@ INLINE void parser_parse_next_date(parser_t* p, const char* key, char r)
 	case ',':
 	case '.':
 	case '-':
-		p->blen++;
+	case 'Z':
+	case '+':
+		ctx->blen++;
+		break;
+	case 'T':
+	case ' ':
+	case ']':
+	case '\t':
+		COMMIT_VALUE(ctx);
+		TRY_ADD_PROP(p, ctx);
+		SET_KEY(p, next_key);
+		SET_VALUE(p, ctx->chunk);
+		p->state++;
 		break;
 	default:
-		APPEND_NEW_PROP(p, prop, key);
-		CONSUME_VALUE(p);
-		p->state++;
+		parser_parse_error(p, ctx, "invalid date or time in log header");
 		break;
 	}
 }
 
-INLINE void parser_parse_next_header(parser_t* p, const char* key, char r)
+INLINE void parser_parse_next_header(
+  parser_t* p, parse_ctx_t* ctx, const char* next_key)
 {
-	prop_t* prop;
-
-	switch (r) {
+	switch (ctx->token) {
 	case '[':
-		SKIP(p);
+		SKIP_VALUE(p, ctx);
 		break;
 	case '\t':
 	case ' ':
 	case ']':
-		APPEND_NEW_PROP(p, prop, key);
-		CONSUME_VALUE(p);
+		COMMIT_VALUE(ctx);
+		TRY_ADD_PROP(p, ctx);
+		SET_KEY(p, next_key);
+		SET_VALUE(p, ctx->chunk);
 		p->state++;
 		break;
 	default:
-		p->blen++;
+		ctx->blen++;
 		break;
 	}
 }
 
-INLINE void parser_parse_next_thread_bracket(parser_t* p, char r)
+INLINE void parser_parse_next_thread_bracket(parser_t* p, parse_ctx_t* ctx)
 {
-	prop_t* prop;
-
-	switch (r) {
+	switch (ctx->token) {
 	case ']':
 	case '\t':
-		APPEND_NEW_PROP(p, prop, KEY_THREAD);
-		CONSUME_VALUE(p);
+		COMMIT_VALUE(ctx);
+		TRY_ADD_PROP(p, ctx);
+		SET_KEY(p, KEY_CLASS);
+		SET_VALUE(p, ctx->chunk);
 		p->state = TRANSITIONCLASS_PSTATE;
 		break;
 	default:
-		p->blen++;
+		ctx->blen++;
 		break;
 	}
 }
 
-INLINE void parser_parse_next_thread(parser_t* p, char r)
+INLINE void parser_parse_next_thread(parser_t* p, parse_ctx_t* ctx)
 {
-	switch (r) {
+	switch (ctx->token) {
 	case '[':
 		p->state = THREADBRACKET_PSTATE;
-		SKIP(p);
+		SKIP_VALUE(p, ctx);
 		break;
 	default:
 		p->state = THREADNOBRACKET_PSTATE;
-		parser_parse_next_header(p, KEY_THREAD, r);
+		parser_parse_next_header(p, ctx, KEY_CLASS);
 		break;
 	}
 }
 
-INLINE void parser_parse_next_calltype(parser_t* p, char r)
+INLINE void parser_parse_next_calltype(parser_t* p, parse_ctx_t* ctx)
 {
-	prop_t* prop;
-
-	switch (r) {
+	switch (ctx->token) {
 	case ':':
-		APPEND_NEW_PROP(p, prop, KEY_CALLTYPE);
-		CONSUME_VALUE(p);
+		COMMIT_VALUE(ctx);
+		TRY_ADD_PROP(p, ctx);
+		SET_KEY(p, ctx->chunk);
 		p->state++;
 		break;
 	default:
-		p->blen++;
+		ctx->blen++;
 		break;
 	}
 }
 
-INLINE void parser_parse_verify_calltype(parser_t* p, char r)
+INLINE void parser_parse_verify_calltype(parser_t* p, parse_ctx_t* ctx)
 {
-	switch (r) {
+	switch (ctx->token) {
 	case ',':
-		p->result.props->key = p->result.props->value;
-		parser_parse_next_value(p, r);
+		p->result.props->next->key = p->result.props->next->value;
+		p->result.props->next->value = ctx->chunk;
+		p->result.props = p->result.props->next;
+		p->pnext--;
+		parser_parse_next_value(p, ctx);
 		break;
 	default:
-		parser_parse_next_key(p, r);
+		parser_parse_next_key(p, ctx);
 		break;
 	}
 }
 
-INLINE void parser_parse_end(parser_t* p)
+INLINE void parser_parse_end(parser_t* p, parse_ctx_t* ctx, parse_res_t* res)
 {
-	prop_t* prop;
+	DEBUG_ASSERT(p->result.props != NULL);
 
-	if (p->result.props != NULL && p->result.props->value == NULL) {
-		CONSUME_VALUE(p);
-	} else {
-		APPEND_NEW_PROP(p, prop, KEY_MESSAGE);
-		CONSUME_VALUE(p);
+	switch (p->state) {
+	case INIT_PSTATE:
+	case DATE_PSTATE:
+	case TIME_PSTATE:
+	case LEVEL_PSTATE:
+	case THREAD_PSTATE:
+	case THREADBRACKET_PSTATE:
+	case THREADNOBRACKET_PSTATE:
+	case CLASS_PSTATE:
+		parser_parse_error(p, ctx, "incomplete header");
+		res->type = PARSE_ERROR;
+		res->result.error = ctx->error;
+		return;
+	case CALLTYPE_PSTATE:
+	case VERIFYCALLTYPE_PSTATE:
+	case KEY_PSTATE:
+		SET_KEY(p, KEY_MESSAGE);
+		SET_VALUE(p, ctx->chunk);
+		COMMIT_VALUE(ctx);
+		break;
+	case MULTIKEY_PSTATE:
+	case VALUE_PSTATE:
+	case TRANSITIONLEVEL_PSTATE:
+	case TRANSITIONTHREAD_PSTATE:
+	case TRANSITIONCALLTYPE_PSTATE:
+	case TRANSITIONCLASS_PSTATE:
+		SET_VALUE(p, ctx->chunk);
+		COMMIT_VALUE(ctx);
+		break;
+	case ERROR_PSTATE:
+		res->type = PARSE_ERROR;
+		res->result.error = ctx->error;
+		return;
 	}
+
+	res->type = PARSE_COMPLETE;
+	res->result.log = &p->result;
 }
 
-presult_t parser_parse(parser_t* p, char* chunk, size_t clen)
+parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen)
 {
-
 	DEBUG_ASSERT(p != NULL);
 	DEBUG_ASSERT(chunk != NULL);
 
-	p->bstart = chunk;
-	p->blen = 0;
-	parser_result_reset(p);
+	parse_ctx_t ctx;
+	parse_res_t res;
 
-	size_t consumed;
-	char next;
-	for (consumed = 0; clen > 0; clen--) {
-		next = chunk[consumed++];
-		switch (next) {
+	ctx.chunk = chunk;
+	ctx.blen = 0;
+
+	for (res.consumed = 0; clen > 0; clen--) {
+		ctx.token = chunk[res.consumed++];
+		switch (ctx.token) {
 		case '\n':
-			parser_parse_end(p);
-			p->state = DATE_PSTATE;
-			return (presult_t){true, consumed};
+			parser_parse_end(p, &ctx, &res);
+			return res;
 		default:
-		next:
+		parse:
 			switch (p->state) {
+			case INIT_PSTATE:
+				SET_VALUE(p, chunk);
+				p->state++;
+				/* fallthrough */
 			case DATE_PSTATE:
-				parser_parse_next_date(p, KEY_DATE, next);
+				parser_parse_next_date(p, &ctx, KEY_TIME);
 				break;
 			case TIME_PSTATE:
-				parser_parse_next_date(p, KEY_TIME, next);
+				parser_parse_next_date(p, &ctx, KEY_LEVEL);
 				break;
 			case LEVEL_PSTATE:
-				parser_parse_next_header(p, KEY_LEVEL, next);
+				parser_parse_next_header(p, &ctx, KEY_THREAD);
 				break;
 			case THREAD_PSTATE:
-				parser_parse_next_thread(p, next);
+				parser_parse_next_thread(p, &ctx);
 				break;
 			case THREADBRACKET_PSTATE:
-				parser_parse_next_thread_bracket(p, next);
+				parser_parse_next_thread_bracket(p, &ctx);
 				break;
 			case THREADNOBRACKET_PSTATE:
-				parser_parse_next_header(p, KEY_THREAD, next);
+				parser_parse_next_header(p, &ctx, KEY_CLASS);
 				break;
 			case CLASS_PSTATE:
-				parser_parse_next_header(p, KEY_CLASS, next);
+				parser_parse_next_header(p, &ctx, KEY_CALLTYPE);
 				break;
 			case CALLTYPE_PSTATE:
-				parser_parse_next_calltype(p, next);
+				parser_parse_next_calltype(p, &ctx);
 				break;
 			case VERIFYCALLTYPE_PSTATE:
-				parser_parse_verify_calltype(p, next);
+				parser_parse_verify_calltype(p, &ctx);
 				break;
 			case KEY_PSTATE:
-				parser_parse_next_key(p, next);
+				parser_parse_next_key(p, &ctx);
 				break;
 			case VALUE_PSTATE:
-				parser_parse_next_value(p, next);
+				parser_parse_next_value(p, &ctx);
 				break;
 			case MULTIKEY_PSTATE:
-				parser_parse_next_multikey(p, next);
+				parser_parse_next_multikey(p, &ctx);
 				break;
 			case TRANSITIONLEVEL_PSTATE:
 			case TRANSITIONTHREAD_PSTATE:
 			case TRANSITIONCALLTYPE_PSTATE:
 			case TRANSITIONCLASS_PSTATE:
-				if (!parser_parse_skip(p, next)) {
-					goto next;
+				if (!parser_parse_skip(p, &ctx)) {
+					goto parse;
 				}
 				break;
+			/* skip input until newline is found and state is reset */
 			case ERROR_PSTATE:
-				// ignore until newline is found and state is reset
+				/* optimize non-error case */
+				if (clen == 1 || chunk[res.consumed] == '\n') {
+					if (clen != 1) {
+						res.consumed++;
+					}
+					res.type = PARSE_ERROR;
+					res.result.error = ctx.error;
+					return res;
+				}
 				break;
 			}
 			break;
 		}
 	}
 
-	return (presult_t){false, consumed};
+	res.type = PARSE_PARTIAL;
+	return res;
 }
