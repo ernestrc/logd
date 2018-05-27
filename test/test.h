@@ -176,8 +176,8 @@ static void init_test_data()
 	log_set(&EXPECTED2, slab_get(pslab), "sessionId",
 	  "1_MX4xMDB-fjE1MDQ4MjEyNzAxMjR-WThtTVpEN0J2c1Z2TlJGcndTN1lpTExGfn4");
 	log_set(&EXPECTED2, slab_get(pslab), "flow", "Publish");
-	log_set(&EXPECTED2, slab_get(pslab), "connectionId",
-	  "f41973e5-b27c-49e4-bcaf-1d48b153683e");
+	log_set(&EXPECTED2, slab_get(pslab), "conId",
+	  "connectionId: f41973e5-b27c-49e4-bcaf-1d48b153683e");
 	log_set(&EXPECTED2, slab_get(pslab), "step", "Attempt");
 	log_set(&EXPECTED2, slab_get(pslab), "publisherId",
 	  "b4da82c4-cac5-4e13-b1dc-bb1f42b475dd");

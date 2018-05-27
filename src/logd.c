@@ -113,7 +113,8 @@ void on_read(uv_fs_t* req)
 				buf_ack(b, res.consumed);
 			} else {
 				/* complete log doesn't fit buffer so reserve more space */
-				/* do not ack so we re-parse the in the re-allocated buffer */
+				/* do not ack so we re-parse with the re-allocated buffer */
+				// TODO handle malicous memory attack
 				if (buf_reserve(b, BUF_CAP) != 0) {
 					perror("buf_reserve");
 					fprintf(stderr, "error reserving more space in input buffer\n");
@@ -126,13 +127,15 @@ void on_read(uv_fs_t* req)
 			goto read;
 		case PARSE_COMPLETE:
 			buf_ack(b, res.consumed);
-			lua_call_on_log(lstate, res.result.log);
+			lua_call_on_log(lstate, res.log);
 			parser_reset(p);
 			break;
 		case PARSE_ERROR:
-			DEBUG_LOG("parse error: %s", res.result.error);
+			DEBUG_LOG("parse error: %s", res.error.msg);
 			buf_ack(b, res.consumed);
-			// TODO call on_error
+			if (lua_on_error_defined(lstate)) {
+				lua_call_on_error(lstate, res.error.msg, res.log, res.error.remaining);
+			}
 			parser_reset(p);
 			break;
 		}

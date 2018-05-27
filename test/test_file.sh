@@ -34,7 +34,7 @@ cat >$IN << EOF
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
 2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
 2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
-2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, 
+2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, 
 2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ,
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
@@ -49,6 +49,7 @@ cat >$IN << EOF
 2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
 2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, 
 2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ,
+2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, 
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
 2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
@@ -63,6 +64,7 @@ cat >$IN << EOF
 2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, 
 2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
 2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
+2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, 
 2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, 
 2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ,
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
@@ -76,6 +78,7 @@ cat >$IN << EOF
 2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
 2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, 
 2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ,
+2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, 
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
@@ -90,6 +93,7 @@ cat >$IN << EOF
 2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, 
 2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ,
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
+2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, 
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 
 2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, 

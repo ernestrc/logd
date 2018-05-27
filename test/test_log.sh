@@ -61,8 +61,8 @@ function logd.on_log(logptr)
 		assert("thread5" == logd.log_get(logptr, "thread"))
 		assert("clazz" == logd.log_get(logptr, "class"))
 		assert("callType" == logd.log_get(logptr, "callType"))
-		assert(nil == logd.log_get(logptr, "b"))
-		assert("C" == logd.log_get(logptr, "c"))
+		assert("c: C" == logd.log_get(logptr, "b"))
+		assert(nil == logd.log_get(logptr, "c"))
 	end
 	counter = counter + 1
 end

@@ -68,7 +68,6 @@ INLINE static void parser_clean_result(parser_t* p)
 	case THREADNOBRACKET_PSTATE:
 	case CLASS_PSTATE:
 	case CALLTYPE_PSTATE:
-	case MULTIKEY_PSTATE:
 	case VALUE_PSTATE:
 	case TRANSITIONLEVEL_PSTATE:
 	case TRANSITIONTHREAD_PSTATE:
@@ -162,28 +161,6 @@ INLINE static void parser_parse_next_key(parser_t* p)
 	}
 }
 
-INLINE static void parser_parse_next_multikey(parser_t* p)
-{
-	switch (p->token) {
-	case ' ':
-	case '\t':
-	case '\x00':
-		/* backtrack, clean first key and skip space */
-		SET_KEY(p, p->chunk);
-		p->blen--;
-		COMMIT_KEY(p);
-		p->chunk++;
-		SET_VALUE(p, p->chunk);
-		p->state = VALUE_PSTATE;
-		break;
-	default:
-		/* reset state as char:char is valid */
-		p->state = VALUE_PSTATE;
-		p->blen++;
-		break;
-	}
-}
-
 INLINE static void parser_parse_next_value(parser_t* p)
 {
 	switch (p->token) {
@@ -193,10 +170,6 @@ INLINE static void parser_parse_next_value(parser_t* p)
 		TRY_ADD_PROP(p);
 		SET_KEY(p, p->chunk);
 		p->state = KEY_PSTATE;
-		break;
-	case ':':
-		p->state = MULTIKEY_PSTATE;
-		p->blen++;
 		break;
 	/* trim left spaces */
 	case ' ':
@@ -381,7 +354,6 @@ INLINE static void parser_parse_end(parser_t* p)
 		SET_VALUE(p, p->chunk);
 		COMMIT_VALUE(p);
 		break;
-	case MULTIKEY_PSTATE:
 	case VALUE_PSTATE:
 	case TRANSITIONLEVEL_PSTATE:
 	case TRANSITIONTHREAD_PSTATE:
@@ -448,9 +420,6 @@ INLINE parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen)
 				break;
 			case VALUE_PSTATE:
 				parser_parse_next_value(p);
-				break;
-			case MULTIKEY_PSTATE:
-				parser_parse_next_multikey(p);
 				break;
 			case TRANSITIONLEVEL_PSTATE:
 			case TRANSITIONTHREAD_PSTATE:

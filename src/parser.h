@@ -27,9 +27,8 @@ typedef enum pstate_s {
 	CALLTYPE_PSTATE = 12,
 	VERIFYCALLTYPE_PSTATE = 13,
 	KEY_PSTATE = 14,
-	MULTIKEY_PSTATE = 15,
-	VALUE_PSTATE = 16,
-	ERROR_PSTATE = 17,
+	VALUE_PSTATE = 15,
+	ERROR_PSTATE = 16,
 } pstate_t;
 
 enum presult_e {
