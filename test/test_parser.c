@@ -63,7 +63,7 @@ int test_parse_partial()
 	ASSERT_EQ(res.type, PARSE_COMPLETE);
 	ASSERT_EQ(res.consumed, len5);
 
-	ASSERT_LOG_EQ(res.result.log, &EXPECTED1);
+	ASSERT_LOG_EQ(res.log, &EXPECTED1);
 
 	return 0;
 }
@@ -73,11 +73,10 @@ int test_parse_partial()
 
 #define ELOG3 "\n"
 #define ELEN3 strlen(ELOG3)
-
 int test_parse_error()
 {
 
-	char* ERR1 = malloc(ELEN1);
+	char* ERR1 = malloc(ELEN1 + 1);
 	ASSERT_NEQ(ERR1, NULL);
 	memcpy(ERR1, ELOG1, ELEN1);
 
@@ -112,24 +111,58 @@ int test_parse_error()
 	res = parser_parse(p, ERR1, ELEN1);
 	ASSERT_EQ(res.type, PARSE_ERROR);
 	ASSERT_EQ(res.consumed, ELEN1);
-	ASSERT_EQ(res.result.error, "invalid date or time in log header");
+	ASSERT_EQ(res.error.msg, "invalid date or time in log header");
+	ASSERT_STR_EQ(res.error.remaining, "msg: this log does not have a header, subject: idiot");
+	log_t* log1 = log_create();
+	ASSERT_EQ(log1->props, NULL);
+	ASSERT_LOG_EQ(res.log, log1);
 	parser_reset(p);
 
 	res = parser_parse(p, ERR2, ELEN2);
-	ASSERT_EQ(res.type, PARSE_ERROR);
+	// result is partial because ERR2 does not have a newline
+	ASSERT_EQ(res.type, PARSE_PARTIAL);
 	ASSERT_EQ(res.consumed, ELEN2);
-	ASSERT_EQ(res.result.error, "reached max number of log properties: " STR(PARSER_SLAB_CAP));
+
+	ERR2[ELEN2] = '\n';
+	res = parser_parse(p, &ERR2[ELEN2], 1);
+	ASSERT_EQ(res.type, PARSE_ERROR);
+	ASSERT_EQ(res.consumed, 1);
+	ASSERT_STR_EQ(res.error.msg, "reached max number of log properties: " STR(PARSER_SLAB_CAP));
+	ASSERT_STR_EQ(res.error.remaining, " 5: null, 4: null, 3: null, 2: null, 1: null, 0: null, ");
+
+	// prepare log comparison
+	log_remove(big_log, "0");
+	log_remove(big_log, "1");
+	log_remove(big_log, "2");
+	log_remove(big_log, "3");
+	log_remove(big_log, "4");
+	log_remove(big_log, "5");
+	for (int i = 0; i < PARSER_SLAB_CAP; i++) {
+		char* prop_key = rcmalloc(100);
+		sprintf(prop_key, "%d", i);
+		slab_put(pslab, log_remove(big_log, prop_key));
+	}
+	for (int i = PARSER_SLAB_CAP - 1; i >= 6; i--) {
+		char* prop_key = rcmalloc(100);
+		sprintf(prop_key, "%d", i);
+		prop_t* prop = slab_get(pslab);
+		ASSERT_NEQ(prop, NULL);
+		log_set(big_log, prop, prop_key, NULL);
+	}
+	// compare that log contains the partially parsed line properties
+	ASSERT_LOG_EQ(res.log, big_log);
 	parser_reset(p);
 
 	res = parser_parse(p, ERR3, ELEN3);
 	ASSERT_EQ(res.type, PARSE_ERROR);
 	ASSERT_EQ(res.consumed, ELEN3);
-	ASSERT_EQ(res.result.error, "incomplete header");
+	ASSERT_STR_EQ(res.error.msg, "incomplete header");
+	ASSERT_STR_EQ(res.error.remaining, "");
 	parser_reset(p);
 
 	res = parser_parse(p, BUF6, LEN6);
 	ASSERT_EQ(res.type, PARSE_COMPLETE);
-	ASSERT_LOG_EQ(res.result.log, &EXPECTED6);
+	ASSERT_LOG_EQ(res.log, &EXPECTED6);
 	parser_reset(p);
 
 	free(ERR1);
@@ -153,7 +186,7 @@ int test_parse_multiple()
 	res = parser_parse(p, BUF7, LEN7);
 	ASSERT_EQ(res.type, PARSE_COMPLETE);
 	ASSERT_EQ(res.consumed, LEN7);
-	ASSERT_LOG_EQ(res.result.log, &EXPECTED7);
+	ASSERT_LOG_EQ(res.log, &EXPECTED7);
 
 	return 0;
 }
@@ -173,7 +206,7 @@ int test_parse_reset()
 		parse_res_t res = parser_parse(p, test.input, test.ilen);
 		ASSERT_EQ(res.type, PARSE_COMPLETE);
 		ASSERT_EQ(res.consumed, test.ilen);
-		ASSERT_LOG_EQ(res.result.log, test.expected);
+		ASSERT_LOG_EQ(res.log, test.expected);
 		parser_reset(p);
 	}
 

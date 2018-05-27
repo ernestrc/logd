@@ -24,6 +24,7 @@ typedef struct test_ctx_s {
 #define COND_EQ(a, b) ((a) == (b))
 #define COND_NEQ(a, b) (!COND_EQ(a, b))
 #define COND_MEM_EQ(a, b, l) (memcmp((a), (b), (l)) == 0)
+#define COND_STR_EQ(a, b) (strcmp((a), (b)) == 0)
 #define COND_TRUE(a) COND_EQ(!!a, 1)
 #define COND_FALSE(a) COND_EQ(!a, 1)
 
@@ -52,6 +53,7 @@ typedef struct test_ctx_s {
 	}
 
 #define ASSERT_MEM_EQ(a, b, l) ASSERT_COND3(a, b, l, COND_MEM_EQ)
+#define ASSERT_STR_EQ(a, b) ASSERT_COND2(a, b, COND_STR_EQ)
 #define ASSERT_NEQ(a, b) ASSERT_COND2(a, b, COND_NEQ)
 #define ASSERT_EQ(a, b) ASSERT_COND2(a, b, COND_EQ)
 #define ASSERT_TRUE(a) ASSERT_COND1(a, COND_TRUE)
@@ -86,7 +88,7 @@ static slab_t* pslab;
 	"core.InstrumentationListener	only: one\n"
 #define LOG5                                                                   \
 	"2017-11-16 19:07:56,883	WARN	[-]	-	flow: UpdateClientActivity, "          \
-	"operation: HandleActiveEvent, step: Failure, luaRocks: true\n"
+	"operation: HandleActiveEvent, step: Failure, lua Rocks: true\n"
 #define LOG6                                                                   \
 	"[2017-12-05T15:09:09.858] [WARN] main - flow: , operation: closePage, "   \
 	"step: Failure, logLevel: WARN, url: "                                     \
@@ -217,7 +219,7 @@ static void init_test_data()
 	log_set(&EXPECTED5, slab_get(pslab), "flow", "UpdateClientActivity");
 	log_set(&EXPECTED5, slab_get(pslab), "operation", "HandleActiveEvent");
 	log_set(&EXPECTED5, slab_get(pslab), "step", "Failure");
-	log_set(&EXPECTED5, slab_get(pslab), "luaRocks", "true");
+	log_set(&EXPECTED5, slab_get(pslab), "lua Rocks", "true");
 
 	log_set(&EXPECTED6, slab_get(pslab), KEY_DATE, "2017-12-05");
 	log_set(&EXPECTED6, slab_get(pslab), KEY_TIME, "15:09:09.858");
@@ -258,9 +260,7 @@ static void init_test_data()
 	log_set(&EXPECTED7, slab_get(pslab), KEY_THREAD, "Test worker");
 	log_set(
 	  &EXPECTED7, slab_get(pslab), KEY_CLASS, "core.InstrumentationListener");
-	log_set(&EXPECTED7, slab_get(pslab), KEY_MESSAGE,
-	  "nothing special here");
-
+	log_set(&EXPECTED7, slab_get(pslab), KEY_MESSAGE, "nothing special here");
 }
 
 static void __test_print_help(const char* prog)
@@ -347,11 +347,11 @@ static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
 		int result = test();                                                   \
 		if (result == EXIT_FAILURE) {                                          \
 			if (!ctx.silent)                                                   \
-				printf("  TEST\t" #test "\tFAILURE\n");                      \
+				printf("  TEST\t" #test "\tFAILURE\n");                        \
 			ctx.failure++;                                                     \
 		} else {                                                               \
 			if (!ctx.silent)                                                   \
-				printf("  TEST\t" #test "\n");                      \
+				printf("  TEST\t" #test "\n");                                 \
 			ctx.success++;                                                     \
 		}                                                                      \
 	}
@@ -392,10 +392,10 @@ void print_bytes(const char* bytes, size_t size)
 	if (log_cmp(la, lb) != 0) {                                                \
 		printf(">>>>> '");                                                     \
 		printl(la);                                                            \
-		printf("'\n VS:\n");                                                  \
+		printf("'\n VS:\n");                                                   \
 		printf(">>>>> '");                                                     \
 		printl(lb);                                                            \
-		printf("'\n: %d\n", log_cmp(la, lb));                                    \
+		printf("'\n: %d\n", log_cmp(la, lb));                                  \
 		return 1;                                                              \
 	}
 

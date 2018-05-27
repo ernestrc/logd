@@ -32,14 +32,6 @@ typedef enum pstate_s {
 	ERROR_PSTATE = 17,
 } pstate_t;
 
-typedef struct parser_s {
-	const char* error;
-	prop_t* pslab;
-	int pnext;
-	pstate_t state;
-	log_t result;
-} parser_t;
-
 enum presult_e {
 	PARSE_PARTIAL = 0,
 	PARSE_COMPLETE = 1,
@@ -49,11 +41,23 @@ enum presult_e {
 typedef struct parse_res_s {
 	enum presult_e type;
 	size_t consumed;
-	union {
-		const char* error;
-		log_t* log;
-	} result;
+	struct {
+		const char* msg;
+		const char* remaining;
+	} error;
+	log_t* log;
 } parse_res_t;
+
+typedef struct parser_s {
+	pstate_t state;
+	log_t result;
+	prop_t* pslab;
+	int pnext;
+	char token;
+	char* chunk;
+	int blen;
+	parse_res_t res;
+} parser_t;
 
 parser_t* parser_create();
 void parser_init(parser_t* p, prop_t* pslab);
@@ -68,19 +72,23 @@ void parser_free(parser_t* p);
  * is complete clients are responsible for calling parser_consume before the
  * next parsing iteration. The returned log pointer is valid only until client
  * calls parser_reset. The behaviour is undefined if the log pointer is accessed
- * after this function returns a partial or error result.
+ * after this function returns a partial result.
  *
  * If an error is encountered while parsing, the parser takes care of skipping
- * until the beggingin of the next log and returning the appropiate number of
- * bytes consumed so parse can be resumed after handling the error.
+ * until the beginning of the next log and returning the appropriate number of
+ * bytes consumed so parse can be resumed after handling the error. The return
+ * value will contain an error message, the remaining of the line,
+ * and the partially parsed log.
  *
  * Parser requirements:
  *
  * - Should return a log pointer that is valid until parser_reset is called
  * - Should skip until next log if error is encountered while parsing
- * - Should parse partial logs and return the appropiate consumed bytes
- * - Should be able to parse partial input data twice. This does not apply to
- * completely parsed logs.
+ * - Should parse partial logs and return the appropriate consumed bytes
+ * - Should be able to parse data multiple times except after a complete result
+ *
+ * Subsequent calls to parser_parse are expected
+ * to pass memory-contiguous chunks of data.
  */
 parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen);
 
