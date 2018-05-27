@@ -2,9 +2,11 @@ default: src
 
 .PHONY: test analysis full-analysis fuzz format tags coverage full-coverage fuzz-coverage fuzz-full-coverage debug purge
 .SILENT:
-
 export CC = clang
-TEST_CFLAGS=-pthread -Wall -Wno-unused-function -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11 -ggdb -DLOGD_DEBUG -D_GNU_SOURCE
+
+TEST_SLAB_CAP=30
+TEST_BUF_MAX_CAP=10000
+TEST_CFLAGS=-pthread -Wall -Wno-unused-function -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11 -ggdb -DLOGD_DEBUG -D_GNU_SOURCE -DLOGD_SLAB_CAP=$(TEST_SLAB_CAP) -DLOGD_BUF_MAX_CAP=$(TEST_BUF_MAX_CAP)
 
 TARGET=./bin
 LIB=./lib
@@ -40,6 +42,7 @@ debug: prepare deps
 	@ cd src && $(MAKE) src
 
 
+test: export BUF_MAX_CAP=$(TEST_BUF_MAX_CAP)
 test: export CFLAGS = $(TEST_CFLAGS)
 test: debug
 	@ cd $(TEST) && $(MAKE) $@

@@ -102,6 +102,12 @@ exit:
 	return ret;
 }
 
+static void lua_push_on_error(lua_State* state)
+{
+	lua_getglobal(state, LUA_NAME_LOGD_MODULE);
+	lua_getfield(state, -1, LUA_NAME_ON_ERROR);
+}
+
 static void lua_push_on_eof(lua_State* state)
 {
 	lua_getglobal(state, LUA_NAME_LOGD_MODULE);
@@ -190,6 +196,30 @@ void lua_call_on_log(lua_t* l, log_t* log)
 	lua_pushlightuserdata(l->state, log);
 
 	lua_call(l->state, 1, 0);
+	lua_pop(l->state, 1); // logd module
+}
+
+bool lua_on_error_defined(lua_t* l)
+{
+	bool ret;
+
+	lua_push_on_error(l->state);
+	ret = lua_isfunction(l->state, -1);
+	lua_pop(l->state, 2);
+
+	return ret;
+}
+
+void lua_call_on_error(lua_t* l, const char* err, log_t* partial, const char* remaining)
+{
+	lua_push_on_error(l->state);
+	DEBUG_ASSERT(lua_isfunction(l->state, -1));
+
+	lua_pushstring(l->state, err);
+	lua_pushlightuserdata(l->state, partial);
+	lua_pushstring(l->state, remaining);
+
+	lua_call(l->state, 3, 0);
 	lua_pop(l->state, 1); // logd module
 }
 

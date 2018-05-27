@@ -30,9 +30,13 @@ end
 local clear_interval = clear_timeout
 
 function compat.load(logd)
+	prev_on_eof = logd.on_eof
 	logd.on_eof = function()
 		if __t ~= nil then
 			clear_interval(__t)
+		end
+		if prev_on_eof ~= nil then
+			prev_on_eof()
 		end
 	end
 	logd.config_set = function(key, value)

@@ -8,10 +8,28 @@
 #include "slab/buf.h"
 #include "util.h"
 
-#define BUF_CAP 100000
-
-// option defaults
 #define OPT_DEFAULT_DEBUG false
+
+#ifndef LOGD_INIT_BUF_CAP
+#define INIT_BUF_CAP 1000 /* 1KB */
+#else
+#define INIT_BUF_CAP LOGD_INIT_BUF_CAP
+#endif
+
+#ifndef LOGD_BUF_MAX_CAP
+#define BUF_MAX_CAP 1000000 /* 1 MB */
+#else
+#define BUF_MAX_CAP LOGD_BUF_MAX_CAP
+#endif
+
+#define SUBMIT_ON_READ(cb)                                                     \
+	buf_ecompact(b);                                                           \
+	iov.base = b->next_write;                                                  \
+	iov.len = buf_writable(b);                                                 \
+	uv_fs_read(loop, &uv_read_in_req, infd, &iov, 1, -1, (cb));
+
+void on_read_skip(uv_fs_t* req);
+void on_read(uv_fs_t* req);
 
 static struct args_s {
 	bool debug;
@@ -29,6 +47,7 @@ static uv_file infd;
 static uv_fs_t uv_read_in_req;
 static uv_fs_t uv_open_in_req;
 static uv_buf_t iov;
+static int pret;
 
 void input_close(uv_loop_t* loop, uv_file infd)
 {
@@ -45,7 +64,6 @@ void release_all()
 	lua_free(lstate);
 	if (loop) {
 		uv_signal_stop(&sigh);
-		uv_stop(loop);
 		free(loop);
 	}
 	buf_free(b);
@@ -85,35 +103,105 @@ char* args_init(int argc, char* argv[])
 	return argv[optind];
 }
 
+#define HANDLE_READ_UV(req)                                                    \
+	if (req->result == 0) {                                                    \
+		DEBUG_LOG("EOF while reading input file %d", infd);                    \
+		if (lua_on_eof_defined(lstate))                                        \
+			lua_call_on_eof(lstate);                                           \
+		uv_stop(loop);                                                         \
+		return;                                                                \
+	}                                                                          \
+	if (req->result < 0) {                                                     \
+		fprintf(stderr, "input read error: %s\n", uv_strerror(req->result));   \
+		uv_stop(loop);                                                         \
+		pret = 1;                                                              \
+		return;                                                                \
+	}
+
+void on_read_skip(uv_fs_t* req)
+{
+	parse_res_t res;
+	HANDLE_READ_UV(req);
+
+	buf_extend(b, req->result);
+	res = parser_parse(p, b->next_read, buf_readable(b));
+	if (res.type == PARSE_PARTIAL) {
+		buf_ack(b, buf_readable(b));
+		SUBMIT_ON_READ(&on_read_skip);
+		return;
+	}
+
+	buf_ack(b, res.consumed);
+	if (lua_on_error_defined(lstate)) {
+		lua_call_on_error(lstate,
+		  "log line was skipped because it is more than " STR(
+			BUF_MAX_CAP) " bytes",
+		  res.log, "");
+	}
+	parser_reset(p);
+	SUBMIT_ON_READ(&on_read);
+}
+
 void on_read(uv_fs_t* req)
 {
-	presult_t res;
+	parse_res_t res;
+	HANDLE_READ_UV(req);
 
-	if (req->result > 0) {
-		buf_extend(b, req->result);
-		res = (presult_t){false, 0};
-		for (;;) {
-			res = parser_parse(p, b->next_read, buf_readable(b));
-			buf_consume(b, res.consumed);
-			if (!res.complete) {
-				break;
-			}
-			lua_call_on_log(lstate, &p->result);
+	buf_extend(b, req->result);
+
+parse:
+	res = parser_parse(p, b->next_read, buf_readable(b));
+	switch (res.type) {
+
+	case PARSE_COMPLETE:
+		buf_ack(b, res.consumed);
+		lua_call_on_log(lstate, res.log);
+		parser_reset(p);
+		goto parse;
+
+	case PARSE_ERROR:
+		DEBUG_LOG("parse error: %s", res.error.msg);
+		buf_ack(b, res.consumed);
+		if (lua_on_error_defined(lstate)) {
+			lua_call_on_error(
+			  lstate, res.error.msg, res.log, res.error.remaining);
 		}
-		iov.base = b->next_write;
-		iov.len = buf_writable(b);
-		uv_fs_read(loop, &uv_read_in_req, infd, &iov, 1, -1, on_read);
-	} else if (req->result < 0) {
-		fprintf(stderr, "input read error: %s\n", uv_strerror(req->result));
-		release_all();
-		exit(1);
-	} else {
-		DEBUG_LOG("EOF while reading input file %d", infd);
-		if (lua_on_eof_defined(lstate))
-			lua_call_on_eof(lstate);
-		release_all();
-		exit(0);
+		parser_reset(p);
+		goto parse;
+
+	case PARSE_PARTIAL:
+		if (!buf_full(b)) {
+			buf_ack(b, res.consumed);
+		} else {
+			/* we have allocated too much memory, start skipping data */
+			if (b->cap > BUF_MAX_CAP) {
+				DEBUG_LOG(
+				  "log is too long (more than %d bytes). skipping data...",
+				  BUF_MAX_CAP);
+				buf_ack(b, buf_readable(b));
+				goto skip;
+			}
+			/* complete log doesn't fit buffer so reserve more space */
+			/* do not ack so we re-parse with the re-allocated buffer */
+			if (buf_reserve(b, INIT_BUF_CAP) != 0) {
+				perror("buf_reserve");
+				fprintf(stderr, "error reserving more space in input buffer\n");
+				pret = 1;
+				return;
+			}
+			DEBUG_LOG(
+			  "reserved more space in input buffer: now %zd bytes", b->cap);
+			parser_reset(p);
+		}
+		goto read;
 	}
+
+read:
+	SUBMIT_ON_READ(&on_read);
+	return;
+skip:
+	SUBMIT_ON_READ(&on_read_skip);
+	return;
 }
 
 void on_open(uv_fs_t* req)
@@ -209,7 +297,6 @@ void print_usage(const char* exe)
 
 int main(int argc, char* argv[])
 {
-	int ret = 0;
 
 	if ((script = args_init(argc, argv)) == NULL || args.help) {
 		print_usage(argv[0]);
@@ -218,43 +305,43 @@ int main(int argc, char* argv[])
 
 	if ((p = parser_create()) == NULL) {
 		perror("parser_create");
-		ret = 1;
+		pret = 1;
 		goto exit;
 	}
 
-	if ((b = buf_create(BUF_CAP)) == NULL) {
+	if ((b = buf_create(INIT_BUF_CAP)) == NULL) {
 		perror("buf_create");
-		ret = 1;
+		pret = 1;
 		goto exit;
 	}
 
-	if ((ret = loop_create()) != 0) {
+	if ((pret = loop_create()) != 0) {
 		perror("loop_create");
 		goto exit;
 	}
 
-	if ((ret = uv_loop_init(loop)) < 0) {
-		fprintf(stderr, "%s: %s\n", uv_err_name(ret), uv_strerror(ret));
+	if ((pret = uv_loop_init(loop)) < 0) {
+		fprintf(stderr, "%s: %s\n", uv_err_name(pret), uv_strerror(pret));
 		goto exit;
 	}
 
 	if ((lstate = lua_create(loop, script)) == NULL) {
 		perror("lua_create");
-		ret = 1;
+		pret = 1;
 		goto exit;
 	}
 
-	if ((ret = input_init(loop, args.input_file)) != 0) {
+	if ((pret = input_init(loop, args.input_file)) != 0) {
 		perror("input_init");
 		goto exit;
 	}
 
-	if ((ret = signals_init(loop)) != 0)
+	if ((pret = signals_init(loop)) != 0)
 		goto exit;
 
-	ret = uv_run(loop, UV_RUN_DEFAULT);
+	uv_run(loop, UV_RUN_DEFAULT);
 
 exit:
 	release_all();
-	return ret;
+	return pret;
 }

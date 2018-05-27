@@ -30,7 +30,6 @@ EOF
 
 cat >$SCRIPT << EOF
 local logd = require("logd")
-local lunit = require("lunit")
 local counter = 0
 function logd.on_log(logptr)
 	if counter == 0 then
@@ -62,8 +61,8 @@ function logd.on_log(logptr)
 		assert("thread5" == logd.log_get(logptr, "thread"))
 		assert("clazz" == logd.log_get(logptr, "class"))
 		assert("callType" == logd.log_get(logptr, "callType"))
-		assert(nil == logd.log_get(logptr, "b"))
-		assert("C" == logd.log_get(logptr, "c"))
+		assert("c: C" == logd.log_get(logptr, "b"))
+		assert(nil == logd.log_get(logptr, "c"))
 	end
 	counter = counter + 1
 end
@@ -72,7 +71,7 @@ function logd.on_eof()
 end
 EOF
 
-LUA_PATH="$DIR/lunit/lua/?.lua;$DIR/?.lua" $LOGD_EXEC $SCRIPT -f $IN 2> $OUT 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT 2> $OUT 1> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
 	exit 1
