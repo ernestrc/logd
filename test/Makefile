@@ -44,7 +44,7 @@ unit_test: $(TARGET_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" ./$$f --silent; done
 
 int_test: $(INT_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LUA_PATH="$(LUA_PATH)" ./$$f 2>&1; done
+	@ for f in $^; do BUF_MAX_CAP=$(BUF_MAX_CAP) echo "  TEST	$$f" && ./$$f 2>&1; done
 
 lua_test: $(LUA_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LUA_PATH="$(LUA_PATH)" LLVM_PROFILE_FILE="$(TARGET)/$$f.profraw" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f 2>/dev/null 1>/dev/null; done
