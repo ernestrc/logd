@@ -35,15 +35,15 @@ fi
 sed -i ':a;N;$!ba;s/\n/***************/g' $IN
 
 echo "" >> $IN
+echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	callType: so: cool  " >> $IN
+echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	callType: so: cool  " >> $IN
 
 cat >$SCRIPT << EOF
 local logd = require("logd")
 local errors = 0
+local logs = 0
 function logd.on_log(logptr)
-	error("should not have been called")
-end
-function logd.on_eof()
-	assert(errors == 1)
+	logs = logs + 1
 end
 function logd.on_error(error, logptr, remaining)
 	errors = errors + 1
@@ -51,6 +51,10 @@ function logd.on_error(error, logptr, remaining)
 	local remaining_expected = ""
 	assert(error == error_expected, string.format("error was '%s' instead of '%s'", error, error_expected))
 	assert(remaining == remaining_expected, string.format("remaining was '%s' instead of '%s'", remaining, remaining_expected))
+end
+function logd.on_eof()
+	assert(errors == 1, string.format("expected 1 errors but found %d", errors))
+	assert(logs == 2, string.format("expected 2 logs but found %d", logs))
 end
 EOF
 

@@ -26,6 +26,7 @@
 	buf_ecompact(b);                                                           \
 	iov.base = b->next_write;                                                  \
 	iov.len = buf_writable(b);                                                 \
+	DEBUG_ASSERT(iov.len > 0);                                                 \
 	uv_fs_read(loop, &uv_read_in_req, infd, &iov, 1, -1, (cb));
 
 void on_read_skip(uv_fs_t* req);
@@ -103,41 +104,83 @@ char* args_init(int argc, char* argv[])
 	return argv[optind];
 }
 
-#define HANDLE_READ_UV(req)                                                    \
-	if (req->result == 0) {                                                    \
-		DEBUG_LOG("EOF while reading input file %d", infd);                    \
-		if (lua_on_eof_defined(lstate))                                        \
-			lua_call_on_eof(lstate);                                           \
-		uv_stop(loop);                                                         \
-		return;                                                                \
-	}                                                                          \
-	if (req->result < 0) {                                                     \
-		fprintf(stderr, "input read error: %s\n", uv_strerror(req->result));   \
-		uv_stop(loop);                                                         \
-		pret = 1;                                                              \
-		return;                                                                \
+void stop_io()
+{
+	if (lua_on_eof_defined(lstate)) {
+		lua_call_on_eof(lstate);
 	}
+	uv_stop(loop);
+}
+
+void on_read_err(uv_fs_t* req)
+{
+	fprintf(stderr, "input read error: %s\n", uv_strerror(req->result));
+	uv_stop(loop);
+	pret = 1;
+}
+
+void on_read_eof(uv_fs_t* req)
+{
+	parse_res_t res;
+	DEBUG_LOG("EOF while reading input file %d", infd);
+
+parse:
+	res = parser_parse(p, b->next_read, buf_readable(b));
+	switch (res.type) {
+	case PARSE_COMPLETE:
+		buf_ack(b, res.consumed);
+		lua_call_on_log(lstate, res.log);
+		parser_reset(p);
+		goto parse;
+	case PARSE_ERROR:
+		DEBUG_LOG("EOF parse error: %s", res.error.msg);
+		buf_ack(b, res.consumed);
+		if (lua_on_error_defined(lstate)) {
+			lua_call_on_error(
+			  lstate, res.error.msg, res.log, res.error.remaining);
+		}
+		parser_reset(p);
+		goto parse;
+	case PARSE_PARTIAL:
+		stop_io();
+		break;
+	}
+
+	return;
+}
 
 void on_read_skip(uv_fs_t* req)
 {
 	parse_res_t res;
-	HANDLE_READ_UV(req);
+
+	if (req->result < 0) {
+		on_read_err(req);
+		return;
+	}
+
+	if (req->result == 0) {
+		stop_io();
+		return;
+	}
 
 	buf_extend(b, req->result);
 	res = parser_parse(p, b->next_read, buf_readable(b));
 	if (res.type == PARSE_PARTIAL) {
-		buf_ack(b, buf_readable(b));
+		buf_reset_offsets(b);
 		SUBMIT_ON_READ(&on_read_skip);
 		return;
 	}
 
-	buf_ack(b, res.consumed);
 	if (lua_on_error_defined(lstate)) {
 		lua_call_on_error(lstate,
 		  "log line was skipped because it is more than " STR(
 			BUF_MAX_CAP) " bytes",
 		  res.log, "");
 	}
+	buf_ack(b, res.consumed);
+	DEBUG_LOG("successfully skipped line: buffer has now %zu readable bytes "
+			  "and %zu writable bytes",
+	  buf_readable(b), buf_writable(b));
 	parser_reset(p);
 	SUBMIT_ON_READ(&on_read);
 }
@@ -145,10 +188,18 @@ void on_read_skip(uv_fs_t* req)
 void on_read(uv_fs_t* req)
 {
 	parse_res_t res;
-	HANDLE_READ_UV(req);
+
+	if (req->result < 0) {
+		on_read_err(req);
+		return;
+	}
+
+	if (req->result == 0) {
+		on_read_eof(req);
+		return;
+	}
 
 	buf_extend(b, req->result);
-
 parse:
 	res = parser_parse(p, b->next_read, buf_readable(b));
 	switch (res.type) {
@@ -172,27 +223,35 @@ parse:
 	case PARSE_PARTIAL:
 		if (!buf_full(b)) {
 			buf_ack(b, res.consumed);
-		} else {
-			/* we have allocated too much memory, start skipping data */
-			if (b->cap > BUF_MAX_CAP) {
-				DEBUG_LOG(
-				  "log is too long (more than %d bytes). skipping data...",
-				  BUF_MAX_CAP);
-				buf_ack(b, buf_readable(b));
-				goto skip;
-			}
-			/* complete log doesn't fit buffer so reserve more space */
-			/* do not ack so we re-parse with the re-allocated buffer */
-			if (buf_reserve(b, INIT_BUF_CAP) != 0) {
-				perror("buf_reserve");
-				fprintf(stderr, "error reserving more space in input buffer\n");
-				pret = 1;
-				return;
-			}
-			DEBUG_LOG(
-			  "reserved more space in input buffer: now %zd bytes", b->cap);
-			parser_reset(p);
+			goto read;
 		}
+
+		if (buf_compact(b)) {
+			DEBUG_LOG(
+			  "compacted buffer: now writable %zd bytes", buf_writable(b));
+			parser_reset(p);
+			goto read;
+		}
+
+		/* we have allocated too much memory, start skipping data */
+		if (b->cap > BUF_MAX_CAP) {
+			DEBUG_LOG("log is too long (more than %d bytes). skipping data...",
+			  BUF_MAX_CAP);
+			buf_reset_offsets(b);
+			goto skip;
+		}
+
+		/* complete log doesn't fit buffer so reserve more space */
+		/* do not ack so we re-parse with the re-allocated buffer */
+		if (buf_reserve(b, INIT_BUF_CAP) != 0) {
+			perror("buf_reserve");
+			fprintf(stderr, "error reserving more space in input buffer\n");
+			pret = 1;
+			return;
+		}
+
+		DEBUG_LOG("reserved more space in input buffer: now %zd bytes", b->cap);
+		parser_reset(p);
 		goto read;
 	}
 
@@ -207,12 +266,8 @@ skip:
 void on_open(uv_fs_t* req)
 {
 	infd = uv_open_in_req.result;
-
 	DEBUG_LOG("input file open with fd %d", infd);
-
-	iov.base = b->next_write;
-	iov.len = buf_writable(b);
-	uv_fs_read(loop, &uv_read_in_req, infd, &iov, 1, -1, on_read);
+	SUBMIT_ON_READ(&on_read);
 }
 
 int input_init(uv_loop_t* loop, const char* input_file)

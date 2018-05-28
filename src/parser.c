@@ -24,31 +24,27 @@
 		goto label;                                                            \
 	}
 
+#define ADD_PROP(p)                                                            \
+	p->pslab[p->pnext].next = p->result.props;                                 \
+	p->result.props = &p->pslab[p->pnext];                                     \
+	p->pnext++;
+
 #define TRY_ADD_PROP(p)                                                        \
 	if (p->pnext == PARSER_SLAB_CAP) {                                         \
 		parser_parse_error(                                                    \
 		  p, "reached max number of log properties: " STR(PARSER_SLAB_CAP));   \
 		return;                                                                \
 	}                                                                          \
-	p->pslab[p->pnext].next = p->result.props;                                 \
-	p->result.props = &p->pslab[p->pnext];                                     \
-	p->pnext++;
+	ADD_PROP(p);
 
 #define SET_VALUE(p, chunk) p->result.props->value = chunk;
 
 #define SET_KEY(p, chunk) p->result.props->key = chunk;
 
-#define COMMIT_OFFSET(p)                                                       \
+#define COMMIT(p)                                                              \
+	(p)->chunk[(p)->blen] = 0;                                                 \
 	(p)->chunk += (p)->blen + 1;                                               \
 	(p)->blen = 0;
-
-#define COMMIT_KEY(p)                                                          \
-	(p)->chunk[(p)->blen] = 0;                                                 \
-	COMMIT_OFFSET(p);
-
-#define COMMIT_VALUE(p)                                                        \
-	(p)->chunk[(p)->blen] = 0;                                                 \
-	COMMIT_OFFSET(p);
 
 #define SKIP(p) (p)->chunk++;
 
@@ -89,7 +85,7 @@ INLINE void parser_reset(parser_t* p)
 
 	p->res.type = PARSE_PARTIAL;
 
-	TRY_ADD_PROP(p);
+	ADD_PROP(p);
 	SET_KEY(p, KEY_DATE);
 }
 
@@ -117,7 +113,7 @@ INLINE static void parser_parse_next_key(parser_t* p)
 	switch (p->token) {
 	case ':':
 	case '\x00': /* re-submitted partial data */
-		COMMIT_KEY(p);
+		COMMIT(p);
 		p->state = TRANSITIONVALUE_PSTATE;
 		break;
 	default:
@@ -131,7 +127,7 @@ INLINE static void parser_parse_next_value(parser_t* p)
 	switch (p->token) {
 	case ',':
 	case '\x00':
-		COMMIT_VALUE(p);
+		COMMIT(p);
 		TRY_ADD_PROP(p);
 		p->state = TRANSITIONKEY_PSTATE;
 		break;
@@ -171,8 +167,8 @@ INLINE static void parser_parse_next_date(parser_t* p, const char* next_key)
 	case ']':
 	case '\t':
 	case '\x00':
-		COMMIT_VALUE(p);
-		TRY_ADD_PROP(p);
+		COMMIT(p);
+		ADD_PROP(p);
 		SET_KEY(p, next_key);
 		SET_VALUE(p, p->chunk);
 		p->state++;
@@ -196,8 +192,8 @@ INLINE static void parser_parse_next_header(parser_t* p, const char* next_key)
 	case ' ':
 	case ']':
 	case '\x00':
-		COMMIT_VALUE(p);
-		TRY_ADD_PROP(p);
+		COMMIT(p);
+		ADD_PROP(p);
 		SET_KEY(p, next_key);
 		p->state++;
 		break;
@@ -213,8 +209,8 @@ INLINE static void parser_parse_next_thread_bracket(parser_t* p)
 	case ']':
 	case '\t':
 	case '\x00':
-		COMMIT_VALUE(p);
-		TRY_ADD_PROP(p);
+		COMMIT(p);
+		ADD_PROP(p);
 		SET_KEY(p, KEY_CLASS);
 		p->state = TRANSITIONCLASS_PSTATE;
 		break;
@@ -244,8 +240,8 @@ INLINE static void parser_parse_next_calltype(parser_t* p)
 	switch (p->token) {
 	case ':':
 	case '\x00':
-		COMMIT_VALUE(p);
-		TRY_ADD_PROP(p);
+		COMMIT(p);
+		ADD_PROP(p);
 		p->state++;
 		break;
 	default:
@@ -289,7 +285,7 @@ INLINE static void parser_parse_end(parser_t* p)
 		/* fallthrough */
 	case ERROR_PSTATE:
 		p->res.type = PARSE_ERROR;
-		COMMIT_VALUE(p); // null terminator for error's remaining
+		COMMIT(p); // null terminator for error's remaining
 		DEBUG_ASSERT(p->res.error.msg != NULL);
 		DEBUG_ASSERT(p->res.error.remaining != NULL);
 		return;
@@ -300,12 +296,12 @@ INLINE static void parser_parse_end(parser_t* p)
 	case KEY_PSTATE:
 		SET_KEY(p, KEY_MESSAGE);
 		SET_VALUE(p, p->chunk);
-		COMMIT_VALUE(p);
+		COMMIT(p);
 		break;
 	case TRANSITIONVALUE_PSTATE:
 	case VALUE_PSTATE:
 		SET_VALUE(p, p->chunk);
-		COMMIT_VALUE(p);
+		COMMIT(p);
 		break;
 	}
 
@@ -329,10 +325,10 @@ INLINE parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen)
 		default:
 			switch (p->state) {
 			case INIT_PSTATE:
-				SET_VALUE(p, chunk);
-				p->state++;
-				/* fallthrough */
+				TRIM_SPACES(p, SET_VALUE, date);
+				break;
 			case DATE_PSTATE:
+			date:
 				parser_parse_next_date(p, KEY_TIME);
 				break;
 			case TIME_PSTATE:
