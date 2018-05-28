@@ -315,8 +315,9 @@ INLINE parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen)
 
 	p->chunk = chunk;
 	p->blen = 0;
+	p->res.consumed = 0;
 
-	for (p->res.consumed = 0; clen > 0; clen--) {
+	while (p->res.consumed < clen) {
 		p->token = chunk[p->res.consumed++];
 		switch (p->state) {
 		case INIT_PSTATE:
