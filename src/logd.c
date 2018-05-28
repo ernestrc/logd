@@ -11,13 +11,13 @@
 #define OPT_DEFAULT_DEBUG false
 
 #ifndef LOGD_INIT_BUF_CAP
-#define INIT_BUF_CAP 1000 /* 1KB */
+#define INIT_BUF_CAP 1000000 /* 1MB */
 #else
 #define INIT_BUF_CAP LOGD_INIT_BUF_CAP
 #endif
 
 #ifndef LOGD_BUF_MAX_CAP
-#define BUF_MAX_CAP 1000000 /* 1 MB */
+#define BUF_MAX_CAP 10000000 /* 10 MB */
 #else
 #define BUF_MAX_CAP LOGD_BUF_MAX_CAP
 #endif
