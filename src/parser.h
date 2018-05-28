@@ -69,12 +69,12 @@ void parser_free(parser_t* p);
  * contents into a structured log.
  *
  * It will return either because all data has been scanned or because a log
- * has been fully parsed. The parser's return value indicates whether the log in
+ * has been fully parsed. The parser's return value indicates whether the log
  * is complete or partial and how many bytes have been consumed. If the result
- * is complete clients are responsible for calling parser_consume before the
- * next parsing iteration. The returned log pointer is valid only until client
- * calls parser_reset. The behaviour is undefined if the log pointer is accessed
- * after this function returns a partial result.
+ * is complete clients are responsible of calling parser_reset before the
+ * next call to this function. The returned log pointer is not valid after that
+ * and the behaviour is undefined if the log pointer is accessed after this
+ * function returns a partial result.
  *
  * If an error is encountered while parsing, the parser takes care of skipping
  * until the beginning of the next log and returning the appropriate number of
@@ -82,20 +82,19 @@ void parser_free(parser_t* p);
  * value will contain an error message, the remaining of the line,
  * and the partially parsed log.
  *
+ * Subsequent calls to parser_parse are expected to pass memory-contiguous
+ * chunks of data.
+ *
  * Parser requirements:
  *
  * - Should return a log pointer that is valid until parser_reset is called
  * - Should skip until next log if error is encountered while parsing
  * - Should parse partial logs and return the appropriate consumed bytes
  * - Should be able to parse data multiple times except after a complete result
- *
- * Subsequent calls to parser_parse are expected
- * to pass memory-contiguous chunks of data.
  */
 parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen);
 
-/* parser_reset should be called after a complete parse result and after log has
- * been consumed. */
+/* parser_reset should be called after a returned log has been used */
 void parser_reset(parser_t* p);
 
 #endif
