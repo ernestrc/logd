@@ -25,6 +25,7 @@ clean:
 	@ rm -rf $(TARGET) $(LIB)
 	@ cd $(SRC) && $(MAKE) $@
 	@ cd $(TEST) && $(MAKE) $@
+	@ rm -f *.profraw
 
 # run clang-analyzer
 analysis: clean
@@ -42,6 +43,7 @@ debug: prepare deps
 	@ cd src && $(MAKE) src
 
 
+test: export SLAB_CAP=$(TEST_SLAB_CAP)
 test: export BUF_MAX_CAP=$(TEST_BUF_MAX_CAP)
 test: export CFLAGS = $(TEST_CFLAGS)
 test: debug

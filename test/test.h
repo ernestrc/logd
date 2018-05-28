@@ -72,12 +72,13 @@ static slab_t* pslab;
 	"control.RaptorHandler	sessionId: "                                        \
 	"1_MX4xMDB-fjE1MDQ4MjEyNzAxMjR-WThtTVpEN0J2c1Z2TlJGcndTN1lpTExGfn4, "      \
 	"flow: Publish, conId: connectionId: "                                     \
-	"f41973e5-b27c-49e4-bcaf-1d48b153683e, step: Attempt, publisherId: "       \
+	"f41973e5-b27c-49e4-bcaf-1d48b153683e,          step: Attempt, "           \
+	"publisherId: "                                                            \
 	"b4da82c4-cac5-4e13-b1dc-bb1f42b475dd, fromAddress: "                      \
 	"f41973e5-b27c-49e4-bcaf-1d48b153683e, projectId: 100, operation: "        \
 	"CreatePublisher, traceId: "                                               \
 	"Publish:Rumor:112ae1a5-3416-4458-b0c1-6eb3e0ab4c80, streamId: "           \
-	"b4da82c4-cac5-4e13-b1dc-bb1f42b475dd, remoteIpAddress: 127.0.0.1, "       \
+	"b4da82c4-cac5-4e13-b1dc-bb1f42b475dd, remoteIpAddress:    127.0.0.1, "    \
 	"correlationId: b90232b5-3ee5-4c65-bb4e-29286d6a2771\n"
 #define LOG3                                                                   \
 	"2017-04-19 18:01:11,437     INFO [Test worker]    "                       \
@@ -85,7 +86,7 @@ static slab_t* pslab;
 	"here\n"
 #define LOG4                                                                   \
 	"2017-04-19 18:01:11,437     INFO [Test worker]    "                       \
-	"core.InstrumentationListener	only: one\n"
+	"core.InstrumentationListener	only:            one\n"
 #define LOG5                                                                   \
 	"2017-11-16 19:07:56,883	WARN	[-]	-	flow: UpdateClientActivity, "          \
 	"operation: HandleActiveEvent, step: Failure, lua Rocks: true\n"

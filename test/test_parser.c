@@ -42,23 +42,28 @@ int test_parse_partial()
 	size_t len5 = LEN1 - len1 - len2 - len3 - len4;
 
 	ASSERT_EQ(len5 + len4 + len3 + len2 + len1, LEN1);
-
+ 
+ 	// printf("parse: '%.*s'\n", (int)len1, chunk1);
 	res = parser_parse(p, chunk1, len1);
 	ASSERT_EQ(res.type, PARSE_PARTIAL);
 	ASSERT_EQ(res.consumed, len1);
 
+ 	// printf("parse: '%.*s'\n", (int)len2, chunk2);
 	res = parser_parse(p, chunk2, len2);
 	ASSERT_EQ(res.type, PARSE_PARTIAL);
 	ASSERT_EQ(res.consumed, len2);
 
+ 	// printf("parse: '%.*s'\n", (int)len3, chunk3);
 	res = parser_parse(p, chunk3, len3);
 	ASSERT_EQ(res.type, PARSE_PARTIAL);
 	ASSERT_EQ(res.consumed, len3);
 
+ 	// printf("parse: '%.*s'\n", (int)len4, chunk4);
 	res = parser_parse(p, chunk4, len4);
 	ASSERT_EQ(res.type, PARSE_PARTIAL);
 	ASSERT_EQ(res.consumed, len4);
 
+ 	// printf("parse: '%.*s'\n", (int)len5, chunk5);
 	res = parser_parse(p, chunk5, len5);
 	ASSERT_EQ(res.type, PARSE_COMPLETE);
 	ASSERT_EQ(res.consumed, len5);
@@ -98,6 +103,7 @@ int test_parse_error()
 	// this + header = more properties than we should be able to parse
 	for (int i = 0; i < PARSER_SLAB_CAP; i++) {
 		char* prop_key = rcmalloc(100);
+		ASSERT_NEQ(prop_key, NULL);
 		sprintf(prop_key, "%d", i);
 		prop_t* prop = slab_get(pslab);
 		ASSERT_NEQ(prop, NULL);
@@ -139,11 +145,13 @@ int test_parse_error()
 	log_remove(big_log, "5");
 	for (int i = 0; i < PARSER_SLAB_CAP; i++) {
 		char* prop_key = rcmalloc(100);
+		ASSERT_NEQ(prop_key, NULL);
 		sprintf(prop_key, "%d", i);
 		slab_put(pslab, log_remove(big_log, prop_key));
 	}
 	for (int i = PARSER_SLAB_CAP - 1; i >= 6; i--) {
 		char* prop_key = rcmalloc(100);
+		ASSERT_NEQ(prop_key, NULL);
 		sprintf(prop_key, "%d", i);
 		prop_t* prop = slab_get(pslab);
 		ASSERT_NEQ(prop, NULL);
@@ -220,9 +228,9 @@ int main(int argc, char* argv[])
 
 	TEST_RUN(ctx, test_parser_create);
 	TEST_RUN(ctx, test_parse_reset);
-	TEST_RUN(ctx, test_parse_error);
 	TEST_RUN(ctx, test_parse_partial);
 	TEST_RUN(ctx, test_parse_multiple);
+	TEST_RUN(ctx, test_parse_error);
 
 	TEST_RELEASE(ctx);
 }

@@ -56,3 +56,4 @@ clean:
 	@- rm -f $(LIB)
 	@- rm -f $(SO)
 	@- rm -f $(OBJS)
+	@ rm -f *.profraw
