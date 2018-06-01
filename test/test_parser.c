@@ -20,7 +20,31 @@ int test_parser_create()
 	return 0;
 }
 
-int test_parse_partial()
+int test_parse_partial2()
+{
+	parse_res_t res;
+	parser_t* p = parser_create();
+
+	char* chunk1 = BUF8;
+	size_t len1 = 159;
+
+	char* chunk2 = BUF8 + len1;
+	size_t len2 = LEN8 - len1;
+
+	res = parser_parse(p, chunk1, len1);
+	ASSERT_EQ(res.type, PARSE_PARTIAL);
+	ASSERT_EQ(res.consumed, len1);
+
+	res = parser_parse(p, chunk2, len2);
+	ASSERT_EQ(res.type, PARSE_COMPLETE);
+	ASSERT_EQ(res.consumed, 308);
+
+	ASSERT_LOG_EQ(res.log, &EXPECTED8);
+
+	return 0;
+}
+
+int test_parse_partial1()
 {
 
 	parse_res_t res;
@@ -228,7 +252,8 @@ int main(int argc, char* argv[])
 
 	TEST_RUN(ctx, test_parser_create);
 	TEST_RUN(ctx, test_parse_reset);
-	TEST_RUN(ctx, test_parse_partial);
+	TEST_RUN(ctx, test_parse_partial1);
+	TEST_RUN(ctx, test_parse_partial2);
 	TEST_RUN(ctx, test_parse_multiple);
 	TEST_RUN(ctx, test_parse_error);
 
