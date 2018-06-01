@@ -77,4 +77,11 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
+# using SO parser
+cat $IN | $LOGD_EXEC $SCRIPT --parser="$DIR/../lib/parser.so" 2> $OUT 1> $OUT
+if [ $? -ne 0 ]; then
+	cat $OUT
+	exit 1
+fi
+
 exit 0
