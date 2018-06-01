@@ -39,23 +39,23 @@ static struct args_s {
 	const char* dlparser;
 } args;
 
-static char* script;
-static void* parser;
-static void* dlparser_handle;
-static lua_t* lstate;
-static uv_signal_t sigh;
-static uv_loop_t* loop;
-static buf_t* b;
-static uv_file infd;
-static uv_fs_t uv_read_in_req;
-static uv_fs_t uv_open_in_req;
-static uv_buf_t iov;
-static int pret;
-static parse_res_t (*parse_parser)(
+char* script;
+void* parser;
+void* dlparser_handle;
+lua_t* lstate;
+uv_signal_t sigh;
+uv_loop_t* loop;
+buf_t* b;
+uv_file infd;
+uv_fs_t uv_read_in_req;
+uv_fs_t uv_open_in_req;
+uv_buf_t iov;
+int pret;
+parse_res_t (*parse_parser)(
   void*, char*, size_t) = (parse_res_t(*)(void*, char*, size_t))(&parser_parse);
-static void (*free_parser)(void*) = (void (*)(void*))(&parser_free);
-static void* (*create_parser)() = (void* (*)())(&parser_create);
-static void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
+void (*free_parser)(void*) = (void (*)(void*))(&parser_free);
+void* (*create_parser)() = (void* (*)())(&parser_create);
+void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
 
 void input_close(uv_loop_t* loop, uv_file infd)
 {
@@ -68,16 +68,16 @@ void input_close(uv_loop_t* loop, uv_file infd)
 
 void release_all()
 {
-	input_close(loop, infd);
-	lua_free(lstate);
 	if (loop) {
+		input_close(loop, infd);
 		uv_signal_stop(&sigh);
 		free(loop);
 	}
-	free_parser(parser);
 	if (dlparser_handle) {
 		dlclose(dlparser_handle);
 	}
+	free_parser(parser);
+	lua_free(lstate);
 	buf_free(b);
 }
 
@@ -412,6 +412,7 @@ void print_usage(const char* exe)
 	printf("\t-h, --help					prints this message\n");
 }
 
+#ifndef LOGD_FUZZER
 int main(int argc, char* argv[])
 {
 
@@ -467,3 +468,4 @@ exit:
 	release_all();
 	return pret;
 }
+#endif

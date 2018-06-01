@@ -4,34 +4,60 @@
 
 #include "../src/parser.h"
 
-static parser_t* p;
-static presult_t res;
+static parser_t* parser;
+static char* data_copy;
 
 int LLVMFuzzerInitialize(int* argc, char*** argv)
 {
-	p = parser_create();
+	parser = parser_create();
+	if (parser == NULL) {
+		perror("parser_create");
+		return 1;
+	}
+
 	return 0;
 }
 
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 {
+	int ret = 0;
+	parse_res_t res;
+
+	if (size < 0)
+		return 0;
+
 	// parser mutates input so we need to make a copy
-	char* data_copy;
 	data_copy = malloc(size);
 	if (data_copy == NULL) {
 		perror("malloc");
-		return 1;
+		ret = 1;
+		goto end;
 	}
 	memcpy(data_copy, data, size);
 
-	parser_init(p, p->pslab);
 	for (;;) {
-		res = parser_parse(p, data_copy, size);
-		if (!res.complete) {
+		res = parser_parse(parser, data_copy, size);
+		switch (res.type) {
+		case PARSE_COMPLETE:
+			data_copy += res.consumed;
+			size -= res.consumed;
+			parser_reset(parser);
 			break;
+
+		case PARSE_ERROR:
+			data_copy += res.consumed;
+			size -= res.consumed;
+			parser_reset(parser);
+			break;
+
+		case PARSE_PARTIAL:
+			goto end;
 		}
 	}
 
-	free(data_copy);
-	return 0;
+end:
+	if (data_copy)
+		free(data_copy);
+	parser_free(parser);
+	return ret;
 }

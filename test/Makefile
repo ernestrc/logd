@@ -71,7 +71,7 @@ fuzz: $(TARGET_FUZZERS)
 
 # clang version >= 6.0.0
 $(TARGET)/fuzz_%: fuzz_%.c $(LIB)
-	@ $(CC) $(LDFLAGS) $(CFLAGS) -fsanitize=fuzzer $(addprefix ../src/,$(patsubst fuzz_%.c, %.c, $<)) $< -o $@ $(LIB)
+	@ $(CC) $(LDFLAGS) $(CFLAGS) -DLOGD_FUZZER -fsanitize=fuzzer $(addprefix ../src/,$(patsubst fuzz_%.c, %.c, $<)) $< -o $@ $(LIB)
 
 $(FUZZPROFDATA): $(TARGET_FUZZERS)
 	llvm-profdata merge -sparse $(TARGET_FPROFILES) -o $(FUZZPROFDATA)
