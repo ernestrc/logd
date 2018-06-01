@@ -1,3 +1,4 @@
+#include <dlfcn.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -35,10 +36,12 @@ static struct args_s {
 	bool debug;
 	const char* input_file;
 	int help;
+	const char* dlparser;
 } args;
 
 static char* script;
-static parser_t* p;
+static void* parser;
+static void* dlparser_handle;
 static lua_t* lstate;
 static uv_signal_t sigh;
 static uv_loop_t* loop;
@@ -48,6 +51,11 @@ static uv_fs_t uv_read_in_req;
 static uv_fs_t uv_open_in_req;
 static uv_buf_t iov;
 static int pret;
+static parse_res_t (*parse_parser)(
+  void*, char*, size_t) = (parse_res_t(*)(void*, char*, size_t))(&parser_parse);
+static void (*free_parser)(void*) = (void (*)(void*))(&parser_free);
+static void* (*create_parser)() = (void* (*)())(&parser_create);
+static void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
 
 void input_close(uv_loop_t* loop, uv_file infd)
 {
@@ -66,8 +74,11 @@ void release_all()
 		uv_signal_stop(&sigh);
 		free(loop);
 	}
+	free_parser(parser);
+	if (dlparser_handle) {
+		dlclose(dlparser_handle);
+	}
 	buf_free(b);
-	parser_free(p);
 }
 
 char* args_init(int argc, char* argv[])
@@ -76,18 +87,22 @@ char* args_init(int argc, char* argv[])
 	args.debug = OPT_DEFAULT_DEBUG;
 	args.input_file = "/dev/stdin";
 	args.help = 0;
+	args.dlparser = NULL;
 
 	static struct option long_options[] = {{"debug", no_argument, 0, 'd'},
 	  {"file", required_argument, 0, 'f'}, {"help", no_argument, 0, 'h'},
-	  {0, 0, 0, 0}};
+	  {"parser", required_argument, 0, 'p'}, {0, 0, 0, 0}};
 
 	int option_index = 0;
 	int c = 0;
 	while ((c = getopt_long(
-			  argc, argv, "df:o:h", long_options, &option_index)) != -1) {
+			  argc, argv, "p:df:o:h", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'd':
 			args.debug = true;
+			break;
+		case 'p':
+			args.dlparser = optarg;
 			break;
 		case 'f':
 			args.input_file = optarg;
@@ -111,6 +126,46 @@ void stop_io()
 	uv_stop(loop);
 }
 
+int parser_dlload(const char* dlpath)
+{
+	const char* error;
+	DEBUG_LOG("EOF while reading input file %d", infd);
+
+	if ((dlparser_handle = dlopen(dlpath, RTLD_LAZY)) == NULL) {
+		fprintf(stderr, "dlopen: %s\n", dlerror());
+		goto err;
+	}
+	dlerror();
+
+	parse_parser = dlsym(dlparser_handle, "parser_parse");
+	if ((error = dlerror()) != NULL) {
+		fprintf(stderr, "dlsym(parser_parse): %s\n", error);
+		goto err;
+	}
+
+	free_parser = dlsym(dlparser_handle, "parser_free");
+	if ((error = dlerror()) != NULL) {
+		fprintf(stderr, "dlsym(parser_free): %s\n", error);
+		goto err;
+	}
+
+	create_parser = dlsym(dlparser_handle, "parser_create");
+	if ((error = dlerror()) != NULL) {
+		fprintf(stderr, "dlsym(parser_create): %s\n", error);
+		goto err;
+	}
+
+	reset_parser = dlsym(dlparser_handle, "parser_reset");
+	if ((error = dlerror()) != NULL) {
+		fprintf(stderr, "dlsym(parser_reset): %s\n", error);
+		goto err;
+	}
+	return 0;
+err:
+	errno = EINVAL;
+	return 1;
+}
+
 void on_read_err(uv_fs_t* req)
 {
 	fprintf(stderr, "input read error: %s\n", uv_strerror(req->result));
@@ -124,13 +179,13 @@ void on_read_eof(uv_fs_t* req)
 	DEBUG_LOG("EOF while reading input file %d", infd);
 
 parse:
-	res = parser_parse(p, b->next_read, buf_readable(b));
+	res = parse_parser(parser, b->next_read, buf_readable(b));
 	switch (res.type) {
 	case PARSE_COMPLETE:
 		buf_ack(b, res.consumed);
 		// DEBUG_LOG("parsed new log: %p", &res.log);
 		lua_call_on_log(lstate, res.log);
-		parser_reset(p);
+		reset_parser(parser);
 		goto parse;
 	case PARSE_ERROR:
 		DEBUG_LOG("EOF parse error: %s", res.error.msg);
@@ -139,7 +194,7 @@ parse:
 			lua_call_on_error(
 			  lstate, res.error.msg, res.log, res.error.remaining);
 		}
-		parser_reset(p);
+		reset_parser(parser);
 		goto parse;
 	case PARSE_PARTIAL:
 		stop_io();
@@ -166,7 +221,7 @@ void on_read_skip(uv_fs_t* req)
 	}
 
 	buf_extend(b, req->result);
-	res = parser_parse(p, b->next_read, buf_readable(b));
+	res = parse_parser(parser, b->next_read, buf_readable(b));
 	if (res.type == PARSE_PARTIAL) {
 		buf_reset_offsets(b);
 		SUBMIT_ON_READ(&on_read_skip);
@@ -183,7 +238,7 @@ void on_read_skip(uv_fs_t* req)
 	DEBUG_LOG("successfully skipped line: buffer has now %zu readable bytes "
 			  "and %zu writable bytes",
 	  buf_readable(b), buf_writable(b));
-	parser_reset(p);
+	reset_parser(parser);
 	SUBMIT_ON_READ(&on_read);
 }
 
@@ -205,14 +260,14 @@ void on_read(uv_fs_t* req)
 
 	buf_extend(b, req->result);
 parse:
-	res = parser_parse(p, b->next_read, buf_readable(b));
+	res = parse_parser(parser, b->next_read, buf_readable(b));
 	switch (res.type) {
 
 	case PARSE_COMPLETE:
 		// DEBUG_LOG("parsed new log: %p", &res.log);
 		lua_call_on_log(lstate, res.log);
 		buf_consume(b, res.consumed);
-		parser_reset(p);
+		reset_parser(parser);
 		goto parse;
 
 	case PARSE_ERROR:
@@ -222,7 +277,7 @@ parse:
 			lua_call_on_error(
 			  lstate, res.error.msg, res.log, res.error.remaining);
 		}
-		parser_reset(p);
+		reset_parser(parser);
 		goto parse;
 
 	case PARSE_PARTIAL:
@@ -234,7 +289,7 @@ parse:
 		if (buf_compact(b)) {
 			DEBUG_LOG(
 			  "compacted buffer: now writable %zd bytes", buf_writable(b));
-			parser_reset(p);
+			reset_parser(parser);
 			goto read;
 		}
 
@@ -256,7 +311,7 @@ parse:
 		}
 
 		DEBUG_LOG("reserved more space in input buffer: now %zd bytes", b->cap);
-		parser_reset(p);
+		reset_parser(parser);
 		goto read;
 	}
 
@@ -348,11 +403,13 @@ void print_usage(const char* exe)
 {
 	printf("usage: %s <script> [options]\n", exe);
 	printf("\noptions:\n");
-	printf("\t-d, --debug         enable debug logs [default: %s]\n",
+	printf("\t-d, --debug					enable debug logs [default: %s]\n",
 	  OPT_DEFAULT_DEBUG ? "true" : "false");
-	printf("\t-f, --file=<path>   file to read data from [default: "
+	printf("\t-f, --file=<path>			file to read data from [default: "
 		   "/dev/stdin]\n");
-	printf("\t-h, --help          prints this message\n");
+	printf("\t-p, --parser=<parser_so>	load dynamic shared object parser via dlopen [default: "
+		   "builtin]\n");
+	printf("\t-h, --help					prints this message\n");
 }
 
 int main(int argc, char* argv[])
@@ -363,7 +420,12 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	if ((p = parser_create()) == NULL) {
+	if (args.dlparser != NULL && (pret = parser_dlload(args.dlparser)) != 0) {
+		perror("parser_dlload");
+		goto exit;
+	}
+
+	if ((parser = create_parser()) == NULL) {
 		perror("parser_create");
 		pret = 1;
 		goto exit;

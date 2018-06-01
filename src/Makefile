@@ -25,10 +25,12 @@ EXEC = $(addprefix $(TARGET),$(patsubst %.c,%,$(EXEC_SRC)))
 
 LIB = ../lib/liblogd.a
 SO = ../lib/logd.so
+PARSER_SO = ../lib/parser.so
+PARSER_DEPS=log.c util.c
 
 .PHONY: clean purge
 
-src: prepare $(LIB) $(SO) $(EXEC)
+src: prepare $(LIB) $(SO) $(PARSER_SO) $(EXEC)
 
 prepare:
 	@ mkdir -p $(INCLUDE)
@@ -44,6 +46,10 @@ $(INCLUDE)/%.h: %.h
 $(LIB): $(OBJS) $(HDRS)
 	@ echo "  AR	$@"
 	@ ar rs $(LIB) $(OBJS) $(EXTOBJ) 2> /dev/null
+
+$(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
+	@ echo "  SO	$@"
+	@ $(CC) $(LDFLAGS) $(CFLAGS) -shared -fPIC parser.c -o $(PARSER_SO) $(PARSER_DEPS)
 
 $(SO): $(OBJS) $(HDRS) $(LUA_MODULE_DEPS)
 	@ echo "  SO	$@"

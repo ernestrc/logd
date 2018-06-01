@@ -36,6 +36,5 @@ YYYY-MM-dd hh:mm:ss	LEVEL	[Thread]	Class	key: value...
 - debug log time should have millis precision
 - logd.clone(logptr)
 - logd.to\_table(logptr)
-- Add .so parser loading flag
 - Add query API
 - Add directory monitoring flag
