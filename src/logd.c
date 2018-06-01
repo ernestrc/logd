@@ -23,7 +23,6 @@
 #endif
 
 #define SUBMIT_ON_READ(cb)                                                     \
-	buf_ecompact(b);                                                           \
 	iov.base = b->next_write;                                                  \
 	iov.len = buf_writable(b);                                                 \
 	DEBUG_ASSERT(iov.len > 0);                                                 \
@@ -129,6 +128,7 @@ parse:
 	switch (res.type) {
 	case PARSE_COMPLETE:
 		buf_ack(b, res.consumed);
+		// DEBUG_LOG("parsed new log: %p", &res.log);
 		lua_call_on_log(lstate, res.log);
 		parser_reset(p);
 		goto parse;
@@ -152,6 +152,8 @@ parse:
 void on_read_skip(uv_fs_t* req)
 {
 	parse_res_t res;
+
+	// DEBUG_LOG("result: %zd", req->result);
 
 	if (req->result < 0) {
 		on_read_err(req);
@@ -189,6 +191,8 @@ void on_read(uv_fs_t* req)
 {
 	parse_res_t res;
 
+	// DEBUG_LOG("result: %zd", req->result);
+
 	if (req->result < 0) {
 		on_read_err(req);
 		return;
@@ -205,8 +209,9 @@ parse:
 	switch (res.type) {
 
 	case PARSE_COMPLETE:
-		buf_ack(b, res.consumed);
+		// DEBUG_LOG("parsed new log: %p", &res.log);
 		lua_call_on_log(lstate, res.log);
+		buf_consume(b, res.consumed);
 		parser_reset(p);
 		goto parse;
 
