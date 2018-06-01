@@ -20,8 +20,9 @@ static const char* util_log_get(log_t* l, const char* key)
 	if (blen < 0) {                                                            \
 		blen = 0;                                                              \
 		buf = NULL;                                                            \
-	} else                                                                     \
+	} else {                                                                   \
 		buf += want;                                                           \
+	}                                                                          \
 	res += want;
 
 static int snprintp(char* buf, int blen, log_t* l)
@@ -53,7 +54,6 @@ int snprintl(char* buf, int blen, log_t* l)
 		util_log_get(l, KEY_TIME), util_log_get(l, KEY_LEVEL),
 		util_log_get(l, KEY_THREAD), util_log_get(l, KEY_CLASS));
 
-	// blen will prevent snprintf to write to invalid memory
 	ADD_OFFSET(want, buf, blen, res);
 
 	const char* call_type = log_get(l, KEY_CALLTYPE);
@@ -75,12 +75,13 @@ static void fprintp(FILE* stream, log_t* l)
 		if (strcmp(p->key, KEY_DATE) != 0 && strcmp(p->key, KEY_TIME) != 0 &&
 		  strcmp(p->key, KEY_LEVEL) != 0 && strcmp(p->key, KEY_CLASS) != 0 &&
 		  strcmp(p->key, KEY_THREAD) != 0 && strcmp(p->key, KEY_CALLTYPE)) {
-			fprintf(stream, "%s: %s, ", p->key, p->value == NULL ? "null" : p->value);
+			fprintf(
+			  stream, "%s: %s, ", p->key, p->value == NULL ? "null" : p->value);
 		}
 	}
 }
 
-void fprintl(FILE* stream, log_t* log) 
+void fprintl(FILE* stream, log_t* log)
 {
 	fprintf(stream, "%s %s\t%s\t[%s]\t%s\t", util_log_get(log, KEY_DATE),
 	  util_log_get(log, KEY_TIME), util_log_get(log, KEY_LEVEL),
@@ -95,10 +96,7 @@ void fprintl(FILE* stream, log_t* log)
 	fprintf(stream, "\n");
 }
 
-void printl(log_t* log)
-{
-	fprintl(stdout, log);
-}
+void printl(log_t* log) { fprintl(stdout, log); }
 
 const char* util_get_date()
 {

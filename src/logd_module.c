@@ -18,9 +18,8 @@
 #define LUA_NAME_TABLE_TO_LOGPTR "to_logptr"
 #define LUA_NAME_LOG_TO_STR "to_str"
 #define LUA_LEGACY_NAME_LOG_STRING "log_string"
-// #define LUA_NAME_TO_LOG_JSON "to_json"
 
-#define MAX_LOG_TABLE_LEN 25
+#define MAX_LOG_TABLE_LEN 50
 
 #define ASSERT_LOG_PTR(L, idx, fn_name)                                        \
 	switch (lua_type(L, idx)) {                                                \
@@ -125,26 +124,31 @@ static void table_to_log(
  *
  * TODO: use weak tables to prevent props from being GCd
  */
-static int logd_table_to_logptr(lua_State* L)
+static int table_to_logptr(lua_State* L, int idx)
 {
 	log_t* log = (log_t*)lua_newuserdata(L, sizeof(log_t));
 	prop_t* props =
 	  (prop_t*)lua_newuserdata(L, MAX_LOG_TABLE_LEN * sizeof(prop_t));
 	log_init(log);
 
-	switch (lua_type(L, 1)) {
+	switch (lua_type(L, idx)) {
 	case LUA_TTABLE:
-		table_to_log(L, 1, props, MAX_LOG_TABLE_LEN, log);
+		table_to_log(L, idx, props, MAX_LOG_TABLE_LEN, log);
 		break;
 	default:
 		luaL_error(L,
 		  "1st argument must be a table in call to '" LUA_NAME_TABLE_TO_LOGPTR
 		  "': found %s",
-		  lua_typename(L, lua_type(L, 1)));
+		  lua_typename(L, lua_type(L, idx)));
 		break;
 	}
 
 	return 2;
+}
+
+static int logd_table_to_logptr(lua_State* L)
+{
+	return table_to_logptr(L, 1);
 }
 
 static char* force_snprintl(lua_State* L, log_t* log)
@@ -161,20 +165,6 @@ static char* force_snprintl(lua_State* L, log_t* log)
 	return str;
 }
 
-static void table_to_log_str(lua_State* L, int idx)
-{
-	prop_t props[MAX_LOG_TABLE_LEN];
-	log_t log;
-	log_init(&log);
-
-	table_to_log(L, idx, props, MAX_LOG_TABLE_LEN, &log);
-
-	char* str = force_snprintl(L, &log);
-	lua_pushstring(L, str);
-
-	free(str);
-}
-
 static int logd_log_to_str(lua_State* L)
 {
 	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_TO_STR);
@@ -187,27 +177,46 @@ static int logd_log_to_str(lua_State* L)
 	return 1;
 }
 
+void lua_print_log(lua_State* L, int idx)
+{
+	ASSERT_LOG_PTR(L, idx, LUA_NAME_PRINT);
+	log_t* log = (log_t*)lua_touserdata(L, idx);
+	char* str = force_snprintl(L, log);
+	lua_getglobal(L, "io");
+	lua_getfield(L, -1, "write");
+	lua_pushstring(L, str);
+	lua_call(L, 1, 0);
+	lua_getfield(L, -1, "write");
+	lua_pushliteral(L, "\n");
+	lua_call(L, 1, 0);
+	lua_pop(L, 1);
+	free(str);
+}
+
 static int logd_print(lua_State* L)
 {
 	switch (lua_type(L, 1)) {
+	case LUA_TUSERDATA:
+	case LUA_TLIGHTUSERDATA:
+		lua_print_log(L, 1);
+		break;
 	case LUA_TTABLE:
-		lua_getglobal(L, "print");
-		table_to_log_str(L, 1);
-		lua_call(L, 1, 0);
+		logd_table_to_logptr(L);
+		lua_print_log(L, 2);
+		lua_pop(L, 2);
 		break;
 	case LUA_TSTRING:
 		lua_newtable(L);
 		lua_pushliteral(L, "msg");
 		lua_pushvalue(L, 1);
 		lua_settable(L, 2);
-		lua_getglobal(L, "print");
-		table_to_log_str(L, 2);
-		lua_call(L, 1, 0);
-		lua_pop(L, 1);
+		table_to_logptr(L, 2);
+		lua_print_log(L, 3);
+		lua_pop(L, 3);
 		break;
 	default:
 		luaL_error(L,
-		  "1st argument must be a string or a table in call to '" LUA_NAME_PRINT
+		  "1st argument must be a string, a table or a logptr in call to '" LUA_NAME_PRINT
 		  "': found %s",
 		  lua_typename(L, lua_type(L, 1)));
 		break;
