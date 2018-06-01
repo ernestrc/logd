@@ -13,6 +13,7 @@
 #include "../src/slab/rcmalloc.h"
 #include "../src/slab/slab.h"
 #include "../src/util.h"
+#include "fixture.h"
 
 typedef struct test_ctx_s {
 	char* test_expr;
@@ -62,58 +63,6 @@ typedef struct test_ctx_s {
 
 static slab_t* pslab;
 
-#define LOG1                                                                   \
-	"2017-09-07 14:54:39,474	DEBUG	[pool-5-thread-6]	"                         \
-	"control.RaptorHandler	PublisherCreateRequest: flow: Publish, step: "      \
-	"Attempt, operation: CreatePublisher, traceId: "                           \
-	"Publish:Rumor:012ae1a5-3416-4458-b0c1-6eb3e0ab4c80\n"
-#define LOG2                                                                   \
-	"2017-09-07 14:54:39,474	DEBUG	[pool-5-thread-6]	"                         \
-	"control.RaptorHandler	sessionId: "                                        \
-	"1_MX4xMDB-fjE1MDQ4MjEyNzAxMjR-WThtTVpEN0J2c1Z2TlJGcndTN1lpTExGfn4, "      \
-	"flow: Publish, conId: connectionId: "                                     \
-	"f41973e5-b27c-49e4-bcaf-1d48b153683e, step: Attempt, publisherId: "       \
-	"b4da82c4-cac5-4e13-b1dc-bb1f42b475dd, fromAddress: "                      \
-	"f41973e5-b27c-49e4-bcaf-1d48b153683e, projectId: 100, operation: "        \
-	"CreatePublisher, traceId: "                                               \
-	"Publish:Rumor:112ae1a5-3416-4458-b0c1-6eb3e0ab4c80, streamId: "           \
-	"b4da82c4-cac5-4e13-b1dc-bb1f42b475dd, remoteIpAddress: 127.0.0.1, "       \
-	"correlationId: b90232b5-3ee5-4c65-bb4e-29286d6a2771\n"
-#define LOG3                                                                   \
-	"2017-04-19 18:01:11,437     INFO [Test worker]    "                       \
-	"core.InstrumentationListener	i do not want to log anything special "      \
-	"here\n"
-#define LOG4                                                                   \
-	"2017-04-19 18:01:11,437     INFO [Test worker]    "                       \
-	"core.InstrumentationListener	only: one\n"
-#define LOG5                                                                   \
-	"2017-11-16 19:07:56,883	WARN	[-]	-	flow: UpdateClientActivity, "          \
-	"operation: HandleActiveEvent, step: Failure, lua Rocks: true\n"
-#define LOG6                                                                   \
-	"[2017-12-05T15:09:09.858] [WARN] main - flow: , operation: closePage, "   \
-	"step: Failure, logLevel: WARN, url: "                                     \
-	"https://10.1.6.113:6060/"                                                 \
-	"index.html?id=5NZM0okZ&wsUri=wss%3A%2F%2F10.1.6.113%3A6060%2Fws%3Fid%"    \
-	"3D5NZM0okZ, err: Error  Protocol error (Target.closeTarget)  Target "     \
-	"closed.     at Connection._onClose "                                      \
-	"(/home/ernestrc/src/tbsip/node_modules/puppeteer/lib/Connection.js 124 "  \
-	"23)     at emitTwo (events.js 125 13)     at WebSocket.emit (events.js "  \
-	"213 7)     at WebSocket.emitClose "                                       \
-	"(/home/ernestrc/src/tbsip/node_modules/ws/lib/WebSocket.js 213 10)     "  \
-	"at _receiver.cleanup "                                                    \
-	"(/home/ernestrc/src/tbsip/node_modules/ws/lib/WebSocket.js 195 41)     "  \
-	"at Receiver.cleanup "                                                     \
-	"(/home/ernestrc/src/tbsip/node_modules/ws/lib/Receiver.js 520 15)     "   \
-	"at WebSocket.finalize "                                                   \
-	"(/home/ernestrc/src/tbsip/node_modules/ws/lib/WebSocket.js 195 22)     "  \
-	"at emitNone (events.js 110 20)     at Socket.emit (events.js 207 7)     " \
-	"at endReadableNT (_stream_readable.js 1047 12), class: Endpoint, id: "    \
-	"5NZM0okZ, timestamp: 1512515349858, duration: 2.017655998468399\n"
-
-#define LOG7                                                                   \
-	"2017-04-19 18:01:11,477     INFO [Test worker]    "                       \
-	"core.InstrumentationListener	nothing special here\n"
-
 #define LEN1 strlen(LOG1)
 #define LEN2 strlen(LOG2)
 #define LEN3 strlen(LOG3)
@@ -121,6 +70,7 @@ static slab_t* pslab;
 #define LEN5 strlen(LOG5)
 #define LEN6 strlen(LOG6)
 #define LEN7 strlen(LOG7)
+#define LEN8 strlen(LOG8)
 
 char* BUF1;
 char* BUF2;
@@ -129,6 +79,7 @@ char* BUF4;
 char* BUF5;
 char* BUF6;
 char* BUF7;
+char* BUF8;
 
 log_t EXPECTED1;
 log_t EXPECTED2;
@@ -137,6 +88,7 @@ log_t EXPECTED4;
 log_t EXPECTED5;
 log_t EXPECTED6;
 log_t EXPECTED7;
+log_t EXPECTED8;
 
 static void init_test_data()
 {
@@ -147,6 +99,7 @@ static void init_test_data()
 	BUF5 = rcmalloc(LEN5);
 	BUF6 = rcmalloc(LEN6);
 	BUF7 = rcmalloc(LEN7);
+	BUF8 = malloc(LEN8);
 	memcpy(BUF1, LOG1, LEN1);
 	memcpy(BUF2, LOG2, LEN2);
 	memcpy(BUF3, LOG3, LEN3);
@@ -154,6 +107,7 @@ static void init_test_data()
 	memcpy(BUF5, LOG5, LEN5);
 	memcpy(BUF6, LOG6, LEN6);
 	memcpy(BUF7, LOG7, LEN7);
+	memcpy(BUF8, LOG8, LEN8);
 
 	log_set(&EXPECTED1, slab_get(pslab), KEY_TIME, "14:54:39,474");
 	log_set(&EXPECTED1, slab_get(pslab), KEY_DATE, "2017-09-07");
@@ -261,6 +215,21 @@ static void init_test_data()
 	log_set(
 	  &EXPECTED7, slab_get(pslab), KEY_CLASS, "core.InstrumentationListener");
 	log_set(&EXPECTED7, slab_get(pslab), KEY_MESSAGE, "nothing special here");
+
+	log_set(&EXPECTED8, slab_get(pslab), KEY_DATE, "2018-05-30");
+	log_set(&EXPECTED8, slab_get(pslab), KEY_TIME, "11:01:47,633");
+	log_set(&EXPECTED8, slab_get(pslab), KEY_LEVEL, "INFO");
+	log_set(&EXPECTED8, slab_get(pslab), KEY_THREAD, "0x7f65b9365700");
+	log_set(&EXPECTED8, slab_get(pslab), KEY_CLASS, "registry.ClientBuilder");
+	log_set(&EXPECTED8, slab_get(pslab), "callType", "getSupportedFormats");
+	log_set(&EXPECTED8, slab_get(pslab), "message", "Ignoring unsupported codec telephone-event ");
+	log_set(&EXPECTED8, slab_get(pslab), "connectionId", "139bca64-4480-4727-b241-74699b5a20cc");
+	log_set(&EXPECTED8, slab_get(pslab), "partnerId", "100");
+	log_set(&EXPECTED8, slab_get(pslab), "publisherId", "72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2");
+	log_set(&EXPECTED8, slab_get(pslab), "routerStreamId", "72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2");
+	log_set(&EXPECTED8, slab_get(pslab), "sessionId", "2_MX4xMDB-flR1ZSBOb3YgMTkgMTE6MDk6NTggUFNUIDIwMTN-MC4zNzQxNzIxNX4");
+	log_set(&EXPECTED8, slab_get(pslab), "streamId", "72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2");
+	log_set(&EXPECTED8, slab_get(pslab), "widgetType", "Publisher\t"); // TODO improve space triming to end of property
 }
 
 static void __test_print_help(const char* prog)
@@ -276,6 +245,7 @@ static void __test_print_help(const char* prog)
 static void __test_release(test_ctx_t* ctx)
 {
 	free(ctx->test_expr);
+	free(BUF8);
 	rcmalloc_deinit();
 	slab_free(pslab);
 }

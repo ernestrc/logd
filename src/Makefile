@@ -1,5 +1,10 @@
 CC ?= clang
-CFLAGS ?= -O2 -std=c11 -DLOGD_INLINE -D_GNU_SOURCE -pthread -flto
+
+LOGD_SLAB_CAP=256
+LOGD_BUF_INIT_CAP=1000000
+LOGD_BUF_MAX_CAP=10000000
+
+CFLAGS ?= -O3 -std=c11 -DLOGD_INLINE -D_GNU_SOURCE -DLOGD_SLAB_CAP=$(LOGD_SLAB_CAP) -DLOGD_BUF_MAX_CAP=$(LOGD_BUF_MAX_CAP) -DLOGD_INIT_BUF_CAP=$(LOGD_BUF_INIT_CAP) -pthread -flto
 LDFLAGS ?= -lm -ldl
 
 INCLUDE_PATH=../include
@@ -20,10 +25,12 @@ EXEC = $(addprefix $(TARGET),$(patsubst %.c,%,$(EXEC_SRC)))
 
 LIB = ../lib/liblogd.a
 SO = ../lib/logd.so
+PARSER_SO = ../lib/parser.so
+PARSER_DEPS=log.c util.c
 
 .PHONY: clean purge
 
-src: prepare $(LIB) $(SO) $(EXEC)
+src: prepare $(LIB) $(SO) $(PARSER_SO) $(EXEC)
 
 prepare:
 	@ mkdir -p $(INCLUDE)
@@ -39,6 +46,10 @@ $(INCLUDE)/%.h: %.h
 $(LIB): $(OBJS) $(HDRS)
 	@ echo "  AR	$@"
 	@ ar rs $(LIB) $(OBJS) $(EXTOBJ) 2> /dev/null
+
+$(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
+	@ echo "  SO	$@"
+	@ $(CC) $(LDFLAGS) $(CFLAGS) -shared -fPIC parser.c -o $(PARSER_SO) $(PARSER_DEPS)
 
 $(SO): $(OBJS) $(HDRS) $(LUA_MODULE_DEPS)
 	@ echo "  SO	$@"
@@ -56,3 +67,4 @@ clean:
 	@- rm -f $(LIB)
 	@- rm -f $(SO)
 	@- rm -f $(OBJS)
+	@ rm -f *.profraw

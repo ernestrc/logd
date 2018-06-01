@@ -19,6 +19,15 @@ function logd.on_log(logptr)
 	counter = counter + 1
 end
 
+function logd.on_error(msg, logptr, remaining)
+	logd.print({
+		level = 'ERROR',
+		err = msg,
+		at = remaining,
+		partial = logd.to_str(logptr),
+	})
+end
+
 function logd.on_eof()
 	logd.print({ level = 'INFO', msg = string.format('processed %d logs', counter) })
 end

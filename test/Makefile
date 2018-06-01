@@ -37,10 +37,10 @@ $(LINK_SO):
 	@ ln -s $(SO) $(LINK_SO)
 
 unit_test: $(TARGET_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" ./$$f --silent; done
+	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" ./$$f --silent 2>/dev/null; done
 
 int_test: $(INT_TESTS)
-	@ for f in $^; do BUF_MAX_CAP=$(BUF_MAX_CAP) echo "  TEST	$$f" && ./$$f 2>&1; done
+	@ for f in $^; do SLAB_CAP=$(SLAB_CAP) BUF_MAX_CAP=$(BUF_MAX_CAP) echo "  TEST	$$f" && ./$$f 2>&1; done
 
 lua_test: $(LUA_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LUA_PATH="$(LUA_PATH)" LLVM_PROFILE_FILE="$(TARGET)/$$f.profraw" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f 2>/dev/null 1>/dev/null; done
@@ -85,6 +85,7 @@ fuzz-full-coverage: $(FUZZPROFDATA) BROWSER
 
 clean:
 	@rm -f $(TARGET_TESTS) $(TARGET_FUZZERS) $(FUZZPROFDATA) $(TESTPROFDATA) $(TARGET_TPROFILES) $(TARGET_FPROFILES) $(LINK_SO) $(LUNIT_RUNNER)
+	@ rm -f *.profraw
 
 BROWSER:
 ifndef BROWSER

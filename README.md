@@ -10,8 +10,8 @@ Logd is an open source data collector with an embedded Lua VM. The collector tak
 | `function logd.log_remove (logptr, key)` | Remove a property from a log |
 | `function logd.log_reset (logptr)` | Reset all log properties |
 | `function logd.to_str (logptr) str` | Serialize a log into a string |
-| `function logd.to_logptr (table) logptr` | Map a table into a logptr |
-| `function logd.print (string\|table)` | Serialize message or table into a log string and print it to stdout |
+| `function logd.to_logptr (table) logptr` | Instantiate a logptr from a table |
+| `function logd.print (string\|table\|logptr)` | Serialize message or table into a log string and print it to stdout |
 
 | Hook | Description |
 | --- | --- |
@@ -33,6 +33,8 @@ YYYY-MM-dd hh:mm:ss	LEVEL	[Thread]	Class	key: value...
 - Log validation and/or sanitization
 
 ### TODO
-- Add .so parser loading flag
+- debug log time should have millis precision
+- logd.clone(logptr)
+- logd.to\_table(logptr)
 - Add query API
 - Add directory monitoring flag
