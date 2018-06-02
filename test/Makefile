@@ -20,7 +20,7 @@ EXEC = $(TARGET)/logd
 LUNIT = lunit
 LUNIT_RUNNER_SRC=$(shell pwd)/$(LUNIT)/extra/lunit.sh
 LUNIT_RUNNER = $(shell pwd)/$(TARGET)/lunit
-TARGET_LUAJIT= $(TARGET)/luajit
+TARGET_LUAJIT= $(TARGET)/luajit-test
 LUNIT_FLAGS ?= --interpreter $(TARGET_LUAJIT)
 LUA_PATH=./?.lua;./lunit/lua/?.lua;
 
