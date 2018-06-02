@@ -403,13 +403,13 @@ void print_usage(const char* exe)
 {
 	printf("usage: %s <script> [options]\n", exe);
 	printf("\noptions:\n");
-	printf("\t-d, --debug					enable debug logs [default: %s]\n",
+	printf("\t-d, --debug			enable debug logs [default: %s]\n",
 	  OPT_DEFAULT_DEBUG ? "true" : "false");
-	printf("\t-f, --file=<path>			file to read data from [default: "
+	printf("\t-f, --file=<path>		file to read data from [default: "
 		   "/dev/stdin]\n");
-	printf("\t-p, --parser=<parser_so>	load dynamic shared object parser via dlopen [default: "
+	printf("\t-p, --parser=<parser_so>	load dynamic shared object C ABI parser via dlopen [default: "
 		   "builtin]\n");
-	printf("\t-h, --help					prints this message\n");
+	printf("\t-h, --help			prints this message\n");
 }
 
 int main(int argc, char* argv[])
