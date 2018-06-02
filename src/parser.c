@@ -59,7 +59,7 @@
 	p->res.type = PARSE_ERROR;                                                 \
 	COMMIT(p);                                                                 \
 	DEBUG_ASSERT(p->res.error.msg != NULL);                                    \
-	DEBUG_ASSERT(p->res.error.remaining != NULL);
+	DEBUG_ASSERT(p->res.error.at != NULL);
 
 #define PARSER_END_ERROR_INCOMPLETE(p)                                         \
 	parser_error(p, "incomplete header");                                      \
@@ -255,7 +255,7 @@
 INLINE static void parser_error(parser_t* p, const char* msg)
 {
 	p->res.error.msg = msg;
-	p->res.error.remaining = p->chunk;
+	p->res.error.at = p->chunk;
 	p->state = ERROR_PSTATE;
 }
 

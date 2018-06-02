@@ -17,7 +17,7 @@ Logd is an open source data collector with an embedded Lua VM. The collector tak
 | --- | --- |
 | `function logd.on_log (logptr)` | Logs are parsed and supplied to this handler. Use `logd.log_*` set of functions to manipulate them. |
 | `function logd.on_eof ()` | Called when collector has reached EOF reading the input file. The program will exit after this function returns.  |
-| `function logd.on_error (error, logptr, left)` | Called when collector failed to parse a log line. Parsing will resume after this function returns. |
+| `function logd.on_error (error, logptr, at)` | Called when collector failed to parse a log line. Parsing will resume after this function returns. |
 
 
 ## Parser

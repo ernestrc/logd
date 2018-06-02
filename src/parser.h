@@ -45,7 +45,7 @@ typedef struct parse_res_s {
 	size_t consumed;
 	struct {
 		const char* msg;
-		const char* remaining;
+		const char* at;
 	} error;
 	log_t* log;
 } parse_res_t;

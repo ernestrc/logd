@@ -192,7 +192,7 @@ parse:
 		buf_ack(b, res.consumed);
 		if (lua_on_error_defined(lstate)) {
 			lua_call_on_error(
-			  lstate, res.error.msg, res.log, res.error.remaining);
+			  lstate, res.error.msg, res.log, res.error.at);
 		}
 		reset_parser(parser);
 		goto parse;
@@ -275,7 +275,7 @@ parse:
 		buf_ack(b, res.consumed);
 		if (lua_on_error_defined(lstate)) {
 			lua_call_on_error(
-			  lstate, res.error.msg, res.log, res.error.remaining);
+			  lstate, res.error.msg, res.log, res.error.at);
 		}
 		reset_parser(parser);
 		goto parse;

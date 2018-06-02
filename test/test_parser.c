@@ -142,7 +142,7 @@ int test_parse_error()
 	ASSERT_EQ(res.type, PARSE_ERROR);
 	ASSERT_EQ(res.consumed, ELEN1);
 	ASSERT_EQ(res.error.msg, "invalid date or time in log header");
-	ASSERT_STR_EQ(res.error.remaining, "msg: this log does not have a header, subject: idiot");
+	ASSERT_STR_EQ(res.error.at, "msg: this log does not have a header, subject: idiot");
 	log_t* log1 = log_create();
 	ASSERT_EQ(log1->props, NULL);
 	ASSERT_LOG_EQ(res.log, log1);
@@ -158,7 +158,7 @@ int test_parse_error()
 	ASSERT_EQ(res.type, PARSE_ERROR);
 	ASSERT_EQ(res.consumed, 1);
 	ASSERT_STR_EQ(res.error.msg, "reached max number of log properties: " STR(PARSER_SLAB_CAP));
-	ASSERT_STR_EQ(res.error.remaining, " 5: null, 4: null, 3: null, 2: null, 1: null, 0: null, ");
+	ASSERT_STR_EQ(res.error.at, " 5: null, 4: null, 3: null, 2: null, 1: null, 0: null, ");
 
 	// prepare log comparison
 	log_remove(big_log, "0");
@@ -189,7 +189,7 @@ int test_parse_error()
 	ASSERT_EQ(res.type, PARSE_ERROR);
 	ASSERT_EQ(res.consumed, ELEN3);
 	ASSERT_STR_EQ(res.error.msg, "incomplete header");
-	ASSERT_STR_EQ(res.error.remaining, "");
+	ASSERT_STR_EQ(res.error.at, "");
 	parser_reset(p);
 
 	res = parser_parse(p, BUF6, LEN6);
