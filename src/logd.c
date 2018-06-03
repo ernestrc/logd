@@ -39,39 +39,63 @@ static struct args_s {
 	const char* dlparser;
 } args;
 
+static int pret;
 static char* script;
 static void* parser;
 static void* dlparser_handle;
 static lua_t* lstate;
+static buf_t* b;
+
 static uv_signal_t sigh;
 static uv_loop_t* loop;
-static buf_t* b;
 static uv_file infd;
 static uv_fs_t uv_read_in_req;
 static uv_fs_t uv_open_in_req;
 static uv_buf_t iov;
-static int pret;
+
 static parse_res_t (*parse_parser)(
   void*, char*, size_t) = (parse_res_t(*)(void*, char*, size_t))(&parser_parse);
 static void (*free_parser)(void*) = (void (*)(void*))(&parser_free);
 static void* (*create_parser)() = (void* (*)())(&parser_create);
 static void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
 
-void input_close(uv_loop_t* loop, uv_file infd)
+void on_close_lua_handle(uv_handle_t* handle)
 {
-	uv_fs_t req_in_close;
-
-	uv_fs_close(loop, &req_in_close, infd, NULL);
-	uv_fs_req_cleanup(&uv_open_in_req);
-	uv_fs_req_cleanup(&uv_read_in_req);
+	DEBUG_ASSERT((void*)handle != (void*)&uv_read_in_req);
+	DEBUG_ASSERT((void*)handle != (void*)&sigh);
+	DEBUG_LOG("closed uv handle %p", handle);
 }
 
-void release_all()
+void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
 {
-	input_close(loop, infd);
+	if ((void*)handle != (void*)&uv_read_in_req &&
+	  (void*)handle != (void*)&sigh && !uv_is_closing(handle))
+		uv_close(handle, on_close_lua_handle);
+}
+
+void close_lua_uv_handles() { uv_walk(loop, uv_walk_close_lua_handles, NULL); }
+
+void close_logd_uv_handles()
+{
+	uv_fs_t req_in_close;
+	uv_fs_close(loop, &req_in_close, infd, NULL);
+	uv_fs_req_cleanup(&uv_read_in_req);
+	uv_signal_stop(&sigh);
+}
+
+void on_eof()
+{
+	if (lua_on_eof_defined(lstate)) {
+		lua_call_on_eof(lstate);
+	}
+	close_lua_uv_handles();
+	close_logd_uv_handles();
+}
+
+void free_all()
+{
 	lua_free(lstate);
 	if (loop) {
-		uv_signal_stop(&sigh);
 		free(loop);
 	}
 	free_parser(parser);
@@ -118,14 +142,6 @@ char* args_init(int argc, char* argv[])
 	return argv[optind];
 }
 
-void stop_io()
-{
-	if (lua_on_eof_defined(lstate)) {
-		lua_call_on_eof(lstate);
-	}
-	uv_stop(loop);
-}
-
 int parser_dlload(const char* dlpath)
 {
 	const char* error;
@@ -169,7 +185,8 @@ err:
 void on_read_err(uv_fs_t* req)
 {
 	fprintf(stderr, "input read error: %s\n", uv_strerror(req->result));
-	uv_stop(loop);
+	close_lua_uv_handles();
+	close_logd_uv_handles();
 	pret = 1;
 }
 
@@ -191,13 +208,12 @@ parse:
 		DEBUG_LOG("EOF parse error: %s", res.error.msg);
 		buf_ack(b, res.consumed);
 		if (lua_on_error_defined(lstate)) {
-			lua_call_on_error(
-			  lstate, res.error.msg, res.log, res.error.at);
+			lua_call_on_error(lstate, res.error.msg, res.log, res.error.at);
 		}
 		reset_parser(parser);
 		goto parse;
 	case PARSE_PARTIAL:
-		stop_io();
+		on_eof();
 		break;
 	}
 
@@ -216,7 +232,7 @@ void on_read_skip(uv_fs_t* req)
 	}
 
 	if (req->result == 0) {
-		stop_io();
+		on_eof();
 		return;
 	}
 
@@ -274,8 +290,7 @@ parse:
 		DEBUG_LOG("parse error: %s", res.error.msg);
 		buf_ack(b, res.consumed);
 		if (lua_on_error_defined(lstate)) {
-			lua_call_on_error(
-			  lstate, res.error.msg, res.log, res.error.at);
+			lua_call_on_error(lstate, res.error.msg, res.log, res.error.at);
 		}
 		reset_parser(parser);
 		goto parse;
@@ -326,6 +341,7 @@ skip:
 void on_open(uv_fs_t* req)
 {
 	infd = uv_open_in_req.result;
+	uv_fs_req_cleanup(&uv_open_in_req);
 	DEBUG_LOG("input file open with fd %d", infd);
 	SUBMIT_ON_READ(&on_read);
 }
@@ -347,13 +363,8 @@ int input_init(uv_loop_t* loop, const char* input_file)
 void sigusr1_signal_handler(uv_signal_t* handle, int signum)
 {
 	DEBUG_LOG("received signal %d", signum);
-
-	lua_free(lstate);
-	if ((lstate = lua_create(loop, script)) == NULL) {
-		perror("lua_create");
-		fprintf(stderr, "error reloading script\n");
-		exit(1);
-	}
+	close_lua_uv_handles();
+	uv_stop(loop);
 }
 
 int signals_init(uv_loop_t* loop)
@@ -407,7 +418,8 @@ void print_usage(const char* exe)
 	  OPT_DEFAULT_DEBUG ? "true" : "false");
 	printf("\t-f, --file=<path>		file to read data from [default: "
 		   "/dev/stdin]\n");
-	printf("\t-p, --parser=<parser_so>	load dynamic shared object C ABI parser via dlopen [default: "
+	printf("\t-p, --parser=<parser_so>	load dynamic shared object C ABI "
+		   "parser via dlopen [default: "
 		   "builtin]\n");
 	printf("\t-h, --help			prints this message\n");
 }
@@ -447,12 +459,6 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	if ((lstate = lua_create(loop, script)) == NULL) {
-		perror("lua_create");
-		pret = 1;
-		goto exit;
-	}
-
 	if ((pret = input_init(loop, args.input_file)) != 0) {
 		perror("input_init");
 		goto exit;
@@ -461,9 +467,18 @@ int main(int argc, char* argv[])
 	if ((pret = signals_init(loop)) != 0)
 		goto exit;
 
-	uv_run(loop, UV_RUN_DEFAULT);
+	/* sigusr1 signal handler calls uv_stop but leaves non-lua uv handles open
+	 */
+	do {
+		lua_free(lstate);
+		if ((lstate = lua_create(loop, script)) == NULL) {
+			perror("lua_create");
+			pret = 1;
+			goto exit;
+		}
+	} while (uv_run(loop, UV_RUN_DEFAULT));
 
 exit:
-	release_all();
+	free_all();
 	return pret;
 }

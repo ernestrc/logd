@@ -101,6 +101,7 @@ $(INCLUDE_LUVI): $(LUVI)
 	@ sed -i 's/"luv.h"/"..\/luv\/luv.h"/g' ../src/luvi/luvi.h
 	@ sed -i 's/LUA_VERSION_NUM!=503/false/g' ../src/luvi/luvi.h
 	@ sed -i 's/..\/deps\/miniz.c/miniz.c/g' ../src/luvi/lminiz.c
+	@ sed -i 's/pFilename; return/return/g' ../src/luvi/miniz.c
 
 $(INCLUDE_LIBUV): $(LIBUV)
 	@ mkdir -p $(INCLUDE_LIBUV) 
