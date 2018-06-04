@@ -13,15 +13,6 @@ return function(script)
 	local bundles = { [1] = dir }
 	local appArgs = { [1] = "logd" }
 
-	do
-	  local math = require('math')
-	  local os = require('os')
-	  math.randomseed(os.time())
-	end
-
-	local luvi = require('luvi')
-	luvi.version = 'logd'
-
 	-- for simple use cases, add script dirname to package.path
 	package.path = package.path .. string.format(";%s/?.lua", dir)
 

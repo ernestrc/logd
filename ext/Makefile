@@ -41,6 +41,8 @@ $(LUVI):
 	@ echo "  DOWNLOAD	luvi"
 	@- git clone --recursive --quiet https://github.com/luvit/luvi.git luvi
 	@ cd luvi && git checkout --quiet $(LUVI_TREE)
+	@ cp luvi.patch luvi/luvi.patch
+	@ cd luvi && patch -p1 < luvi.patch
 	@ cd luvi && $(MAKE) regular-asm && $(MAKE)
 	@ mkdir -p luvi/build/openssl-objs && cd luvi/build/openssl-objs && ar x ../libopenssl.a
 	@ for file in `ls luvi/build/openssl-objs/*.o`; do cp $$file $(LIB)/openssl_`basename $$file`; done
