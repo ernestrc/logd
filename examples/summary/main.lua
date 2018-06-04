@@ -1,19 +1,20 @@
 --
 -- This example makes full use of the provided builtins to filter and manipulate the logs.
+-- First install all the luvit dependencies via `lit install`.
 -- This can suplied to the logd executable: logd examples/summary.lua -f /var/log/mylog.log
 --
 local logd = require("logd")
-local compat = require('compat')
+local https = require('https')
+local timer = require('timer')
 
 local tick = 100
 local logs = 0
 local errors = 0
 
-function logd.on_tick ()
+timer.setTimeout(tick, function ()
 	tick = tick * 2
-	logd.config_set("tick", tick)
 	logd.print({ level = 'INFO', next_tick = tick, msg = "triggered!" })
-end
+end)
 
 function logd.on_log(logptr)
 	logs = logs + 1
@@ -30,14 +31,13 @@ function logd.on_error(msg, logptr, at)
 end
 
 function logd.on_eof()
-	logd.print({ 
-		level = 'INFO', 
+	logd.print({
+		level = 'INFO',
 		msg = string.format('parsed %d logs and found %d errors parsing', logs, errors),
 	})
 end
 
--- load backwards compatibility layer with logd-go
-compat.load(logd)
-
--- example usage of legacy "config_set" builtin
-logd.config_set("tick", tick)
+-- example usage of lit-installed luvit dependency
+https.get('https://unstable.build/dummy-get', function(res)
+	logd.print(res)
+end)
