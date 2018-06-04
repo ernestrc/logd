@@ -12,8 +12,7 @@ local logs = 0
 local errors = 0
 
 timer.setTimeout(tick, function ()
-	tick = tick * 2
-	logd.print({ level = 'INFO', next_tick = tick, msg = "triggered!" })
+	logd.print({ level = 'INFO', msg = "timer triggered" })
 end)
 
 function logd.on_log(logptr)

@@ -1,4 +1,4 @@
-#Logd[![Build Status](https://travis-ci.org/ernestrc/logd.svg)](https://travis-ci.org/ernestrc/logd)
+# Logd [![Build Status](https://travis-ci.org/ernestrc/logd.svg)](https://travis-ci.org/ernestrc/logd)
 Logd is a log processor daemon that exposes a lua API to run arbitrary logic on structured logs.
 
 ## Logd module API
@@ -25,5 +25,12 @@ YYYY-MM-dd hh:mm:ss	LEVEL	[Thread]	Class	key: value...
 ```
 If you need to parse logs with a different format, you can load a dynamic shared object that implements [src/parser.h](src/parser.h)  via `--parser` flag.
 
+## Preloaded Lua modules
+- [logd](#logd-module-api)
+- [lpeg](http://www.inf.puc-rio.br/~roberto/lpeg/)
+- [miniz](https://github.com/luvit/luvi/blob/master/src/lminiz.c) 
+- [rex](https://github.com/rrthomas/lrexlib)
+- [openssl](https://github.com/zhaozg/lua-openssl)
+
 ## Luvit
-Logd is compatible with [Luvit](https://luvit.io) modules. Luvit modules are not preloaded by default so in order to install the Luvit runtime you can do so with `lit install luvit/luvit` in your script's directory. Then inside your script, you need to call `logd.init_luvit()` to set it up.
+Logd uses Libuv under the hood and is compatible with [Luvit](https://luvit.io) modules. The Luvit runtime and standard modules are not preloaded by default but you can do so by running `lit install luvit/luvit` in your script's directory and then supplying your script to the logd executable.
