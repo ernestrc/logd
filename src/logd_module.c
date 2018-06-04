@@ -56,12 +56,6 @@ static void table_to_log(
 			return;
 		}
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored                                                 \
-  "-Wincompatible-pointer-types-discards-qualifiers"
-		sanitize_prop_key(key);
-#pragma GCC diagnostic pop
-
 		if (!level_added && strcmp(key, KEY_LEVEL) == 0)
 			level_added = true;
 		else if (!time_added && strcmp(key, KEY_TIME) == 0)
@@ -95,12 +89,6 @@ static void table_to_log(
 			value = "<thread>";
 			break;
 		}
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored                                                 \
-  "-Wincompatible-pointer-types-discards-qualifiers"
-		sanitize_prop_value(value);
-#pragma GCC diagnostic pop
 
 		log_set(log, &props[added_props], key, value);
 
