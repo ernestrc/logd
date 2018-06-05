@@ -37,7 +37,7 @@ deps: $(LIB) $(LUVI) $(LIBLUAJIT) $(LIBSLAB) $(INCLUDE_SLAB) $(INCLUDE_LUAJIT) $
 $(LIB):
 	@ mkdir $(LIB)
 
-$(LUVI):
+$(LUVI): $(LIB)
 	@ echo "  DOWNLOAD	luvi"
 	@- git clone --recursive --quiet https://github.com/luvit/luvi.git luvi
 	@ cd luvi && git checkout --quiet $(LUVI_TREE)
@@ -58,7 +58,7 @@ $(LUVI):
 	@ for file in `ls luvi/build/pcre-posix-objs/*.o`; do cp $$file $(LIB)/pcre_posix_`basename $$file`; done
 	@ cd $(LIB) && ar rcus luvi_jitted.a `ls ../luvi/build/jitted_tmp/src/lua/*.o | grep -v init` 2>/dev/null && cp luvi_jitted.a $(LIB)
 
-$(LIBUV):
+$(LIBUV): $(LIB)
 	@ echo "  DOWNLOAD	libuv"
 	@- git clone --quiet https://github.com/libuv/libuv.git libuv
 	@ cd libuv && git checkout --quiet $(LIBUV_TREE)
@@ -66,7 +66,7 @@ $(LIBUV):
 	@ for file in `ls libuv/src/*.o`; do cp $$file $(LIB)/libuv_`basename $$file`; done
 	@ for file in `ls libuv/src/unix/*.o`; do cp $$file $(LIB)/libuv_unix_`basename $$file`; done
 
-$(LUVOBJ): $(INCLUDE_LIBUV) $(INCLUDE_LUAJIT)
+$(LUVOBJ): $(INCLUDE_LIBUV) $(INCLUDE_LUAJIT) $(LIB)
 	@ echo "  DOWNLOAD	luv"
 	@- git clone --quiet https://github.com/luvit/luv.git luv
 	@ cd luv && git checkout --quiet $(LUV_TREE)
@@ -109,7 +109,7 @@ $(INCLUDE_LIBUV): $(LIBUV)
 	@ mkdir -p $(INCLUDE_LIBUV) 
 	@ cp libuv/include/*.h $(INCLUDE_LIBUV)
 
-$(LIBLUAJIT):
+$(LIBLUAJIT): $(LIB)
 	@ echo "  DOWNLOAD	luajit"
 	@- wget https://luajit.org/download/$(LUAJIT_TAR)
 	@ tar -xzvf $(LUAJIT_TAR)
@@ -128,7 +128,7 @@ $(TESTING_LUAJIT_BIN): $(LIBLUAJIT)
 $(TESTING_LUAJIT_TARGET): $(TESTING_LUAJIT_BIN)
 	@ ln -s $(TESTING_LUAJIT_BIN) $(TESTING_LUAJIT_TARGET)
 
-$(LUAJIT_TARGET): $(LUAJIT_BIN)
+$(LUAJIT_TARGET): $(LIBLUAJIT)
 	@ ln -s $(LUAJIT_BIN) $(LUAJIT_TARGET)
 
 $(INCLUDE_SLAB): $(LIBSLAB)
@@ -136,7 +136,7 @@ $(INCLUDE_SLAB): $(LIBSLAB)
 	@ cp slab/src/*.h $(INCLUDE_SLAB)
 
 $(LIBSLAB): export CC = clang
-$(LIBSLAB):
+$(LIBSLAB): $(LIB)
 	@ echo "  DOWNLOAD	slab"
 	@- git clone --quiet https://github.com/ernestrc/slab.git slab
 	@ cd slab && git checkout --quiet $(SLAB_TREE)
