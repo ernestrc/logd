@@ -5,101 +5,74 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "util.h"
-#include "lua.h"
-#include "logd_module.h"
-#include "luv/luv.h"
 #include "libuv/uv.h"
+#include "luv/luv.h"
+#include "luvi/lenv.c"
+#include "luvi/lminiz.c"
+#include "luvi/luvi.c"
+#include "luvi/luvi.h"
+
+#include "logd_module.h"
+#include "lua.h"
+#include "util.h"
+
+int luaopen_rex_pcre(lua_State* L);
+int luaopen_openssl(lua_State* L);
+int luaopen_lpeg(lua_State* L);
 
 static int lua_load_libs(lua_t* l, uv_loop_t* loop)
 {
 	luaopen_logd(l->state);
+
 	if (luaopen_luv_loop(l->state, loop) < 0)
 		return 1;
+
+	/* preload all luvi builtins except:
+	 *		- snapshot
+	 *		- zlib
+	 *		- init
+	 */
+	lua_getglobal(l->state, "package");
+	lua_getfield(l->state, -1, "preload");
+	lua_remove(l->state, -2);
+
+	lua_pushcfunction(l->state, luaopen_env);
+	lua_setfield(l->state, -2, "env");
+
+	lua_pushcfunction(l->state, luaopen_miniz);
+	lua_setfield(l->state, -2, "miniz");
+
+	lua_pushcfunction(l->state, luaopen_lpeg);
+	lua_setfield(l->state, -2, "lpeg");
+
+	lua_pushcfunction(l->state, luaopen_rex_pcre);
+	lua_setfield(l->state, -2, "rex");
+
+	lua_pushcfunction(l->state, luaopen_luvi);
+	lua_setfield(l->state, -2, "luvi");
+
+	lua_pushcfunction(l->state, luaopen_openssl);
+	lua_setfield(l->state, -2, "openssl");
+
+	lua_pop(l->state, 1);
 
 	return 0;
 }
 
-static char* get_abs_path(char* path)
+char* make_run_str(lua_State* state, const char* script)
 {
-	static const char* ABS_TEMPLATE = "%s/%s";
-	char cwd[1024];
-	char* abs;
-	if ((getcwd(cwd, sizeof(cwd))) == NULL) {
-		perror("getcwd");
-		return NULL;
-	}
+	char* run_str = NULL;
 
-	int want = snprintf(NULL, 0, ABS_TEMPLATE, cwd, path);
-	if ((abs = malloc(want + 1)) == NULL) {
+	int want = snprintf(NULL, 0, "return require('init')('%s')", script);
+	if ((run_str = malloc(want + 1)) == NULL) {
 		perror("malloc");
-		return NULL;
-	}
-
-	sprintf(abs, ABS_TEMPLATE, cwd, path);
-	return abs;
-}
-
-int lua_add_package_path(lua_State* state, const char* script)
-{
-	static const char* LUA_PATH_TEMPLATE = ";%s/?.lua";
-	int need;
-	int ret = 0;
-	char* scriptdup = {0};
-	char* path = {0};
-	char* abs = {0};
-	char* dir;
-
-	if ((scriptdup = strdup(script)) == NULL) {
-		perror("strdup");
-		ret = -1;
+		errno = ENOMEM;
 		goto exit;
 	}
-
-	dir = dirname(scriptdup);
-	if (strlen(dir) == 0) {
-		errno = EINVAL;
-		ret = -1;
-		goto exit;
-	}
-
-	// is not absolute
-	if (dir[0] != '/') {
-		if ((abs = get_abs_path(dir)) == NULL) {
-			perror("get_abs_path");
-			ret = -1;
-			goto exit;
-		}
-	} else if ((abs = strdup(dir)) == NULL) {
-		perror("strdup");
-		ret = -1;
-		goto exit;
-	}
-
-	need = snprintf(NULL, 0, LUA_PATH_TEMPLATE, dir);
-	path = malloc(need + 1);
-	if (path == NULL) {
-		perror("malloc");
-		ret = -1;
-		goto exit;
-	}
-	sprintf(path, LUA_PATH_TEMPLATE, dir);
-
-	lua_getglobal(state, "package");
-	lua_getfield(state, -1, "path");
-	lua_pushstring(state, path);
-	lua_concat(state, 2);
-	lua_setfield(state, -2, "path");
-	lua_pop(state, 1);
+	sprintf(run_str, "return require('init')('%s')", script);
 
 exit:
-	if (scriptdup)
-		free(scriptdup);
-	if (path)
-		free(path);
-	if (abs)
-		free(abs);
-	return ret;
+	return run_str;
 }
 
 static void lua_push_on_error(lua_State* state)
@@ -144,24 +117,25 @@ error:
 
 int lua_init(lua_t* l, uv_loop_t* loop, const char* script)
 {
-	int status;
+	char* run_str = NULL;
+	int lerrno;
 
 	l->state = luaL_newstate();
 	l->loop = loop;
 
 	luaL_openlibs(l->state);
+
 	if (lua_load_libs(l, l->loop) != 0) {
 		perror("lua_load_libs");
 		goto error;
 	}
 
-	if (lua_add_package_path(l->state, script) == -1) {
+	if ((run_str = make_run_str(l->state, script)) == NULL) {
 		goto error;
 	}
 
-	/* Load the script containing the script we are going to run */
-	status = luaL_dofile(l->state, script);
-	if (status) {
+	/* Load the init.lua builtin script */
+	if (luaL_dostring(l->state, run_str)) {
 		fprintf(
 		  stderr, "Couldn't load script: %s\n", lua_tostring(l->state, -1));
 		errno = EINVAL;
@@ -183,8 +157,12 @@ int lua_init(lua_t* l, uv_loop_t* loop, const char* script)
 	return 0;
 
 error:
+	lerrno = errno;
+	if (run_str)
+		free(run_str);
 	if (l->state)
 		lua_close(l->state);
+	errno = lerrno;
 	return -1;
 }
 
@@ -210,14 +188,15 @@ bool lua_on_error_defined(lua_t* l)
 	return ret;
 }
 
-void lua_call_on_error(lua_t* l, const char* err, log_t* partial, const char* remaining)
+void lua_call_on_error(
+  lua_t* l, const char* err, log_t* partial, const char* at)
 {
 	lua_push_on_error(l->state);
 	DEBUG_ASSERT(lua_isfunction(l->state, -1));
 
 	lua_pushstring(l->state, err);
 	lua_pushlightuserdata(l->state, partial);
-	lua_pushstring(l->state, remaining);
+	lua_pushstring(l->state, at);
 
 	lua_call(l->state, 3, 0);
 	lua_pop(l->state, 1); // logd module

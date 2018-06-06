@@ -45,12 +45,12 @@ local logs = 0
 function logd.on_log(logptr)
 	logs = logs + 1
 end
-function logd.on_error(error, logptr, remaining)
+function logd.on_error(error, logptr, at)
 	errors = errors + 1
 	local error_expected = "log line was skipped because it is more than $BUF_MAX_CAP bytes"
-	local remaining_expected = ""
+	local at_expected = ""
 	assert(error == error_expected, string.format("error was '%s' instead of '%s'", error, error_expected))
-	assert(remaining == remaining_expected, string.format("remaining was '%s' instead of '%s'", remaining, remaining_expected))
+	assert(at == at_expected, string.format("at was '%s' instead of '%s'", at, at_expected))
 end
 function logd.on_eof()
 	assert(errors == 1, string.format("expected 1 errors but found %d", errors))

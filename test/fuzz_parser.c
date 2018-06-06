@@ -5,7 +5,6 @@
 #include "../src/parser.h"
 
 static parser_t* parser;
-static char* data_copy;
 
 int LLVMFuzzerInitialize(int* argc, char*** argv)
 {
@@ -21,10 +20,12 @@ int LLVMFuzzerInitialize(int* argc, char*** argv)
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 {
 	int ret = 0;
+	char* data_copy = NULL;
 	parse_res_t res;
 
 	if (size < 0)
 		return 0;
+
 
 	// parser mutates input so we need to make a copy
 	data_copy = malloc(size);
@@ -35,6 +36,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 	}
 	memcpy(data_copy, data, size);
 
+	parser_reset(parser);
 	for (;;) {
 		res = parser_parse(parser, data_copy, size);
 		switch (res.type) {
@@ -58,6 +60,5 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 end:
 	if (data_copy)
 		free(data_copy);
-	parser_free(parser);
 	return ret;
 }

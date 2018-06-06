@@ -19,7 +19,6 @@ bool lua_on_error_defined(lua_t*);
 void lua_call_on_error(lua_t*, const char* err, log_t* partial, const char* remaining);
 bool lua_on_eof_defined(lua_t*);
 void lua_call_on_eof(lua_t*);
-int lua_add_package_path(lua_State* state, const char* script);
 void lua_free(lua_t* l);
 
 #endif

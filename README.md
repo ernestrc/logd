@@ -1,8 +1,7 @@
-#Logd[![Build Status](https                                                    \
-  : // travis-ci.org/ernestrc/logd.svg)](https://travis-ci.org/ernestrc/logd)
-Logd is an open source data collector with an embedded Lua VM. The collector takes care of ingesting and parsing the data and your lua script takes care of transforming it and sending it for storage.
+# Logd [![Build Status](https://travis-ci.org/ernestrc/logd.svg)](https://travis-ci.org/ernestrc/logd)
+Logd is a log processor daemon that exposes a lua API to run arbitrary logic on structured logs.
 
-## Lua module API
+## Logd module API
 | Builtin | Description |
 | --- | --- |
 | `function logd.log_get (logptr, key) value` | Get a property from the log |
@@ -17,24 +16,21 @@ Logd is an open source data collector with an embedded Lua VM. The collector tak
 | --- | --- |
 | `function logd.on_log (logptr)` | Logs are parsed and supplied to this handler. Use `logd.log_*` set of functions to manipulate them. |
 | `function logd.on_eof ()` | Called when collector has reached EOF reading the input file. The program will exit after this function returns.  |
-| `function logd.on_error (error, logptr, left)` | Called when collector failed to parse a log line. Parsing will resume after this function returns. |
+| `function logd.on_error (error, logptr, at)` | Called when collector failed to parse a log line. Parsing will resume after this function returns. |
 
-
-## Parser
-The parser expects logs to be in the following format:
+## Parsing
+The builtin parser expects logs to be in the following format:
 ```
 YYYY-MM-dd hh:mm:ss	LEVEL	[Thread]	Class	key: value...
 ```
+If you need to parse logs with a different format, you can load a dynamic shared object that implements [src/parser.h](src/parser.h)  via `--parser` flag.
 
-## Use cases:
-- Local aggregation of data
-- Dynamic down-sampling
-- Event/Error notification
-- Log validation and/or sanitization
+## Preloaded Lua modules
+- [logd](#logd-module-api)
+- [lpeg](http://www.inf.puc-rio.br/~roberto/lpeg/)
+- [miniz](https://github.com/luvit/luvi/blob/master/src/lminiz.c) 
+- [rex](https://github.com/rrthomas/lrexlib)
+- [openssl](https://github.com/zhaozg/lua-openssl)
 
-### TODO
-- debug log time should have millis precision
-- logd.clone(logptr)
-- logd.to\_table(logptr)
-- Add query API
-- Add directory monitoring flag
+## Luvit
+Logd uses Libuv under the hood and is compatible with [Luvit](https://luvit.io) modules. The Luvit runtime and standard modules are not preloaded by default but you can do so by running `lit install luvit/luvit` in your script's directory and then supplying your script to the logd executable.
