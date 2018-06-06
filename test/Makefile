@@ -26,7 +26,7 @@ TARGET_LUAJIT= $(TARGET)/luajit-test
 LUNIT_FLAGS ?= --interpreter $(TARGET_LUAJIT)
 LUA_PATH=./?.lua;./lunit/lua/?.lua;
 
-LDFLAGS ?= -lm -ldl
+LDFLAGS ?= -lm -ldl -fuse-ld=lld
 FZFLAGS ?= -max_total_time=60 -timeout=30 -use_value_profile=1
 
 .PHONY: clean test fuzz coverage full-coverage fuzz-coverage purge

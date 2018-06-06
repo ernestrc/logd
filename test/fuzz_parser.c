@@ -20,7 +20,7 @@ int LLVMFuzzerInitialize(int* argc, char*** argv)
 int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 {
 	int ret = 0;
-	char* data_copy = NULL;
+	char* data_ptr = NULL;
 	parse_res_t res;
 
 	if (size < 0)
@@ -28,14 +28,15 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 
 
 	// parser mutates input so we need to make a copy
-	data_copy = malloc(size);
-	if (data_copy == NULL) {
+	data_ptr = malloc(size);
+	if (data_ptr == NULL) {
 		perror("malloc");
 		ret = 1;
 		goto end;
 	}
-	memcpy(data_copy, data, size);
+	memcpy(data_ptr, data, size);
 
+	char* data_copy = data_ptr;
 	parser_reset(parser);
 	for (;;) {
 		res = parser_parse(parser, data_copy, size);
@@ -58,7 +59,7 @@ int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
 	}
 
 end:
-	if (data_copy)
-		free(data_copy);
+	if (data_ptr)
+		free(data_ptr);
 	return ret;
 }
