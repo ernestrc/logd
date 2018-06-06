@@ -88,7 +88,6 @@ void on_eof()
 	if (lua_on_eof_defined(lstate)) {
 		lua_call_on_eof(lstate);
 	}
-	close_lua_uv_handles();
 	close_logd_uv_handles();
 }
 
