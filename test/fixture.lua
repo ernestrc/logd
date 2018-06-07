@@ -25,7 +25,7 @@ fixture.table_cases = {
 		output = "2018-05-12 12:52:28 INFO	[my  thread ]	hello	",
 		input = {
 			level = "INFO",
-			thread = "my:\nthread,",
+			thread = "my  thread ",
 			class = "hello",
 		},
 	},
@@ -45,8 +45,8 @@ fixture.table_cases = {
 
 fixture.str_cases = {
 	{
-		output = "2018-05-12 12:52:28 DEBUG	[-]	-	msg: it  should  sanitize  input, ",
-		input = "it: should, sanitize: input",
+		output = "2018-05-12 12:52:28 DEBUG	[-]	-	msg: it: should not, sanitize: input, ",
+		input = "it: should not, sanitize: input",
 	}
 }
 

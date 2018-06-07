@@ -469,13 +469,18 @@ int main(int argc, char* argv[])
 	/* sigusr1 signal handler calls uv_stop but leaves non-lua uv handles open
 	 */
 	do {
+		DEBUG_LOG("creating new lua state prev is %p", lstate);
+
 		lua_free(lstate);
 		if ((lstate = lua_create(loop, script)) == NULL) {
 			perror("lua_create");
 			pret = 1;
 			goto exit;
 		}
+
 	} while (uv_run(loop, UV_RUN_DEFAULT));
+
+	DEBUG_ASSERT(uv_loop_alive(loop) == 0);
 
 exit:
 	free_all();

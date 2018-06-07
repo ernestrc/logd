@@ -63,7 +63,7 @@
 
 #define PARSER_END_ERROR_INCOMPLETE(p)                                         \
 	parser_error(p, "incomplete header");                                      \
-	p->result.props = NULL;                                                    \
+	SET_VALUE(p, "");                                                          \
 	PARSER_END_ERROR(p);
 
 #define PARSE_END_MESSAGE(p)                                                   \
@@ -377,7 +377,7 @@ INLINE parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen)
 			TRIM_SPACES(p, SET_VALUE, thread, PARSER_END_ERROR_INCOMPLETE);
 			break;
 		case TRANSITIONCALLTYPE_PSTATE:
-			TRIM_SPACES(p, SET_VALUE, calltype, PARSER_END_ERROR_INCOMPLETE);
+			TRIM_SPACES(p, SET_VALUE, calltype, PARSE_END_MESSAGE);
 			break;
 		case TRANSITIONCLASS_PSTATE:
 			TRIM_SPACES(p, SET_VALUE, clazz, PARSER_END_ERROR_INCOMPLETE);

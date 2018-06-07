@@ -41,7 +41,7 @@ $(LINK_SO):
 	@ ln -s $(SO) $(LINK_SO)
 
 unit_test: $(TARGET_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" ./$$f --silent 2>/dev/null; done
+	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" ./$$f --silent; done
 
 int_test: $(INT_TESTS)
 	@ for f in $^; do SLAB_CAP=$(SLAB_CAP) BUF_MAX_CAP=$(BUF_MAX_CAP) echo "  TEST	$$f" && ./$$f 2>&1; done

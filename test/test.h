@@ -208,13 +208,14 @@ static void init_test_data()
 	log_set(&EXPECTED6, slab_get(pslab), "timestamp", "1512515349858");
 	log_set(&EXPECTED6, slab_get(pslab), "duration", "2.017655998468399");
 
-	log_set(&EXPECTED7, slab_get(pslab), KEY_DATE, "2017-04-19");
-	log_set(&EXPECTED7, slab_get(pslab), KEY_TIME, "18:01:11,477");
+	log_set(&EXPECTED7, slab_get(pslab), KEY_DATE, "2018-06-05");
+	log_set(&EXPECTED7, slab_get(pslab), KEY_TIME, "13:12:12,852");
 	log_set(&EXPECTED7, slab_get(pslab), KEY_LEVEL, "INFO");
-	log_set(&EXPECTED7, slab_get(pslab), KEY_THREAD, "Test worker");
+	log_set(&EXPECTED7, slab_get(pslab), KEY_THREAD, "Grizzly-worker(14)");
 	log_set(
-	  &EXPECTED7, slab_get(pslab), KEY_CLASS, "core.InstrumentationListener");
-	log_set(&EXPECTED7, slab_get(pslab), KEY_MESSAGE, "nothing special here");
+	  &EXPECTED7, slab_get(pslab), KEY_CLASS, "v2.ArchiveResource");
+	log_set(
+	  &EXPECTED7, slab_get(pslab), KEY_MESSAGE, "");
 
 	log_set(&EXPECTED8, slab_get(pslab), KEY_DATE, "2018-05-30");
 	log_set(&EXPECTED8, slab_get(pslab), KEY_TIME, "11:01:47,633");
@@ -242,12 +243,17 @@ static void __test_print_help(const char* prog)
 	printf("\n");
 }
 
-static void __test_release(test_ctx_t* ctx)
+static int __test_release(test_ctx_t* ctx)
 {
+	int failures = ctx->failure;
 	free(ctx->test_expr);
 	free(BUF8);
 	rcmalloc_deinit();
 	slab_free(pslab);
+	if (failures != 0) 
+		return EXIT_FAILURE;
+
+	return EXIT_SUCCESS;
 }
 
 static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
@@ -305,7 +311,7 @@ static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
 	return 0;
 }
 
-#define TEST_RELEASE(ctx) __test_release(&ctx);
+#define TEST_RELEASE(ctx) return __test_release(&ctx);
 
 #define TEST_INIT(ctx, argc, argv)                                             \
 	if (__test_ctx_init(&ctx, argc, argv)) {                                   \
@@ -316,8 +322,7 @@ static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
 	if (strlen(ctx.test_expr) == 0 || strstr(#test, ctx.test_expr) != NULL) {  \
 		int result = test();                                                   \
 		if (result == EXIT_FAILURE) {                                          \
-			if (!ctx.silent)                                                   \
-				printf("  TEST\t" #test "\tFAILURE\n");                        \
+			printf("  TEST\t" #test "\tFAILURE\n");                        \
 			ctx.failure++;                                                     \
 		} else {                                                               \
 			if (!ctx.silent)                                                   \

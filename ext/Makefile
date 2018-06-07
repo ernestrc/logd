@@ -8,7 +8,7 @@ SLAB_TREE=37f8a5fdf0d7bba2c5f7ec6528caa801e4e00d47
 LUAJIT_VERSION=2.0.5
 LIBUV_TREE=v1.9.1
 LUV_TREE=1.9.1-1
-LUVI_TREE=373c4be043a3f036effda9823e37048572521922
+LUVI_TREE=1ab9d8a731ab36007c1a78a834ad7466e49db7bd
 
 LIB = ./lib
 LUVI= $(LIB)/luvi_jitted.a
@@ -43,7 +43,7 @@ $(LUVI):
 	@ cd luvi && git checkout --quiet $(LUVI_TREE)
 	@ cp luvi.patch luvi/luvi.patch
 	@ cd luvi && patch -p1 < luvi.patch
-	@ cd luvi && $(MAKE) regular-asm && $(MAKE)
+	@ cd luvi && WITHOUT_AMALG=1 $(MAKE) regular-asm && $(MAKE)
 	@ mkdir -p luvi/build/openssl-objs && cd luvi/build/openssl-objs && ar x ../libopenssl.a
 	@ for file in `ls luvi/build/openssl-objs/*.o`; do cp $$file $(LIB)/openssl_`basename $$file`; done
 	@ mkdir -p luvi/build/lpeg-objs && cd luvi/build/lpeg-objs && ar x ../libLPEGLIB.a
@@ -104,6 +104,7 @@ $(INCLUDE_LUVI): $(LUVI)
 	@ sed -i 's/LUA_VERSION_NUM!=503/false/g' ../src/luvi/luvi.h
 	@ sed -i 's/..\/deps\/miniz.c/miniz.c/g' ../src/luvi/lminiz.c
 	@ sed -i 's/pFilename; return/return/g' ../src/luvi/miniz.c
+	@ sed -i 's/pStream;//g' ../src/luvi/miniz.c
 
 $(INCLUDE_LIBUV): $(LIBUV)
 	@ mkdir -p $(INCLUDE_LIBUV) 

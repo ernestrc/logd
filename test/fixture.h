@@ -50,10 +50,18 @@
 	"5NZM0okZ, timestamp: 1512515349858, duration: 2.017655998468399\n"
 
 #define LOG7                                                                   \
-	"2017-04-19 18:01:11,477     INFO [Test worker]    "                       \
-	"core.InstrumentationListener	nothing special here\n"
+	"2018-06-05 13:12:12,852	 INFO	[Grizzly-worker(14)]	"                      \
+	"v2.ArchiveResource	\n"
 
-#define LOG8 "2018-05-30 11:01:47,633	 INFO	[0x7f65b9365700]	registry.ClientBuilder	getSupportedFormats: message: Ignoring unsupported codec telephone-event , connectionId: 139bca64-4480-4727-b241-74699b5a20cc, partnerId: 100, publisherId: 72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2, routerStreamId: 72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2, sessionId: 2_MX4xMDB-flR1ZSBOb3YgMTkgMTE6MDk6NTggUFNUIDIwMTN-MC4zNzQxNzIxNX4, streamId: 72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2, widgetType: Publisher	"\
-"\n2018-05-30 11:01:47,633	 INFO	[0x7f65b"
+#define LOG8                                                                   \
+	"2018-05-30 11:01:47,633	 INFO	[0x7f65b9365700]	"                          \
+	"registry.ClientBuilder	getSupportedFormats: message: Ignoring "           \
+	"unsupported codec telephone-event , connectionId: "                       \
+	"139bca64-4480-4727-b241-74699b5a20cc, partnerId: 100, publisherId: "      \
+	"72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2, routerStreamId: "                   \
+	"72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2, sessionId: "                        \
+	"2_MX4xMDB-flR1ZSBOb3YgMTkgMTE6MDk6NTggUFNUIDIwMTN-MC4zNzQxNzIxNX4, "      \
+	"streamId: 72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2, widgetType: Publisher	"   \
+	"\n2018-05-30 11:01:47,633	 INFO	[0x7f65b"
 
 #endif
