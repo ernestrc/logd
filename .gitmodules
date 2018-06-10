@@ -1,33 +1,44 @@
 [submodule "deps/lpeg"]
 	path = deps/lpeg
 	url = https://github.com/luvit/lpeg.git
+    ignore = dirty
 [submodule "deps/lrexlib"]
 	path = deps/lrexlib
 	url = https://github.com/rrthomas/lrexlib.git
+    ignore = dirty
 [submodule "deps/lua-openssl"]
 	path = deps/lua-openssl
 	url = https://github.com/zhaozg/lua-openssl.git
+    ignore = dirty
 [submodule "deps/lua-zlib"]
 	path = deps/lua-zlib
 	url = https://github.com/brimworks/lua-zlib.git
+    ignore = dirty
 [submodule "deps/luv"]
 	path = deps/luv
 	url = https://github.com/luvit/luv.git
+    ignore = dirty
 [submodule "deps/openssl"]
 	path = deps/openssl
 	url = https://github.com/luvit/openssl.git
+    ignore = dirty
 [submodule "deps/pcre"]
 	path = deps/pcre
 	url = https://github.com/luvit/pcre.git
+    ignore = dirty
 [submodule "deps/zlib"]
 	path = deps/zlib
 	url = https://github.com/luvit/zlib.git
+    ignore = dirty
 [submodule "deps/luajit"]
 	path = deps/luajit
 	url = https://github.com/LuaJIT/LuaJIT.git
+    ignore = dirty
 [submodule "deps/musl"]
 	path = deps/musl
 	url = http://git.musl-libc.org/cgit/musl/
+    ignore = dirty
 [submodule "deps/slab"]
 	path = deps/slab
 	url = https://github.com/ernestrc/slab.git
+    ignore = dirty
