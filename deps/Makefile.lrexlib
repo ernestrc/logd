@@ -1,0 +1,17 @@
+SRCS = src/pcre/lpcre.c src/pcre/lpcre_f.c src/common.c
+OBJS = $(patsubst %.c,%.o,$(SRCS))
+LPCRE = lpcre.a
+
+.PHONY: clean
+
+src: $(LPCRE)
+
+$(LPCRE): $(OBJS)
+	@ $(AR) rcs $(LPCRE) $(OBJS)
+
+%.o: %.c
+	@ echo "  CC	$@"
+	@ $(CC) $(CFLAGS) -DLUA_LIB -DLUA_COMPAT_APIINTCASTS -DVERSION='"2.8.0"' -c $< -o $@
+
+clean:
+	@- rm -f $(OBJS)

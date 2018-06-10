@@ -29,7 +29,7 @@ If you need to parse logs with a different format, you can load a dynamic shared
 - [logd](#logd-module-api)
 - [lpeg](http://www.inf.puc-rio.br/~roberto/lpeg/)
 - [miniz](https://github.com/luvit/luvi/blob/master/src/lminiz.c) 
-- [rex](https://github.com/rrthomas/lrexlib)
+- [lpcre](https://github.com/rrthomas/lrexlib)
 - [openssl](https://github.com/zhaozg/lua-openssl)
 
 ## Luvit
