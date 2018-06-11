@@ -17,23 +17,23 @@
 #ifndef LUVI_H
 #define LUVI_H
 
-#include "lua.h"
-#include "lualib.h"
-#include "lauxlib.h"
-#include "uv.h"
-#include "luv.h"
+#include <lauxlib.h>
+#include <lua.h>
+#include <lualib.h>
+#include <luv/luv.h>
+#include <uv.h>
 
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 #ifdef _WIN32
-#include <winsock2.h>
 #include <windows.h>
+#include <winsock2.h>
 #else
-#include <unistd.h>
 #include <errno.h>
+#include <unistd.h>
 #endif
 
-#if (LUA_VERSION_NUM!=503)
+#if (LUA_VERSION_NUM != 503)
 #include <c-api/compat-5.3.h>
 #endif
 
@@ -45,7 +45,7 @@
 #endif
 #ifdef WITH_ZLIB
 #include <zlib.h>
-LUALIB_API int luaopen_zlib(lua_State * const L);
+LUALIB_API int luaopen_zlib(lua_State* const L);
 #endif
 #ifdef WITH_WINSVC
 #include <winsvc.h>
@@ -55,4 +55,3 @@ LUALIB_API int luaopen_zlib(lua_State * const L);
 int luaopen_lpeg(lua_State* L);
 #endif
 #endif
-

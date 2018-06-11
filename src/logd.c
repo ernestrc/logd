@@ -4,10 +4,11 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#include "lua.h"
-#include "parser.h"
-#include "slab/buf.h"
-#include "util.h"
+#include <slab/buf.h>
+
+#include "./lua.h"
+#include "./parser.h"
+#include "./util.h"
 
 #define OPT_DEFAULT_DEBUG false
 

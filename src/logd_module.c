@@ -1,9 +1,9 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "lua/lauxlib.h"
-#include "lua/lua.h"
-#include "lua/lualib.h"
+#include <lauxlib.h>
+#include <lua.h>
+#include <lualib.h>
 
 #include "log.h"
 #include "logd_module.h"

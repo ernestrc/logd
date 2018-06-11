@@ -19,10 +19,11 @@ LSSL = $(LIBDIR)/liblssl.a
 LZLIB = $(LIBDIR)/liblzlib.a
 LIBPCRE = $(LIBDIR)/libpcre.a
 LIBZ = $(LIBDIR)/libz.a
+LUACOMPAT = $(INCDIR)/c-api
 
 .PHONY: clean
 
-deps: $(LIBC) $(LIBLUAJIT) $(LIBSLAB) $(LIBUV) $(LIBLUV) $(LPEG) $(LPCRE) $(LIBOPENSSL) $(LSSL) $(LZLIB) $(LIBPCRE) $(LIBZ)
+deps: $(LIBC) $(LIBLUAJIT) $(LIBSLAB) $(LIBUV) $(LIBLUV) $(LPEG) $(LPCRE) $(LIBOPENSSL) $(LSSL) $(LZLIB) $(LIBPCRE) $(LIBZ) $(LUACOMPAT)
 
 $(LIBC):
 	@ echo COMPILING musl
@@ -44,7 +45,7 @@ $(LIBOPENSSL):
 
 $(LIBPCRE):
 	@ echo "  COMPILING	libpcre"
-	@ cd pcre && aclocal && automake && autoconf && ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install
+	@ cd pcre && ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install
 
 $(LIBZ):
 	@ echo "  COMPILING	zlib"
@@ -62,7 +63,7 @@ LUV_BUILD_MODULE = OFF
 LUV_BUILD_SHARED_LIBS = OFF
 LUV_WITH_SHARED_LIBUV = OFF
 LUV_WITH_LUA_ENGINE = LuaJIT
-LUV_LUA_BUILD_TYPE = System
+LUV_LUA_BUILD_TYPE = Static
 CMAKE_OPTIONS = -DWITH_AMALG=$(LUV_WITH_AMALG) \
 	-DBUILD_MODULE=$(LUV_BUILD_MODULE) \
 	-DBUILD_SHARED_LIBS=$(LUV_BUILD_SHARED_LIBS) \
@@ -79,8 +80,6 @@ $(LIBLUV):
 
 $(LPEG):
 	@ echo "  COMPILING	lpeg"
-	@ cp lpeg.patch lpeg/lpeg.patch
-	@ cd lpeg && patch -N -p1 < lpeg.patch
 	@ cd lpeg && $(MAKE)
 	@ cd lpeg && $(AR) rcs $(LPEG) *.o
 
@@ -92,16 +91,17 @@ $(LPCRE):
 
 $(LSSL):
 	@ echo "  COMPILING	lua-openssl"
-	@ cp lssl.patch lua-openssl/lssl.patch
-	@- cd lua-openssl && patch -N -p1 < lssl.patch
+	@ cp Makefile.lssl lua-openssl/Makefile
 	@ cd lua-openssl && $(MAKE)
-	@ cp lua-openssl/libopenssl.a $(LSSL)
+	@ cp lua-openssl/lssl.a $(LSSL)
 
-$(LZLIB): $(LIBLUAJIT)
+$(LZLIB):
 	@ echo "  COMPILING	lua-zlib"
-	@ cd lua-zlib && $(CC) -I$(INCDIR)/luajit-2.0 -c $(CFLAGS) -o lua_zlib.o lua_zlib.c
+	@ cd lua-zlib && $(CC) -c $(CFLAGS) -o lua_zlib.o lua_zlib.c
 	@ cd lua-zlib/ && $(AR) rcs $(LZLIB) *.o
 
+$(LUACOMPAT):
+	@ ln -s $(PWD)/luv/deps/lua-compat-5.3/c-api $(LUACOMPAT)
 
 clean:
 	@- rm -rf $(LIBDIR) $(BINDIR) $(INCDIR) $(MANDIR) $(SHAREDIR)

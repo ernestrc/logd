@@ -3,8 +3,6 @@
 #include <stdio.h>
 
 #include "log.h"
-#include "lua/lauxlib.h"
-#include "lua/lua.h"
 
 #define __STR_HELPER(x) #x
 #define STR(x) __STR_HELPER(x)

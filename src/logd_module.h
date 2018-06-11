@@ -1,7 +1,7 @@
 #ifndef LOGD_LUA_MODULE_H
 #define LOGD_LUA_MODULE_H
 
-#include "lua/lua.h"
+#include <lua.h>
 
 #define LUA_NAME_ON_LOG "on_log"
 #define LUA_NAME_ON_EOF "on_eof"

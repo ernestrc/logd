@@ -1,24 +1,29 @@
 #include <errno.h>
-#include <error.h>
 #include <libgen.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "libuv/uv.h"
-#include "luv/luv.h"
+#include "./lua.h"
+
+#include "luvi/luvi.h"
 #include "luvi/lenv.c"
 #include "luvi/lminiz.c"
 #include "luvi/luvi.c"
-#include "luvi/luvi.h"
+
+#include <luv/luv.h>
+#include <uv.h>
 
 #include "logd_module.h"
-#include "lua.h"
 #include "util.h"
 
 int luaopen_rex_pcre(lua_State* L);
 int luaopen_openssl(lua_State* L);
 int luaopen_lpeg(lua_State* L);
+int luaopen_zlib(lua_State* L);
+int luaopen_env(lua_State* L);
+int luaopen_miniz(lua_State* L);
+int luaopen_luvi(lua_State* L);
 
 static int lua_load_libs(lua_t* l, uv_loop_t* loop)
 {
@@ -29,7 +34,6 @@ static int lua_load_libs(lua_t* l, uv_loop_t* loop)
 
 	/* preload all luvi builtins except:
 	 *		- snapshot
-	 *		- zlib
 	 *		- init
 	 */
 	lua_getglobal(l->state, "package");
@@ -38,6 +42,9 @@ static int lua_load_libs(lua_t* l, uv_loop_t* loop)
 
 	lua_pushcfunction(l->state, luaopen_env);
 	lua_setfield(l->state, -2, "env");
+
+	lua_pushcfunction(l->state, luaopen_zlib);
+	lua_setfield(l->state, -2, "zlib");
 
 	lua_pushcfunction(l->state, luaopen_miniz);
 	lua_setfield(l->state, -2, "miniz");

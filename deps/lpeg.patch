@@ -1,0 +1,13 @@
+diff --git a/makefile b/makefile
+index 7a8463e..58f7954 100644
+--- a/makefile
++++ b/makefile
+@@ -22,7 +22,7 @@ CWARNS = -Wall -Wextra -pedantic \
+ # -Wunreachable-code \
+ 
+ 
+-CFLAGS = $(CWARNS) $(COPT) -std=c99 -I$(LUADIR) -fPIC
++CFLAGS = $(CWARNS) $(COPT) -std=c99 -I$(LUADIR) -fPIC -I/usr/include/luajit-2.0
+ CC = gcc
+ 
+ FILES = lpvm.o lpcap.o lptree.o lpcode.o lpprint.o
