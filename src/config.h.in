@@ -1,0 +1,9 @@
+#ifndef LOGD_CONFIG_H
+#define LOGD_CONFIG_H
+
+#undef LOGD_SLAB_CAP
+#undef LOGD_BUF_INIT_CAP
+#undef LOGD_BUF_MAX_CAP
+#undef LOGD_DEBUG
+
+#endif

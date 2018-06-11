@@ -39,3 +39,11 @@ tags
 
 *.profraw
 *.profdata
+
+src/Makefile
+src/config.h
+
+autom4te.cache/
+config.log
+config.status
+configure
