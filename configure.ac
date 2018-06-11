@@ -85,6 +85,13 @@ AC_FUNC_REALLOC
 AC_FUNC_STRERROR_R
 AC_CHECK_FUNCS([__fpending alarm atexit btowc bzero clock_gettime dup2 endgrent endpwent euidaccess fchdir fdatasync fesetround floor ftime ftruncate getcwd getdelim gethostbyaddr gethostbyname gethostname gethrtime getmntent getpagesize getpass getspnam gettimeofday getusershell hasmntopt inet_ntoa isascii iswprint lchown localeconv localtime_r mblen mbrlen memchr memmove mempcpy memset mkdir mkfifo modf munmap nl_langinfo pathconf pow putenv realpath regcomp rint rmdir select setenv sethostname setlocale socket sqrt stime stpcpy strcasecmp strchr strcspn strdup strerror strncasecmp strndup strpbrk strrchr strspn strstr strtol strtoul strtoull strtoumax strverscmp sysinfo tzset uname utime utmpname utmpxname wcwidth])
 
+AC_DEFINE(LOGD_SLAB_CAP, 256)
+AC_DEFINE(LOGD_BUF_INIT_CAP, 1000000)
+AC_DEFINE(LOGD_BUF_MAX_CAP, 10000000)
+AC_DEFINE(LOGD_INLINE)
+AC_DEFINE(GNU_SOURCE)
+# AC_DEFINE(LOGD_DEBUG)
+
 luajit=/usr/bin/luajit
 incdeps=$PWD/deps/include
 AC_SUBST(LUAJITBIN, ["$luajit"])
