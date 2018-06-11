@@ -134,7 +134,7 @@ if [ $? -ne 0 ]; then
 fi
 
 # using SO parser
-$LOGD_EXEC $SCRIPT -f $IN --parser="$DIR/../lib/parser.so" 2> $OUT 1> $OUT
+$LOGD_EXEC $SCRIPT -f $IN --parser="$DIR/../lib/logd_parser.so" 2> $OUT 1> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
 	echo "error processing file with dynamic parser"

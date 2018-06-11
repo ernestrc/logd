@@ -5,12 +5,6 @@
 
 #include "log.h"
 
-#ifndef LOGD_SLAB_CAP
-#define PARSER_SLAB_CAP 100
-#else
-#define PARSER_SLAB_CAP LOGD_SLAB_CAP
-#endif
-
 typedef enum pstate_s {
 	INIT_PSTATE = 0,
 	DATE_PSTATE = 1,

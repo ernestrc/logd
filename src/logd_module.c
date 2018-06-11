@@ -88,6 +88,8 @@ static void table_to_log(
 		case LUA_TTHREAD:
 			value = "<thread>";
 			break;
+		default:
+			abort(); /* not possible */
 		}
 
 		log_set(log, &props[added_props], key, value);

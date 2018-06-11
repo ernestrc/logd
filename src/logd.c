@@ -6,23 +6,12 @@
 
 #include <slab/buf.h>
 
+#include "./config.h"
 #include "./lua.h"
 #include "./parser.h"
 #include "./util.h"
 
 #define OPT_DEFAULT_DEBUG false
-
-#ifndef LOGD_INIT_BUF_CAP
-#define INIT_BUF_CAP 1000000 /* 1MB */
-#else
-#define INIT_BUF_CAP LOGD_INIT_BUF_CAP
-#endif
-
-#ifndef LOGD_BUF_MAX_CAP
-#define BUF_MAX_CAP 10000000 /* 10 MB */
-#else
-#define BUF_MAX_CAP LOGD_BUF_MAX_CAP
-#endif
 
 #define SUBMIT_ON_READ(cb)                                                     \
 	iov.base = b->next_write;                                                  \
@@ -247,7 +236,7 @@ void on_read_skip(uv_fs_t* req)
 	if (lua_on_error_defined(lstate)) {
 		lua_call_on_error(lstate,
 		  "log line was skipped because it is more than " STR(
-			BUF_MAX_CAP) " bytes",
+			LOGD_BUF_MAX_CAP) " bytes",
 		  res.log, "");
 	}
 	buf_ack(b, res.consumed);
@@ -309,16 +298,16 @@ parse:
 		}
 
 		/* we have allocated too much memory, start skipping data */
-		if (b->cap > BUF_MAX_CAP) {
+		if (b->cap > LOGD_BUF_MAX_CAP) {
 			DEBUG_LOG("log is too long (more than %d bytes). skipping data...",
-			  BUF_MAX_CAP);
+			  LOGD_BUF_MAX_CAP);
 			buf_reset_offsets(b);
 			goto skip;
 		}
 
 		/* complete log doesn't fit buffer so reserve more space */
 		/* do not ack so we re-parse with the re-allocated buffer */
-		if (buf_reserve(b, INIT_BUF_CAP) != 0) {
+		if (buf_reserve(b, LOGD_BUF_INIT_CAP) != 0) {
 			perror("buf_reserve");
 			fprintf(stderr, "error reserving more space in input buffer\n");
 			pret = 1;
@@ -443,7 +432,7 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	if ((b = buf_create(INIT_BUF_CAP)) == NULL) {
+	if ((b = buf_create(LOGD_BUF_INIT_CAP)) == NULL) {
 		perror("buf_create");
 		pret = 1;
 		goto exit;

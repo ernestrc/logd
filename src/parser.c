@@ -3,8 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "parser.h"
-#include "util.h"
+#include "./config.h"
+#include "./parser.h"
+#include "./util.h"
 
 #ifdef LOGD_INLINE
 #define INLINE inline
@@ -33,9 +34,9 @@
 	p->pnext++;
 
 #define TRY_ADD_PROP(p)                                                        \
-	if (p->pnext == PARSER_SLAB_CAP) {                                         \
+	if (p->pnext == LOGD_SLAB_CAP) {                                         \
 		parser_error(                                                          \
-		  p, "reached max number of log properties: " STR(PARSER_SLAB_CAP));   \
+		  p, "reached max number of log properties: " STR(LOGD_SLAB_CAP));   \
 		continue;                                                              \
 	}                                                                          \
 	ADD_PROP(p);
@@ -268,7 +269,7 @@ parser_t* parser_create()
 		return NULL;
 	}
 
-	prop_t* slab = calloc(PARSER_SLAB_CAP, sizeof(prop_t));
+	prop_t* slab = calloc(LOGD_SLAB_CAP, sizeof(prop_t));
 	parser_init(p, slab);
 
 	return p;
@@ -280,7 +281,7 @@ INLINE void parser_reset(parser_t* p)
 
 	p->state = INIT_PSTATE;
 	p->pnext = 0;
-	memset(p->pslab, 0, PARSER_SLAB_CAP);
+	memset(p->pslab, 0, LOGD_SLAB_CAP);
 	log_init(&p->result);
 
 	p->res.type = PARSE_PARTIAL;
