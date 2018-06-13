@@ -18,10 +18,6 @@
 	path = deps/luv
 	url = https://github.com/luvit/luv.git
     ignore = dirty
-[submodule "deps/openssl"]
-	path = deps/openssl
-	url = https://github.com/luvit/openssl.git
-    ignore = dirty
 [submodule "deps/pcre"]
 	path = deps/pcre
 	url = https://github.com/luvit/pcre.git
