@@ -41,6 +41,8 @@ tags
 *.profdata
 
 src/Makefile
+deps/Makefile
+test/Makefile
 src/config.h
 
 autom4te.cache/

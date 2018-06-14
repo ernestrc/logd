@@ -3,3 +3,8 @@ lib/
 include/
 man/
 share/
+openssl.cnf
+openssl.cnf.dist
+misc
+ct_log_list.cnf
+ct_log_list.cnf.dist

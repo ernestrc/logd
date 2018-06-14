@@ -1,4 +1,4 @@
-.PHONY: analysis full-analysis format tags purge
+.PHONY: analysis full-analysis format tags purge test fuzz coverage html-coverage fuzz-coverage fuzz-html-coverage
 
 PWD=$(shell pwd)
 BIN=$(PWD)/bin
@@ -17,10 +17,10 @@ prepare:
 	@ mkdir -p $(INCLUDE)
 
 build-deps: prepare
-	@ cd $(DEPS) && $(MAKE)
+	@ $(MAKE) -C $(DEPS)
 
 build: build-deps
-	@ cd $(SRC) && $(MAKE)
+	@ $(MAKE) -C $(SRC)
 
 analysis: clean
 	@ scan-build $(MAKE)
@@ -28,6 +28,24 @@ analysis: clean
 # run clang-analyzer on deps + src
 full-analysis: purge
 	@ scan-build $(MAKE) -s
+
+test: build
+	@ $(MAKE) $@ -C $(TEST)
+
+fuzz: build
+	@ $(MAKE) $@ -C $(TEST)
+
+coverage:
+	@ $(MAKE) $@ -C $(TEST)
+
+full-coverage:
+	@ $(MAKE) $@ -C $(TEST)
+
+fuzz-coverage:
+	@ $(MAKE) $@ -C $(TEST)
+
+fuzz-full-coverage:
+	@ $(MAKE) $@ -C $(TEST)
 
 format:
 	@ find $(SRC) -name \*.h -o -name \*.c | xargs clang-format -i
@@ -38,12 +56,17 @@ tags:
 
 clean:
 	@ rm -rf $(BIN) $(LIB) $(INCLUDE)
-	@ cd $(SRC) && $(MAKE) $@
-	@ cd $(TEST) && $(MAKE) $@
+	@ $(MAKE) $@ -C $(SRC)
+	@ $(MAKE) $@ -C $(TEST)
 	@ rm -f *.profraw
 
 purge: prepare clean
-	@ cd $(DEPS) && $(MAKE) clean
+	@ rm -rf autom4te.cache config.status config.log
+	@ $(MAKE) clean -C $(DEPS)
 	@ git submodule foreach --recursive git clean -xfd
 	@ git submodule foreach --recursive git reset --hard
 	@ rm -f tags
+
+# TODO
+install:
+	@ echo TODO

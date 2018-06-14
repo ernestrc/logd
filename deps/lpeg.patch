@@ -1,13 +1,50 @@
 diff --git a/makefile b/makefile
-index 7a8463e..58f7954 100644
+index 7a8463e..95aaeda 100644
 --- a/makefile
 +++ b/makefile
-@@ -22,7 +22,7 @@ CWARNS = -Wall -Wextra -pedantic \
- # -Wunreachable-code \
- 
- 
+@@ -1,30 +1,4 @@
+ LIBNAME = lpeg
+-LUADIR = ../lua/
+-
+-COPT = -O2
+-# COPT = -DLPEG_DEBUG -g
+-
+-CWARNS = -Wall -Wextra -pedantic \
+-	-Waggregate-return \
+-	-Wcast-align \
+-	-Wcast-qual \
+-	-Wdisabled-optimization \
+-	-Wpointer-arith \
+-	-Wshadow \
+-	-Wsign-compare \
+-	-Wundef \
+-	-Wwrite-strings \
+-	-Wbad-function-cast \
+-	-Wdeclaration-after-statement \
+-	-Wmissing-prototypes \
+-	-Wnested-externs \
+-	-Wstrict-prototypes \
+-# -Wunreachable-code \
+-
+-
 -CFLAGS = $(CWARNS) $(COPT) -std=c99 -I$(LUADIR) -fPIC
-+CFLAGS = $(CWARNS) $(COPT) -std=c99 -I$(LUADIR) -fPIC -I/usr/include/luajit-2.0
- CC = gcc
- 
+-CC = gcc
+-
  FILES = lpvm.o lpcap.o lptree.o lpcode.o lpprint.o
+ 
+ # For Linux
+@@ -35,11 +9,12 @@ linux:
+ macosx:
+ 	make lpeg.so "DLLFLAGS = -bundle -undefined dynamic_lookup"
+ 
++%.o: %.c
++	$(CC) $(CFLAGS) -c $< -o $@
++
+ lpeg.so: $(FILES)
+ 	env $(CC) $(DLLFLAGS) $(FILES) -o lpeg.so
+ 
+-$(FILES): makefile
+-
+ test: test.lua re.lua lpeg.so
+ 	./test.lua
+ 

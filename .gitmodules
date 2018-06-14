@@ -38,3 +38,7 @@
 	path = deps/slab
 	url = https://github.com/ernestrc/slab.git
     ignore = dirty
+[submodule "deps/openssl"]
+	path = deps/openssl
+	url = git@github.com:openssl/openssl.git
+    ignore = dirty

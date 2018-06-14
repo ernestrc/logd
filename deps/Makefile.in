@@ -1,0 +1,129 @@
+.DEFAULT: all
+.PHONY: clean
+
+export CC=@CC@
+export CFLAGS=@CFLAGS@
+export LDFLAGS=@LDFLAGS@
+export PREFIX=$(shell pwd)
+
+USE_MUSL_LIBC=@USE_MUSL_LIBC@
+STATIC_BUILD=@STATIC_BUILD@
+
+CONFIGURE_FL=--prefix='$(PREFIX)'
+
+LIBDIR = $(PREFIX)/lib
+BINDIR = $(PREFIX)/bin
+MANDIR = $(PREFIX)/man
+SHAREDIR = $(PREFIX)/share
+INCDIR = $(PREFIX)/include
+
+LIBSLAB = $(LIBDIR)/libslab.a
+LIBLUAJIT = $(LIBDIR)/libluajit-5.1.a
+LIBUV = $(LIBDIR)/libuv.a
+LIBLUV = $(LIBDIR)/libluv.a
+LPEG = $(LIBDIR)/liblpeg.a
+LPCRE = $(LIBDIR)/liblpcre.a
+LIBOPENSSL = $(LIBDIR)/libssl.a
+LSSL = $(LIBDIR)/liblssl.a
+LZLIB = $(LIBDIR)/liblzlib.a
+LIBPCRE = $(LIBDIR)/libpcre.a
+LIBZ = $(LIBDIR)/libz.a
+LUA_COMPAT= $(INCDIR)/c-api
+LIBC = $(LIBDIR)/libc.a
+
+MUST_STATIC = $(LIBSLAB) $(LIBLUV) $(LPEG) $(LPCRE) $(LSSL) $(LZLIB) $(LUA_COMPAT)
+CAN_STATIC = $(LIBLUAJIT) $(LIBUV) $(LIBOPENSSL) $(LIBPCRE) $(LIBZ)
+
+ifeq ($(USE_MUSL_LIBC),yes)
+ALL=$(LIBC) $(CAN_STATIC) $(MUST_STATIC)
+else ifeq ($(STATIC_BUILD),yes)
+ALL=$(CAN_STATIC) $(MUST_STATIC)
+else
+ALL=$(MUST_STATIC)
+endif
+
+all: $(ALL)
+
+$(LIBC):
+	@ echo COMPILING musl
+	@ cd musl && ./configure --disable-shared $(CONFIGURE_FL) && $(MAKE) && $(MAKE) install
+
+$(LIBUV):
+	@ echo "  COMPILING	libuv"
+	@ cd libuv && ./autogen.sh && ./configure --without-pic --disable-shared $(CONFIGURE_FL) && $(MAKE) && $(MAKE) install
+
+$(LIBLUAJIT):
+	@ echo "  COMPILING	luajit"
+	@ cd luajit && $(MAKE) PREFIX=$(PREFIX) && $(MAKE) install PREFIX=$(PREFIX)
+
+$(LIBOPENSSL): $(LIBZ)
+	@ echo "  COMPILING libopenssl"
+	@ cd openssl && \
+		./config --openssldir=$(PREFIX) --prefix=$(PREFIX) \
+			zlib --with-zlib-include=$(INCDIR) --with-zlib-lib=$(LIBDIR) && \
+			$(MAKE) && $(MAKE) install
+
+$(LIBPCRE):
+	@ echo "  COMPILING	libpcre"
+	@ cd pcre && aclocal && automake && autoconf && ./configure --disable-shared $(CONFIGURE_FL) && $(MAKE) && $(MAKE) install
+
+$(LIBZ):
+	@ echo "  COMPILING	zlib"
+	@ cd zlib && ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install
+
+$(LIBSLAB):
+	@ echo "  COMPILING	libslab"
+	@ cd slab && $(MAKE)
+	@ mkdir -p $(LIBDIR) && cp slab/lib/libslab.a $(LIBSLAB)
+	@ mkdir -p $(INCDIR)/slab && cp slab/src/*.h $(INCDIR)/slab
+
+ifeq ($(STATIC_BUILD),yes)
+LIBLUVDEPS=$(LUA_COMPAT) $(LIBLUAJIT)
+else
+LIBLUVDEPS=$(LUA_COMPAT)
+endif
+$(LIBLUV): $(LIBLUVDEPS)
+	@ echo "  COMPILING	luv"
+	@ cp luv.patch luv/luv.patch
+	@- cd luv && patch -N -p1 < luv.patch
+	$(CC) $(CFLAGS) -c luv/src/luv.c -o luv/src/luv.o && $(AR) rcs $(LIBLUV) luv/src/luv.o
+	@ mkdir $(INCDIR)/luv && cp luv/src/*.h  $(INCDIR)/luv
+
+ifeq ($(STATIC_BUILD),yes)
+LPEGDEPS=$(LIBLUAJIT)
+endif
+$(LPEG): $(LPEGDEPS)
+	@ echo "  COMPILING	lpeg"
+	@ cp lpeg.patch lpeg/lpeg.patch
+	@ cd lpeg && patch -N -p1 < lpeg.patch
+	@ cd lpeg && $(MAKE)
+	@ cd lpeg && $(AR) rcs $(LPEG) *.o
+
+ifeq ($(STATIC_BUILD),yes)
+LPCREDEPS=$(LIBLUAJIT)
+endif
+$(LPCRE): $(LPCREDEPS)
+	@ echo "  COMPILING	lpcre"
+	@ cp Makefile.lrexlib lrexlib/Makefile
+	@ cd lrexlib && $(MAKE) CFLAGS="$(CFLAGS) -DLUA_VERSION_NUM=501 -DLUA_LIB -DLUA_COMPAT_APIINTCASTS -DVERSION='\"2.8.0\"'"
+	@ cp lrexlib/lpcre.a $(LPCRE)
+
+$(LSSL):
+	@ echo "  COMPILING	lua-openssl"
+	@ cd lua-openssl && $(MAKE) TARGET_FLAGS='-DPTHREADS -DOPENSSL_NO_STDIO $(CFLAGS)'
+	@ cp lua-openssl/libopenssl.a $(LSSL)
+
+ifeq ($(STATIC_BUILD),yes)
+LIBZDEPS=$(LIBLUAJIT)
+endif
+$(LZLIB): $(LIBZDEPS)
+	@ echo "  COMPILING	lua-zlib"
+	cd lua-zlib && $(CC) $(CFLAGS) -c -o lua_zlib.o lua_zlib.c
+	@ cd lua-zlib/ && $(AR) rcs $(LZLIB) *.o
+
+$(LUA_COMPAT):
+	@ echo "  LN lua-compat"
+	@ ln -s $(PREFIX)/luv/deps/lua-compat-5.3/c-api $(LUA_COMPAT)
+
+clean:
+	@- rm -rf $(LIBDIR) $(BINDIR) $(INCDIR) $(MANDIR) $(SHAREDIR)

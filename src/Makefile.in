@@ -1,7 +1,8 @@
 PWD=$(shell pwd)
 
-CFLAGS=@AM_CFLAGS@ @CFLAGS@
-LDFLAGS=@AM_LDFLAGS@ @LDFLAGS@
+CFLAGS=@CFLAGS@
+LDFLAGS=@LDFLAGS@
+LIBS=@LIBS@
 LUAJIT=@LUAJITBIN@
 
 LIBDEPS=$(PWD)/../deps/lib
@@ -13,7 +14,7 @@ EXEC_SRC = logd.c
 EXEC_OBJ = logd.o
 SRCS = $(wildcard *.c)
 LUA_SRCS = $(wildcard *.lua)
-OBJS = $(patsubst %.c,%.o,$(SRCS))
+OBJS = $(filter-out $(patsubst %.c,%.o,$(EXEC_SRC)), $(patsubst %.c,%.o,$(SRCS)))
 JITTED = $(patsubst %.lua,%.jit.o,$(LUA_SRCS))
 EXEC = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(EXEC_SRC)))
 STATIC_LIBS = $(LIBDEPS)/libslab.a $(LIBDEPS)/liblssl.a $(LIBDEPS)/libluv.a $(LIBDEPS)/liblpcre.a $(LIBDEPS)/liblpeg.a $(LIBDEPS)/liblzlib.a
@@ -24,7 +25,7 @@ PARSER_DEPS=log.c util.c
 LIBJITTED = $(LIBDIR)/liblogdjit.a
 LIB = $(LIBDIR)/liblogd.a
 
-listobj = $(shell objdump -f $(1) | grep 'file format' | awk -F':' '{print "$(2)/"$$1}' | xargs echo)
+listobj = $(shell [[ -f $(1) ]] && objdump -f $(1) | grep 'file format' | awk -F':' '{print "$(2)/"$$1}' | xargs echo)
 untarlib = $(shell cd $(LIBDIR)/objs/$(1) ; cp $(LIBDEPS)/$(1).a . ; ar x $(1).a)
 EXTOBJS = $(addprefix $(LIBDIR)/objs/, $(foreach lib,$(STATIC_LIBS),$(call listobj, $(lib), $(patsubst $(LIBDEPS)/%.a,%,$(lib)))))
 
@@ -44,8 +45,7 @@ prepare:
 	@ $(LUAJIT) -b $< `basename $< .lua`.jit.o
 
 %.o: %.c
-	@ echo "  CC	$@"
-	@ $(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 $(LIBJITTED): $(JITTED)
 	@ echo "  AR	$@"
@@ -55,25 +55,18 @@ $(LIB): $(OBJS) $(EXTOBJS)
 	@ echo "  AR	$@"
 	@ $(AR) rcs $(LIB) $(OBJS) $(EXTOBJS)
 
-$(BINDIR)/%: %.o $(LIBJITTED) $(OBJS) $(EXTOBJS)
-	@ echo "  LD	$@"
-	@ $(CC) $(LDFLAGS) -L$(LIBDIR) -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive -Wl,-E -o $@ $(OBJS) $(EXTOBJS)
+$(BINDIR)/%: %.c $(LIBJITTED) $(LIB)
+	$(CC) -o $@ $(CFLAGS) -L$(LIBDIR) $(LDFLAGS) $< -llogd -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive -Wl,-E $(LIBS)
 
 $(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
-	@ echo "  SO	$@"
-	@ $(CC) $(CFLAGS) $(LDFLAGS) -shared -fPIC -o $(PARSER_SO) parser.c $(PARSER_DEPS)
+	$(CC) -o $(PARSER_SO) $(CFLAGS) $(LDFLAGS) -shared -fPIC parser.c $(PARSER_DEPS)
 
 $(CMOD): logd_module.h logd_module.c $(CMOD_DEPS)
-	@ echo "  SO	$@"
-	@ $(CC) $(CFLAGS) $(LDFLAGS) -shared -fPIC -o $(CMOD) logd_module.c $(CMOD_DEPS)
+	$(CC) -o $(CMOD) $(CFLAGS) $(LDFLAGS) -shared -fPIC logd_module.c $(CMOD_DEPS)
 
 $(INCDIR)/logd/%.h: %.h
 	@ cd ../include/logd && \
 		ln -s $(subst $(INCDIR)/,../../src/,$@) $(subst $(INCDIR)/,,$@)
-
-# TODO
-install: src
-	@ echo TODO
 
 clean:
 	@- rm -rf $(INCDIR)/logd

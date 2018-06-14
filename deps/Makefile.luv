@@ -1,0 +1,16 @@
+SRCS = $(wildcard src/*.c)
+OBJS = $(patsubst %.c,%.o,$(SRCS))
+LIBLUV = libluv.a
+
+.PHONY: clean
+
+src: $(LIBLUV)
+
+$(LIBLUV): $(OBJS)
+	@ $(AR) rcs $(LIBLUV) $(OBJS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	@- rm -f $(OBJS) $(LIBLUV)

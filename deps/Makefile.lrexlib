@@ -1,7 +1,6 @@
 SRCS = src/pcre/lpcre.c src/pcre/lpcre_f.c src/common.c
 OBJS = $(patsubst %.c,%.o,$(SRCS))
 LPCRE = lpcre.a
-CFLAGS = -I/usr/include/luajit-2.0 -static -DLUA_VERSION_NUM=501 -DLUA_LIB -DLUA_COMPAT_APIINTCASTS -DVERSION='"2.8.0"' 
 
 .PHONY: clean
 
@@ -11,8 +10,7 @@ $(LPCRE): $(OBJS)
 	@ $(AR) rcs $(LPCRE) $(OBJS)
 
 %.o: %.c
-	@ echo "  CC	$@"
-	@ $(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	@- rm -f $(OBJS)

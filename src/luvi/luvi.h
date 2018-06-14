@@ -38,7 +38,8 @@
 #endif
 
 #ifdef WITH_OPENSSL
-#include <openssl.h>
+#define OPENSSL_API_COMPAT 1
+#include <openssl/ssl.h>
 #endif
 #ifdef WITH_PCRE
 #include <pcre.h>
