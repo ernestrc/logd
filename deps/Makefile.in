@@ -42,7 +42,10 @@ else
 ALL=$(MUST_STATIC)
 endif
 
-all: $(ALL)
+all: $(MANDIR) $(SHAREDIR) $(BINDIR) $(INCDIR) $(LIBDIR) $(ALL)
+
+$(PREFIX)/%:
+	@ mkdir -p $@
 
 $(LIBC):
 	@ echo COMPILING musl
@@ -74,7 +77,7 @@ $(LIBZ):
 $(LIBSLAB):
 	@ echo "  COMPILING	libslab"
 	@ cd slab && $(MAKE)
-	@ mkdir -p $(LIBDIR) && cp slab/lib/libslab.a $(LIBSLAB)
+	@ cp slab/lib/libslab.a $(LIBSLAB)
 	@ mkdir -p $(INCDIR)/slab && cp slab/src/*.h $(INCDIR)/slab
 
 ifeq ($(STATIC_BUILD),yes)
