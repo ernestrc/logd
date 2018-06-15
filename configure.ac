@@ -1,28 +1,20 @@
 AC_PREREQ([2.69])
 AC_INIT(logd, 1.0, ernest@unstable.build)
 
-AC_ARG_ENABLE(static, [AS_HELP_STRING([--disable-static], [use system dependencies and build a dynamically linked binary])], [enable_static=no], [enable_static=yes])
-AC_ARG_ENABLE(develop, [AS_HELP_STRING([--enable-develop], [set build type to development. This overrides --disable-static so build always uses local dependencies and statically link binary.])], [enable_develop=yes], [enable_develop=no])
-AC_ARG_ENABLE(musl, [AS_HELP_STRING([--enable-musl-libc], [Use musl libc and statically link to it with the final application binary])], [enable_musl_libc=yes], [enable_musl_libc=no])
+AC_DEFUN([SET_DEFLAG],[test -z "$$1" && $1="$2";])
+AC_DEFUN([PKG_LIBS],[`pkg-config $1 --libs`])
+AC_DEFUN([PKG_INCLUDE],[`pkg-config $1 --cflags-only-I`])
+
+AC_ARG_ENABLE(static, [AS_HELP_STRING([--enable-static], [build local dependencies and statically link final executable])], [enable_static=yes], [enable_static=no])
+AC_ARG_ENABLE(develop, [AS_HELP_STRING([--enable-develop], [enable development build. This forces --enable-static and sets a bunch of testing and debugging compiler flags.])], [enable_develop=yes], [enable_develop=no])
 
 AC_CHECK_PROG(PKGCFG,pkg-config,yes)
 if test x"$PKGCFG" != x"yes" ; then
     AC_MSG_ERROR([Please install pkg-config before building logd.])
 fi
 
-AC_DEFUN([SET_DEFLAG],[test -z "$$1" && $1="$2";])
-AC_DEFUN([PKG_LIBS],[`pkg-config $1 --libs`])
-AC_DEFUN([PKG_INCLUDE],[`pkg-config $1 --cflags-only-I`])
-
 SET_DEFLAG(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
 
-if test "$enable_musl_libc" == yes
-then
-	enable_static=yes
-    AC_MSG_ERROR([--enable-musl-libc not implemented yet.])
-fi
-
-SET_DEFLAG(LIBS,[-lm -ldl PKG_LIBS(libpcre) PKG_LIBS(openssl) PKG_LIBS(libuv) PKG_LIBS(luajit) PKG_LIBS(zlib)])
 if test "$enable_develop" == yes
 then
 	enable_static=yes
@@ -31,6 +23,8 @@ then
 	SET_DEFLAG(EXTRA_CFLAGS, [-Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=gnu11])
 	SET_DEFLAG(DEV_CFLAGS, [-fsanitize=undefined])
 	SET_DEFLAG(LDFLAGS,[-L$PWD/deps/lib])
+	SET_DEFLAG(EXTRA_LDFLAGS,[-static])
+	SET_DEFLAG(LIBS,[-luv -lluajit-5.1 -lpcre -lssl -lcrypto -lz -lrt -lpthread -lm -ldl])
 	luajit="$PWD/deps/bin/luajit"
 
 	AC_DEFINE(LOGD_SLAB_CAP, 32)
@@ -46,8 +40,11 @@ else
 	then
 		SET_DEFLAG(CFLAGS,[-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -O3 -flto])
 		SET_DEFLAG(LDFLAGS,[-L$PWD/deps/lib])
+		SET_DEFLAG(EXTRA_LDFLAGS,[-static])
+		SET_DEFLAG(LIBS,[-luv -lluajit-5.1 -lpcre -lssl -lcrypto -lz -lrt -lpthread -lm -ldl])
 		luajit="$PWD/deps/bin/luajit"
 	else
+		SET_DEFLAG(LIBS,[PKG_LIBS(libpcre) PKG_LIBS(openssl) PKG_LIBS(libuv) PKG_LIBS(luajit) PKG_LIBS(zlib) -lm -ldl])
 		SET_DEFLAG(CFLAGS,[-I$PWD/deps/include PKG_INCLUDE(luajit) -O3 -flto])
 		luajit=/usr/bin/luajit
 	fi
@@ -124,11 +121,11 @@ fi
 AC_CONFIG_SRCDIR(src/logd_module.c)
 
 AC_SUBST(LUAJITBIN, ["$luajit"])
-AC_SUBST([USE_MUSL_LIBC], ["$enable_musl_libc"])
 AC_SUBST([STATIC_BUILD], ["$enable_static"])
 AC_SUBST([DEVELOP_BUILD], ["$enable_develop"])
 AC_SUBST([LIBS], ["$LIBS"])
 AC_SUBST([EXTRA_CFLAGS], ["$EXTRA_CFLAGS"])
+AC_SUBST([EXTRA_LDFLAGS], ["$EXTRA_LDFLAGS"])
 AC_SUBST([DEV_CFLAGS], ["$DEV_CFLAGS"])
 
 AC_MSG_NOTICE([using enable_develop=$enable_develop])

@@ -625,10 +625,10 @@ ac_header_list=
 ac_unique_file="src/logd_module.c"
 ac_subst_vars='LTLIBOBJS
 DEV_CFLAGS
+EXTRA_LDFLAGS
 EXTRA_CFLAGS
 DEVELOP_BUILD
 STATIC_BUILD
-USE_MUSL_LIBC
 LUAJITBIN
 ALLOCA
 LIBOBJS
@@ -691,7 +691,6 @@ ac_user_opts='
 enable_option_checking
 enable_static
 enable_develop
-enable_musl
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1311,13 +1310,11 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
-  --disable-static        use system dependencies and build a dynamically
-                          linked binary
-  --enable-develop        set build type to development. This overrides
-                          --disable-static so build always uses local
-                          dependencies and statically link binary.
-  --enable-musl-libc      Use musl libc and statically link to it with the
-                          final application binary
+  --enable-static         build local dependencies and statically link final
+                          executable
+  --enable-develop        enable development build. This forces
+                          --enable-static and sets a bunch of testing and
+                          debugging compiler flags.
 
 Some influential environment variables:
   CC          C compiler command
@@ -2403,11 +2400,15 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
+
+
+
+
 # Check whether --enable-static was given.
 if test "${enable_static+set}" = set; then :
-  enableval=$enable_static; enable_static=no
+  enableval=$enable_static; enable_static=yes
 else
-  enable_static=yes
+  enable_static=no
 fi
 
 # Check whether --enable-develop was given.
@@ -2415,13 +2416,6 @@ if test "${enable_develop+set}" = set; then :
   enableval=$enable_develop; enable_develop=yes
 else
   enable_develop=no
-fi
-
-# Check whether --enable-musl was given.
-if test "${enable_musl+set}" = set; then :
-  enableval=$enable_musl; enable_musl_libc=yes
-else
-  enable_musl_libc=no
 fi
 
 
@@ -2466,19 +2460,8 @@ if test x"$PKGCFG" != x"yes" ; then
     as_fn_error $? "Please install pkg-config before building logd." "$LINENO" 5
 fi
 
-
-
-
-
 test -z "$FUZZFLAGS" && FUZZFLAGS="-max_total_time=60"; # fuzzer flags
 
-if test "$enable_musl_libc" == yes
-then
-	enable_static=yes
-    as_fn_error $? "--enable-musl-libc not implemented yet." "$LINENO" 5
-fi
-
-test -z "$LIBS" && LIBS="-lm -ldl `pkg-config libpcre --libs` `pkg-config openssl --libs` `pkg-config libuv --libs` `pkg-config luajit --libs` `pkg-config zlib --libs`";
 if test "$enable_develop" == yes
 then
 	enable_static=yes
@@ -2487,6 +2470,8 @@ then
 	test -z "$EXTRA_CFLAGS" && EXTRA_CFLAGS="-Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=gnu11";
 	test -z "$DEV_CFLAGS" && DEV_CFLAGS="-fsanitize=undefined";
 	test -z "$LDFLAGS" && LDFLAGS="-L$PWD/deps/lib";
+	test -z "$EXTRA_LDFLAGS" && EXTRA_LDFLAGS="-static";
+	test -z "$LIBS" && LIBS="-luv -lluajit-5.1 -lpcre -lssl -lcrypto -lz -lrt -lpthread -lm -ldl";
 	luajit="$PWD/deps/bin/luajit"
 
 	$as_echo "#define LOGD_SLAB_CAP 32" >>confdefs.h
@@ -2510,8 +2495,11 @@ else
 	then
 		test -z "$CFLAGS" && CFLAGS="-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -O3 -flto";
 		test -z "$LDFLAGS" && LDFLAGS="-L$PWD/deps/lib";
+		test -z "$EXTRA_LDFLAGS" && EXTRA_LDFLAGS="-static";
+		test -z "$LIBS" && LIBS="-luv -lluajit-5.1 -lpcre -lssl -lcrypto -lz -lrt -lpthread -lm -ldl";
 		luajit="$PWD/deps/bin/luajit"
 	else
+		test -z "$LIBS" && LIBS="`pkg-config libpcre --libs` `pkg-config openssl --libs` `pkg-config libuv --libs` `pkg-config luajit --libs` `pkg-config zlib --libs` -lm -ldl";
 		test -z "$CFLAGS" && CFLAGS="-I$PWD/deps/include `pkg-config luajit --cflags-only-I` -O3 -flto";
 		luajit=/usr/bin/luajit
 	fi
@@ -5732,8 +5720,6 @@ fi
 
 LUAJITBIN="$luajit"
 
-USE_MUSL_LIBC="$enable_musl_libc"
-
 STATIC_BUILD="$enable_static"
 
 DEVELOP_BUILD="$enable_develop"
@@ -5741,6 +5727,8 @@ DEVELOP_BUILD="$enable_develop"
 LIBS="$LIBS"
 
 EXTRA_CFLAGS="$EXTRA_CFLAGS"
+
+EXTRA_LDFLAGS="$EXTRA_LDFLAGS"
 
 DEV_CFLAGS="$DEV_CFLAGS"
 

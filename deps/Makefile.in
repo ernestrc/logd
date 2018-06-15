@@ -6,9 +6,7 @@ export CFLAGS=@CFLAGS@
 export LDFLAGS=@LDFLAGS@
 export PREFIX=$(shell pwd)
 
-# we use EXTRA_CFLAGS for compiling luajit too, as we need the 
 EXTRA_CFLAGS=@EXTRA_CFLAGS@
-USE_MUSL_LIBC=@USE_MUSL_LIBC@
 STATIC_BUILD=@STATIC_BUILD@
 
 CONFIGURE_FL=CC=$(CC) CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS)' --prefix='$(PREFIX)'
@@ -31,30 +29,20 @@ LZLIB = $(LIBDIR)/liblzlib.a
 LIBPCRE = $(LIBDIR)/libpcre.a
 LIBZ = $(LIBDIR)/libz.a
 LUA_COMPAT= $(INCDIR)/c-api
-LIBC = $(LIBDIR)/libc.a
 
 MUST_STATIC = $(LIBSLAB) $(LIBLUV) $(LPEG) $(LPCRE) $(LSSL) $(LZLIB) $(LUA_COMPAT)
 CAN_STATIC = $(LIBLUAJIT) $(LIBUV) $(LIBOPENSSL) $(LIBPCRE) $(LIBZ)
 
-ifeq ($(USE_MUSL_LIBC),yes)
-ALL=$(LIBC) $(CAN_STATIC) $(MUST_STATIC)
-else ifeq ($(STATIC_BUILD),yes)
+ifeq ($(STATIC_BUILD),yes)
 ALL=$(CAN_STATIC) $(MUST_STATIC)
 else
 ALL=$(MUST_STATIC)
 endif
 
-all: $(MANDIR) $(SHAREDIR) $(BINDIR) $(INCDIR) $(LIBDIR) $(ALL) rm_so
-
-rm_so:
-	@- rm -f $(LIBDIR)/*.so* 2>/dev/null
+all: $(MANDIR) $(SHAREDIR) $(BINDIR) $(INCDIR) $(LIBDIR) $(ALL)
 
 $(PREFIX)/%:
 	@ mkdir -p $@
-
-$(LIBC):
-	@ echo COMPILING musl
-	@ cd musl && ./configure --disable-shared $(CONFIGURE_FL) && $(MAKE) && $(MAKE) install
 
 $(LIBUV):
 	@ echo "  COMPILING	libuv"

@@ -30,10 +30,6 @@
 	path = deps/luajit
 	url = https://github.com/LuaJIT/LuaJIT.git
     ignore = dirty
-[submodule "deps/musl"]
-	path = deps/musl
-	url = http://git.musl-libc.org/cgit/musl/
-    ignore = dirty
 [submodule "deps/slab"]
 	path = deps/slab
 	url = https://github.com/ernestrc/slab.git

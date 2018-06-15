@@ -2,7 +2,7 @@ PWD=$(shell pwd)
 
 CC=@CC@
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@ @DEV_CFLAGS@
-LDFLAGS=@LDFLAGS@
+LDFLAGS=@LDFLAGS@ @EXTRA_LDFLAGS@
 LIBS=@LIBS@
 LUAJIT=@LUAJITBIN@
 
@@ -57,13 +57,13 @@ $(LIB): $(OBJS) $(EXTOBJS)
 	@ $(AR) rcs $(LIB) $(OBJS) $(EXTOBJS)
 
 $(BINDIR)/%: %.c $(LIBJITTED) $(LIB)
-	$(CC) -o $@ $(CFLAGS) -L$(LIBDIR) $(LDFLAGS) $< -llogd -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive $(LIBS)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< -L$(LIBDIR) -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive -llogd $(LIBS)
 
 $(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
-	$(CC) -o $(PARSER_SO) $(CFLAGS) $(LDFLAGS) -shared -fPIC parser.c $(PARSER_DEPS)
+	$(CC) -o $(PARSER_SO) $(CFLAGS) -shared -fPIC parser.c $(PARSER_DEPS)
 
 $(CMOD): logd_module.h logd_module.c $(CMOD_DEPS)
-	$(CC) -o $(CMOD) $(CFLAGS) $(LDFLAGS) -shared -fPIC logd_module.c $(CMOD_DEPS)
+	$(CC) -o $(CMOD) $(CFLAGS) -shared -fPIC logd_module.c $(CMOD_DEPS)
 
 $(INCDIR)/logd/%.h: %.h
 	@ cd ../include/logd && \
