@@ -1,6 +1,7 @@
 PWD=$(shell pwd)
 
-CFLAGS=@CFLAGS@
+CC=@CC@
+CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@ @DEV_CFLAGS@
 LDFLAGS=@LDFLAGS@
 LIBS=@LIBS@
 LUAJIT=@LUAJITBIN@
@@ -56,7 +57,7 @@ $(LIB): $(OBJS) $(EXTOBJS)
 	@ $(AR) rcs $(LIB) $(OBJS) $(EXTOBJS)
 
 $(BINDIR)/%: %.c $(LIBJITTED) $(LIB)
-	$(CC) -o $@ $(CFLAGS) -L$(LIBDIR) $(LDFLAGS) $< -llogd -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive -Wl,-E $(LIBS)
+	$(CC) -o $@ $(CFLAGS) -L$(LIBDIR) $(LDFLAGS) $< -llogd -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive $(LIBS)
 
 $(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
 	$(CC) -o $(PARSER_SO) $(CFLAGS) $(LDFLAGS) -shared -fPIC parser.c $(PARSER_DEPS)

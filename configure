@@ -624,6 +624,8 @@ ac_includes_default="\
 ac_header_list=
 ac_unique_file="src/logd_module.c"
 ac_subst_vars='LTLIBOBJS
+DEV_CFLAGS
+EXTRA_CFLAGS
 DEVELOP_BUILD
 STATIC_BUILD
 USE_MUSL_LIBC
@@ -645,6 +647,7 @@ LDFLAGS
 CFLAGS
 CC
 AWK
+PKGCFG
 target_alias
 host_alias
 build_alias
@@ -1691,60 +1694,6 @@ fi
 
 } # ac_fn_c_try_link
 
-# ac_fn_c_check_type LINENO TYPE VAR INCLUDES
-# -------------------------------------------
-# Tests whether TYPE exists after having included INCLUDES, setting cache
-# variable VAR accordingly.
-ac_fn_c_check_type ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
-$as_echo_n "checking for $2... " >&6; }
-if eval \${$3+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  eval "$3=no"
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$4
-int
-main ()
-{
-if (sizeof ($2))
-	 return 0;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$4
-int
-main ()
-{
-if (sizeof (($2)))
-	    return 0;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-
-else
-  eval "$3=yes"
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-eval ac_res=\$$3
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-
-} # ac_fn_c_check_type
-
 # ac_fn_c_find_intX_t LINENO BITS VAR
 # -----------------------------------
 # Finds a signed integer type with width BITS, setting cache variable VAR
@@ -1820,6 +1769,60 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_c_find_intX_t
+
+# ac_fn_c_check_type LINENO TYPE VAR INCLUDES
+# -------------------------------------------
+# Tests whether TYPE exists after having included INCLUDES, setting cache
+# variable VAR accordingly.
+ac_fn_c_check_type ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
+$as_echo_n "checking for $2... " >&6; }
+if eval \${$3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  eval "$3=no"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+if (sizeof ($2))
+	 return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+if (sizeof (($2)))
+	    return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+  eval "$3=yes"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_type
 
 # ac_fn_c_check_member LINENO AGGR MEMBER VAR INCLUDES
 # ----------------------------------------------------
@@ -2422,6 +2425,49 @@ else
 fi
 
 
+# Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_PKGCFG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$PKGCFG"; then
+  ac_cv_prog_PKGCFG="$PKGCFG" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_PKGCFG="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+PKGCFG=$ac_cv_prog_PKGCFG
+if test -n "$PKGCFG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKGCFG" >&5
+$as_echo "$PKGCFG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+if test x"$PKGCFG" != x"yes" ; then
+    as_fn_error $? "Please install pkg-config before building logd." "$LINENO" 5
+fi
+
+
+
 
 
 test -z "$FUZZFLAGS" && FUZZFLAGS="-max_total_time=60"; # fuzzer flags
@@ -2432,12 +2478,14 @@ then
     as_fn_error $? "--enable-musl-libc not implemented yet." "$LINENO" 5
 fi
 
-test -z "$LIBS" && LIBS="-lm -ldl -lpthread -lluajit-5.1 -lz -lpcre -lssl -lcrypto -luv -lrt -lnsl";
+test -z "$LIBS" && LIBS="-lm -ldl `pkg-config libpcre --libs` `pkg-config openssl --libs` `pkg-config libuv --libs` `pkg-config luajit --libs` `pkg-config zlib --libs`";
 if test "$enable_develop" == yes
 then
 	enable_static=yes
 	test -z "$CC" && CC="clang";
-	test -z "$CFLAGS" && CFLAGS="-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -Wall -Wno-unused-function -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp";
+	test -z "$CFLAGS" && CFLAGS="-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -ggdb";
+	test -z "$EXTRA_CFLAGS" && EXTRA_CFLAGS="-Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=gnu11";
+	test -z "$DEV_CFLAGS" && DEV_CFLAGS="-fsanitize=undefined";
 	test -z "$LDFLAGS" && LDFLAGS="-L$PWD/deps/lib";
 	luajit="$PWD/deps/bin/luajit"
 
@@ -2464,7 +2512,7 @@ else
 		test -z "$LDFLAGS" && LDFLAGS="-L$PWD/deps/lib";
 		luajit="$PWD/deps/bin/luajit"
 	else
-		test -z "$CFLAGS" && CFLAGS="-I$PWD/deps/include -I/usr/include/luajit-2.0 -O3 -flto";
+		test -z "$CFLAGS" && CFLAGS="-I$PWD/deps/include `pkg-config luajit --cflags-only-I` -O3 -flto";
 		luajit=/usr/bin/luajit
 	fi
 fi
@@ -3732,8 +3780,6 @@ else
   RANLIB="$ac_cv_prog_RANLIB"
 fi
 
-$as_echo "#define GNU_SOURCE 1" >>confdefs.h
-
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -4232,7 +4278,7 @@ fi
 
 
 if test x"$OBJDUMP_CHECK" != x"yes" ; then
-    as_fn_error $? "Please install binutils before installing." "$LINENO" 5
+    as_fn_error $? "Please install binutils before building logd." "$LINENO" 5
 fi
 
 # source code system headers
@@ -4780,93 +4826,6 @@ fi
   as_fn_error $? "library 'ssl' is required for OpenSSL" "$LINENO" 5
 fi
 else
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for stdbool.h that conforms to C99" >&5
-$as_echo_n "checking for stdbool.h that conforms to C99... " >&6; }
-if ${ac_cv_header_stdbool_h+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-             #include <stdbool.h>
-             #ifndef bool
-              "error: bool is not defined"
-             #endif
-             #ifndef false
-              "error: false is not defined"
-             #endif
-             #if false
-              "error: false is not 0"
-             #endif
-             #ifndef true
-              "error: true is not defined"
-             #endif
-             #if true != 1
-              "error: true is not 1"
-             #endif
-             #ifndef __bool_true_false_are_defined
-              "error: __bool_true_false_are_defined is not defined"
-             #endif
-
-             struct s { _Bool s: 1; _Bool t; } s;
-
-             char a[true == 1 ? 1 : -1];
-             char b[false == 0 ? 1 : -1];
-             char c[__bool_true_false_are_defined == 1 ? 1 : -1];
-             char d[(bool) 0.5 == true ? 1 : -1];
-             /* See body of main program for 'e'.  */
-             char f[(_Bool) 0.0 == false ? 1 : -1];
-             char g[true];
-             char h[sizeof (_Bool)];
-             char i[sizeof s.t];
-             enum { j = false, k = true, l = false * true, m = true * 256 };
-             /* The following fails for
-                HP aC++/ANSI C B3910B A.05.55 [Dec 04 2003]. */
-             _Bool n[m];
-             char o[sizeof n == m * sizeof n[0] ? 1 : -1];
-             char p[-1 - (_Bool) 0 < 0 && -1 - (bool) 0 < 0 ? 1 : -1];
-             /* Catch a bug in an HP-UX C compiler.  See
-                http://gcc.gnu.org/ml/gcc-patches/2003-12/msg02303.html
-                http://lists.gnu.org/archive/html/bug-coreutils/2005-11/msg00161.html
-              */
-             _Bool q = true;
-             _Bool *pq = &q;
-
-int
-main ()
-{
-
-             bool e = &s;
-             *pq |= q;
-             *pq |= ! q;
-             /* Refer to every declared value, to avoid compiler optimizations.  */
-             return (!a + !b + !c + !d + !e + !f + !g + !h + !i + !!j + !k + !!l
-                     + !m + !n + !o + !p + !q + !pq);
-
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  ac_cv_header_stdbool_h=yes
-else
-  ac_cv_header_stdbool_h=no
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_header_stdbool_h" >&5
-$as_echo "$ac_cv_header_stdbool_h" >&6; }
-   ac_fn_c_check_type "$LINENO" "_Bool" "ac_cv_type__Bool" "$ac_includes_default"
-if test "x$ac_cv_type__Bool" = xyes; then :
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE__BOOL 1
-_ACEOF
-
-
-fi
-
-
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for uid_t in sys/types.h" >&5
 $as_echo_n "checking for uid_t in sys/types.h... " >&6; }
 if ${ac_cv_type_uid_t+:} false; then :
@@ -5780,6 +5739,10 @@ STATIC_BUILD="$enable_static"
 DEVELOP_BUILD="$enable_develop"
 
 LIBS="$LIBS"
+
+EXTRA_CFLAGS="$EXTRA_CFLAGS"
+
+DEV_CFLAGS="$DEV_CFLAGS"
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: using enable_develop=$enable_develop" >&5

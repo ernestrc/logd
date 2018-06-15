@@ -6,10 +6,12 @@ export CFLAGS=@CFLAGS@
 export LDFLAGS=@LDFLAGS@
 export PREFIX=$(shell pwd)
 
+# we use EXTRA_CFLAGS for compiling luajit too, as we need the 
+EXTRA_CFLAGS=@EXTRA_CFLAGS@
 USE_MUSL_LIBC=@USE_MUSL_LIBC@
 STATIC_BUILD=@STATIC_BUILD@
 
-CONFIGURE_FL=--prefix='$(PREFIX)'
+CONFIGURE_FL=CC=$(CC) CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS)' --prefix='$(PREFIX)'
 
 LIBDIR = $(PREFIX)/lib
 BINDIR = $(PREFIX)/bin
@@ -42,7 +44,10 @@ else
 ALL=$(MUST_STATIC)
 endif
 
-all: $(MANDIR) $(SHAREDIR) $(BINDIR) $(INCDIR) $(LIBDIR) $(ALL)
+all: $(MANDIR) $(SHAREDIR) $(BINDIR) $(INCDIR) $(LIBDIR) $(ALL) rm_so
+
+rm_so:
+	@- rm -f $(LIBDIR)/*.so* 2>/dev/null
 
 $(PREFIX)/%:
 	@ mkdir -p $@
@@ -57,7 +62,7 @@ $(LIBUV):
 
 $(LIBLUAJIT):
 	@ echo "  COMPILING	luajit"
-	@ cd luajit && $(MAKE) PREFIX=$(PREFIX) && $(MAKE) install PREFIX=$(PREFIX)
+	@ cd luajit && $(MAKE) CC=$(CC) PREFIX=$(PREFIX) LDFLAGS='$(EXTRA_CFLAGS) $(LDFLAGS)' CFLAGS='$(EXTRA_CFLAGS) $(CFLAGS)' && $(MAKE) install PREFIX=$(PREFIX)
 
 $(LIBOPENSSL): $(LIBZ)
 	@ echo "  COMPILING libopenssl"
@@ -98,7 +103,7 @@ endif
 $(LPEG): $(LPEGDEPS)
 	@ echo "  COMPILING	lpeg"
 	@ cp lpeg.patch lpeg/lpeg.patch
-	@ cd lpeg && patch -N -p1 < lpeg.patch
+	@- cd lpeg && patch -N -p1 < lpeg.patch
 	@ cd lpeg && $(MAKE)
 	@ cd lpeg && $(AR) rcs $(LPEG) *.o
 
@@ -113,7 +118,7 @@ $(LPCRE): $(LPCREDEPS)
 
 $(LSSL):
 	@ echo "  COMPILING	lua-openssl"
-	@ cd lua-openssl && $(MAKE) TARGET_FLAGS='-DPTHREADS -DOPENSSL_NO_STDIO $(CFLAGS)'
+	@ cd lua-openssl && $(MAKE) TARGET_FLAGS='-DPTHREADS -DOPENSSL_NO_SM2 -DOPENSSL_NO_STDIO $(CFLAGS)'
 	@ cp lua-openssl/libopenssl.a $(LSSL)
 
 ifeq ($(STATIC_BUILD),yes)

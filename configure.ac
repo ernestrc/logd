@@ -5,9 +5,16 @@ AC_ARG_ENABLE(static, [AS_HELP_STRING([--disable-static], [use system dependenci
 AC_ARG_ENABLE(develop, [AS_HELP_STRING([--enable-develop], [set build type to development. This overrides --disable-static so build always uses local dependencies and statically link binary.])], [enable_develop=yes], [enable_develop=no])
 AC_ARG_ENABLE(musl, [AS_HELP_STRING([--enable-musl-libc], [Use musl libc and statically link to it with the final application binary])], [enable_musl_libc=yes], [enable_musl_libc=no])
 
-AC_DEFUN([SET_DEFLAG],[test -z "$$1" && $1="$2";])
+AC_CHECK_PROG(PKGCFG,pkg-config,yes)
+if test x"$PKGCFG" != x"yes" ; then
+    AC_MSG_ERROR([Please install pkg-config before building logd.])
+fi
 
-SET_DEFLAG(FUZZFLAGS, -max_total_time=60) # fuzzer flags
+AC_DEFUN([SET_DEFLAG],[test -z "$$1" && $1="$2";])
+AC_DEFUN([PKG_LIBS],[`pkg-config $1 --libs`])
+AC_DEFUN([PKG_INCLUDE],[`pkg-config $1 --cflags-only-I`])
+
+SET_DEFLAG(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
 
 if test "$enable_musl_libc" == yes
 then
@@ -15,13 +22,15 @@ then
     AC_MSG_ERROR([--enable-musl-libc not implemented yet.])
 fi
 
-SET_DEFLAG(LIBS, -lm -ldl -lpthread -lluajit-5.1 -lz -lpcre -lssl -lcrypto -luv -lrt -lnsl)
+SET_DEFLAG(LIBS,[-lm -ldl PKG_LIBS(libpcre) PKG_LIBS(openssl) PKG_LIBS(libuv) PKG_LIBS(luajit) PKG_LIBS(zlib)])
 if test "$enable_develop" == yes
 then
 	enable_static=yes
-	SET_DEFLAG(CC, clang)
-	SET_DEFLAG(CFLAGS, -I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -Wall -Wno-unused-function -Werror -fsanitize=undefined -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11 -ggdb)
-	SET_DEFLAG(LDFLAGS, -L$PWD/deps/lib)
+	SET_DEFLAG(CC,[clang])
+	SET_DEFLAG(CFLAGS, [-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -ggdb])
+	SET_DEFLAG(EXTRA_CFLAGS, [-Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=gnu11])
+	SET_DEFLAG(DEV_CFLAGS, [-fsanitize=undefined])
+	SET_DEFLAG(LDFLAGS,[-L$PWD/deps/lib])
 	luajit="$PWD/deps/bin/luajit"
 
 	AC_DEFINE(LOGD_SLAB_CAP, 32)
@@ -35,11 +44,11 @@ else
 	AC_DEFINE(LOGD_INLINE)
 	if test "$enable_static" == yes
 	then
-		SET_DEFLAG(CFLAGS, -I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -O3 -flto)
-		SET_DEFLAG(LDFLAGS, -L$PWD/deps/lib)
+		SET_DEFLAG(CFLAGS,[-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -O3 -flto])
+		SET_DEFLAG(LDFLAGS,[-L$PWD/deps/lib])
 		luajit="$PWD/deps/bin/luajit"
 	else
-		SET_DEFLAG(CFLAGS, -I$PWD/deps/include -I/usr/include/luajit-2.0 -O3 -flto)
+		SET_DEFLAG(CFLAGS,[-I$PWD/deps/include PKG_INCLUDE(luajit) -O3 -flto])
 		luajit=/usr/bin/luajit
 	fi
 fi
@@ -51,12 +60,11 @@ AC_PROG_CC_STDC
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
-AC_DEFINE(GNU_SOURCE)
 AC_USE_SYSTEM_EXTENSIONS
 
 AC_CHECK_PROG(OBJDUMP_CHECK,objdump,yes)
 if test x"$OBJDUMP_CHECK" != x"yes" ; then
-    AC_MSG_ERROR([Please install binutils before installing.])
+    AC_MSG_ERROR([Please install binutils before building logd.])
 fi
 
 # source code system headers
@@ -86,7 +94,6 @@ then
 	AC_CHECK_LIB(ssl, SSL_library_init, [FOUND_SSL_LIB="yes"])
 	AS_IF([test "x$FOUND_SSL_LIB" = xno], [AC_MSG_ERROR([library 'ssl' is required for OpenSSL])])
 else
-	AC_CHECK_HEADER_STDBOOL
 	AC_TYPE_UID_T
 	AC_C_INLINE
 	AC_TYPE_INT16_T
@@ -121,6 +128,8 @@ AC_SUBST([USE_MUSL_LIBC], ["$enable_musl_libc"])
 AC_SUBST([STATIC_BUILD], ["$enable_static"])
 AC_SUBST([DEVELOP_BUILD], ["$enable_develop"])
 AC_SUBST([LIBS], ["$LIBS"])
+AC_SUBST([EXTRA_CFLAGS], ["$EXTRA_CFLAGS"])
+AC_SUBST([DEV_CFLAGS], ["$DEV_CFLAGS"])
 
 AC_MSG_NOTICE([using enable_develop=$enable_develop])
 AC_MSG_NOTICE([using enable_static=$enable_static])
