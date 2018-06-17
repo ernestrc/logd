@@ -38,3 +38,6 @@
 	path = deps/openssl
 	url = git@github.com:openssl/openssl.git
     ignore = dirty
+[submodule "test/lunit"]
+	path = test/lunit
+	url = https://github.com/dcurrie/lunit

@@ -648,6 +648,10 @@ LDFLAGS
 CFLAGS
 CC
 AWK
+LOGD_BUF_MAX_CAP
+LOGD_BUF_INIT_CAP
+LOGD_SLAB_CAP
+FUZZFLAGS
 MUSL_CHECK
 PKGCFG
 target_alias
@@ -2406,6 +2410,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 
+
 # Check whether --enable-static was given.
 if test "${enable_static+set}" = set; then :
   enableval=$enable_static; enable_static=yes
@@ -2515,23 +2520,31 @@ then
 	test -z "$EXTRA_CFLAGS" && EXTRA_CFLAGS="";
 	test -z "$LDFLAGS" && LDFLAGS="";
 	test -z "$LIBS" && LIBS="`pkg-config libpcre --libs` `pkg-config openssl --libs` `pkg-config libuv --libs` `pkg-config luajit --libs` `pkg-config zlib --libs` -lm -ldl";
-	test -z "$FUZZFLAGS" && FUZZFLAGS="-max_total_time=60"; # fuzzer flags
+	test -z "$FUZZFLAGS" && FUZZFLAGS="-max_total_time=60"; $as_echo "#define FUZZFLAGS -max_total_time=60" >>confdefs.h
+ FUZZFLAGS=-max_total_time=60
+ # fuzzer flags
 	# TODO luajit="LUA_PATH=\"$PWD/deps/luajit/src/?.lua;$PWD/deps/luajit/src/jit/?.lua\" $PWD/deps/luajit/src/luajit"
 	luajit=/usr/bin/luajit
-	$as_echo "#define LOGD_SLAB_CAP 32" >>confdefs.h
+	test -z "$LOGD_SLAB_CAP" && LOGD_SLAB_CAP="30"; $as_echo "#define LOGD_SLAB_CAP 30" >>confdefs.h
+ LOGD_SLAB_CAP=30
 
-	$as_echo "#define LOGD_BUF_INIT_CAP 4096" >>confdefs.h
+	test -z "$LOGD_BUF_INIT_CAP" && LOGD_BUF_INIT_CAP="64000"; $as_echo "#define LOGD_BUF_INIT_CAP 64000" >>confdefs.h
+ LOGD_BUF_INIT_CAP=64000
 
-	$as_echo "#define LOGD_BUF_MAX_CAP 409600" >>confdefs.h
+	test -z "$LOGD_BUF_MAX_CAP" && LOGD_BUF_MAX_CAP="1000000"; $as_echo "#define LOGD_BUF_MAX_CAP 1000000" >>confdefs.h
+ LOGD_BUF_MAX_CAP=1000000
 
 	$as_echo "#define LOGD_DEBUG 1" >>confdefs.h
 
 else
-	$as_echo "#define LOGD_SLAB_CAP 256" >>confdefs.h
+	test -z "$LOGD_SLAB_CAP" && LOGD_SLAB_CAP="256"; $as_echo "#define LOGD_SLAB_CAP 256" >>confdefs.h
+ LOGD_SLAB_CAP=256
 
-	$as_echo "#define LOGD_BUF_INIT_CAP 1638400" >>confdefs.h
+	test -z "$LOGD_BUF_INIT_CAP" && LOGD_BUF_INIT_CAP="1638400"; $as_echo "#define LOGD_BUF_INIT_CAP 1638400" >>confdefs.h
+ LOGD_BUF_INIT_CAP=1638400
 
-	$as_echo "#define LOGD_BUF_MAX_CAP 8192000" >>confdefs.h
+	test -z "$LOGD_BUF_MAX_CAP" && LOGD_BUF_MAX_CAP="8192000"; $as_echo "#define LOGD_BUF_MAX_CAP 8192000" >>confdefs.h
+ LOGD_BUF_MAX_CAP=8192000
 
 	$as_echo "#define LOGD_INLINE 1" >>confdefs.h
 

@@ -1,5 +1,6 @@
 #include <errno.h>
 
+#include "../src/config.h"
 #include "../src/log.h"
 #include "../src/parser.h"
 #include "../src/util.h"
@@ -125,7 +126,7 @@ int test_parse_error()
 	log_set(big_log, slab_get(pslab), KEY_CLASS, "control.RaptorHandler");
 	log_set(big_log, slab_get(pslab), KEY_CALLTYPE, "PublisherCreateRequest");
 	// this + header = more properties than we should be able to parse
-	for (int i = 0; i < PARSER_SLAB_CAP; i++) {
+	for (int i = 0; i < LOGD_SLAB_CAP; i++) {
 		char* prop_key = rcmalloc(100);
 		ASSERT_NEQ(prop_key, NULL);
 		sprintf(prop_key, "%d", i);
@@ -157,7 +158,7 @@ int test_parse_error()
 	res = parser_parse(p, &ERR2[ELEN2], 1);
 	ASSERT_EQ(res.type, PARSE_ERROR);
 	ASSERT_EQ(res.consumed, 1);
-	ASSERT_STR_EQ(res.error.msg, "reached max number of log properties: " STR(PARSER_SLAB_CAP));
+	ASSERT_STR_EQ(res.error.msg, "reached max number of log properties: " STR(LOGD_SLAB_CAP));
 	ASSERT_STR_EQ(res.error.at, " 5: null, 4: null, 3: null, 2: null, 1: null, 0: null, ");
 
 	// prepare log comparison
@@ -167,13 +168,13 @@ int test_parse_error()
 	log_remove(big_log, "3");
 	log_remove(big_log, "4");
 	log_remove(big_log, "5");
-	for (int i = 0; i < PARSER_SLAB_CAP; i++) {
+	for (int i = 0; i < LOGD_SLAB_CAP; i++) {
 		char* prop_key = rcmalloc(100);
 		ASSERT_NEQ(prop_key, NULL);
 		sprintf(prop_key, "%d", i);
 		slab_put(pslab, log_remove(big_log, prop_key));
 	}
-	for (int i = PARSER_SLAB_CAP - 1; i >= 6; i--) {
+	for (int i = LOGD_SLAB_CAP - 1; i >= 6; i--) {
 		char* prop_key = rcmalloc(100);
 		ASSERT_NEQ(prop_key, NULL);
 		sprintf(prop_key, "%d", i);

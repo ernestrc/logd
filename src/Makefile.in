@@ -2,9 +2,11 @@ PWD=$(shell pwd)
 
 CC=@CC@
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
+CFLAGS_NO_EXTRA=@CFLAGS@
 LDFLAGS=@LDFLAGS@ @EXTRA_LDFLAGS@
 LIBS=@LIBS@ @EXTRA_LIBS@
 LUAJIT=@LUAJITBIN@
+DEVELOP_BUILD=@DEVELOP_BUILD@
 
 LIBDEPS=$(PWD)/../deps/lib
 INCDIR=$(PWD)/../include
@@ -34,7 +36,11 @@ EXTOBJS = $(addprefix $(LIBDIR)/objs/, $(foreach lib,$(STATIC_LIBS),$(call listo
 
 default: src
 
+ifeq ($(DEVELOP_BUILD),yes)
 src: prepare $(LIB) $(LIBJITTED) $(EXEC) $(CMOD) $(PARSER_SO)
+else
+src: prepare $(LIB) $(LIBJITTED) $(EXEC)
+endif
 
 prepare:
 	@ mkdir -p $(INCDIR)/logd
@@ -62,10 +68,10 @@ $(BINDIR)/%: %.c $(LIBJITTED) $(LIB)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< -L$(LIBDIR) -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive, -Wl,-E -llogd $(LIBS)
 
 $(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
-	$(CC) -o $(PARSER_SO) $(CFLAGS) -shared -fPIC parser.c $(PARSER_DEPS)
+	$(CC) -o $(PARSER_SO) -shared -fPIC parser.c $(PARSER_DEPS)
 
 $(CMOD): logd_module.h logd_module.c $(CMOD_DEPS)
-	$(CC) -o $(CMOD) $(CFLAGS) -shared -fPIC logd_module.c $(CMOD_DEPS)
+	$(CC) -o $(CMOD) $(shell pkg-config luajit --cflags) -shared -fPIC logd_module.c $(CMOD_DEPS)
 
 $(INCDIR)/logd/%.h: %.h
 	@ cd ../include/logd && \

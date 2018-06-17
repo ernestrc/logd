@@ -5,9 +5,9 @@ SCRIPT="$DIR/malicious.lua"
 OUT="$DIR/malicious.out"
 LOGD_EXEC="$DIR/../bin/logd"
 
-if [ "$BUF_MAX_CAP" == "" ]; then
-	BUF_MAX_CAP=1000
-	echo "WARN: using BUF_MAX_CAP=$BUF_MAX_CAP; note that this could be out of sync with Makefile. Use make test instead."
+if [ "$LOGD_BUF_MAX_CAP" == "" ]; then
+	LOGD_BUF_MAX_CAP=1000
+	echo "WARN: using LOGD_BUF_MAX_CAP=$LOGD_BUF_MAX_CAP; note that this could be out of sync with Makefile. Use make test instead."
 fi
 
 source $DIR/helper.sh
@@ -26,7 +26,7 @@ touch $OUT
 touch $IN
 
 echo -n "2018-05-12 12:51:28 ERROR	[thread1]	clazz	callType: " > $IN
-dd if=/dev/urandom count=$(($(( $BUF_MAX_CAP / 512 )) + 10)) >> $IN 2>/dev/null
+dd if=/dev/urandom count=$(($(( $LOGD_BUF_MAX_CAP / 512 )) + 10)) >> $IN 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "could not create test file"
 	exit 1
@@ -47,7 +47,7 @@ function logd.on_log(logptr)
 end
 function logd.on_error(error, logptr, at)
 	errors = errors + 1
-	local error_expected = "log line was skipped because it is more than $BUF_MAX_CAP bytes"
+	local error_expected = "log line was skipped because it is more than $LOGD_BUF_MAX_CAP bytes"
 	local at_expected = ""
 	assert(error == error_expected, string.format("error was '%s' instead of '%s'", error, error_expected))
 	assert(at == at_expected, string.format("at was '%s' instead of '%s'", at, at_expected))

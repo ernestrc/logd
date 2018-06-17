@@ -8,10 +8,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <slab/rcmalloc.h>
+#include <slab/slab.h>
+
 #include "../src/log.h"
 #include "../src/parser.h"
-#include "../src/slab/rcmalloc.h"
-#include "../src/slab/slab.h"
 #include "../src/util.h"
 #include "fixture.h"
 
@@ -212,10 +213,8 @@ static void init_test_data()
 	log_set(&EXPECTED7, slab_get(pslab), KEY_TIME, "13:12:12,852");
 	log_set(&EXPECTED7, slab_get(pslab), KEY_LEVEL, "INFO");
 	log_set(&EXPECTED7, slab_get(pslab), KEY_THREAD, "Grizzly-worker(14)");
-	log_set(
-	  &EXPECTED7, slab_get(pslab), KEY_CLASS, "v2.ArchiveResource");
-	log_set(
-	  &EXPECTED7, slab_get(pslab), KEY_MESSAGE, "");
+	log_set(&EXPECTED7, slab_get(pslab), KEY_CLASS, "v2.ArchiveResource");
+	log_set(&EXPECTED7, slab_get(pslab), KEY_MESSAGE, "");
 
 	log_set(&EXPECTED8, slab_get(pslab), KEY_DATE, "2018-05-30");
 	log_set(&EXPECTED8, slab_get(pslab), KEY_TIME, "11:01:47,633");
@@ -223,14 +222,21 @@ static void init_test_data()
 	log_set(&EXPECTED8, slab_get(pslab), KEY_THREAD, "0x7f65b9365700");
 	log_set(&EXPECTED8, slab_get(pslab), KEY_CLASS, "registry.ClientBuilder");
 	log_set(&EXPECTED8, slab_get(pslab), "callType", "getSupportedFormats");
-	log_set(&EXPECTED8, slab_get(pslab), "message", "Ignoring unsupported codec telephone-event ");
-	log_set(&EXPECTED8, slab_get(pslab), "connectionId", "139bca64-4480-4727-b241-74699b5a20cc");
+	log_set(&EXPECTED8, slab_get(pslab), "message",
+	  "Ignoring unsupported codec telephone-event ");
+	log_set(&EXPECTED8, slab_get(pslab), "connectionId",
+	  "139bca64-4480-4727-b241-74699b5a20cc");
 	log_set(&EXPECTED8, slab_get(pslab), "partnerId", "100");
-	log_set(&EXPECTED8, slab_get(pslab), "publisherId", "72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2");
-	log_set(&EXPECTED8, slab_get(pslab), "routerStreamId", "72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2");
-	log_set(&EXPECTED8, slab_get(pslab), "sessionId", "2_MX4xMDB-flR1ZSBOb3YgMTkgMTE6MDk6NTggUFNUIDIwMTN-MC4zNzQxNzIxNX4");
-	log_set(&EXPECTED8, slab_get(pslab), "streamId", "72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2");
-	log_set(&EXPECTED8, slab_get(pslab), "widgetType", "Publisher\t"); // TODO improve space triming to end of property
+	log_set(&EXPECTED8, slab_get(pslab), "publisherId",
+	  "72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2");
+	log_set(&EXPECTED8, slab_get(pslab), "routerStreamId",
+	  "72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2");
+	log_set(&EXPECTED8, slab_get(pslab), "sessionId",
+	  "2_MX4xMDB-flR1ZSBOb3YgMTkgMTE6MDk6NTggUFNUIDIwMTN-MC4zNzQxNzIxNX4");
+	log_set(&EXPECTED8, slab_get(pslab), "streamId",
+	  "72ee1ae2-8c55-4fb6-8cfc-653e8b0618c2");
+	log_set(&EXPECTED8, slab_get(pslab), "widgetType",
+	  "Publisher\t"); // TODO improve space triming to end of property
 }
 
 static void __test_print_help(const char* prog)
@@ -250,7 +256,7 @@ static int __test_release(test_ctx_t* ctx)
 	free(BUF8);
 	rcmalloc_deinit();
 	slab_free(pslab);
-	if (failures != 0) 
+	if (failures != 0)
 		return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;
@@ -322,7 +328,7 @@ static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
 	if (strlen(ctx.test_expr) == 0 || strstr(#test, ctx.test_expr) != NULL) {  \
 		int result = test();                                                   \
 		if (result == EXIT_FAILURE) {                                          \
-			printf("  TEST\t" #test "\tFAILURE\n");                        \
+			printf("  TEST\t" #test "\tFAILURE\n");                            \
 			ctx.failure++;                                                     \
 		} else {                                                               \
 			if (!ctx.silent)                                                   \

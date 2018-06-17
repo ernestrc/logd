@@ -4,6 +4,7 @@ AC_INIT(logd, 1.0, ernest@unstable.build)
 AC_DEFUN([SET_DEFLAG],[test -z "$$1" && $1="$2";])
 AC_DEFUN([PKG_LIBS],[`pkg-config $1 --libs`])
 AC_DEFUN([PKG_INCLUDE],[`pkg-config $1 --cflags-only-I`])
+AC_DEFUN([SET_DEFLAG_DEFINE],[test -z "$$1" && $1="$2"; AC_DEFINE($1, $2) AC_SUBST($1, $2)])
 
 AC_ARG_ENABLE(static, [AS_HELP_STRING([--enable-static], [build local dependencies and statically link final executable with musl libc and all the dependencies])], [enable_static=yes], [enable_static=no])
 AC_ARG_ENABLE(develop, [AS_HELP_STRING([--enable-develop], [enable development build. This sets clang as the compiler and sets a bunch of testing and debugging compiler flags.])], [enable_develop=yes], [enable_develop=no])
@@ -29,17 +30,17 @@ then
 	SET_DEFLAG(EXTRA_CFLAGS, [])
 	SET_DEFLAG(LDFLAGS, [])
 	SET_DEFLAG(LIBS,[PKG_LIBS(libpcre) PKG_LIBS(openssl) PKG_LIBS(libuv) PKG_LIBS(luajit) PKG_LIBS(zlib) -lm -ldl])
-	SET_DEFLAG(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
+	SET_DEFLAG_DEFINE(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
 	# TODO luajit="LUA_PATH=\"$PWD/deps/luajit/src/?.lua;$PWD/deps/luajit/src/jit/?.lua\" $PWD/deps/luajit/src/luajit"
 	luajit=/usr/bin/luajit
-	AC_DEFINE(LOGD_SLAB_CAP, 32)
-	AC_DEFINE(LOGD_BUF_INIT_CAP, 4096)
-	AC_DEFINE(LOGD_BUF_MAX_CAP, 409600)
+	SET_DEFLAG_DEFINE(LOGD_SLAB_CAP, 30)
+	SET_DEFLAG_DEFINE(LOGD_BUF_INIT_CAP, 64000)
+	SET_DEFLAG_DEFINE(LOGD_BUF_MAX_CAP, 1000000)
 	AC_DEFINE(LOGD_DEBUG)
 else
-	AC_DEFINE(LOGD_SLAB_CAP, 256)
-	AC_DEFINE(LOGD_BUF_INIT_CAP, 1638400)
-	AC_DEFINE(LOGD_BUF_MAX_CAP, 8192000)
+	SET_DEFLAG_DEFINE(LOGD_SLAB_CAP, 256)
+	SET_DEFLAG_DEFINE(LOGD_BUF_INIT_CAP, 1638400)
+	SET_DEFLAG_DEFINE(LOGD_BUF_MAX_CAP, 8192000)
 	AC_DEFINE(LOGD_INLINE)
 	if test "$enable_static" == yes
 	then
