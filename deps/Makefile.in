@@ -1,5 +1,3 @@
-.DEFAULT: all
-.PHONY: clean
 
 export CC=@CC@
 export CFLAGS=@CFLAGS@
@@ -8,8 +6,7 @@ export PREFIX=$(shell pwd)
 
 EXTRA_CFLAGS=@EXTRA_CFLAGS@
 STATIC_BUILD=@STATIC_BUILD@
-
-CONFIGURE_FL=CC=$(CC) CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS)' --prefix='$(PREFIX)'
+DEVELOP_BUILD=@DEVELOP_BUILD@
 
 LIBDIR = $(PREFIX)/lib
 BINDIR = $(PREFIX)/bin
@@ -17,6 +14,10 @@ MANDIR = $(PREFIX)/man
 SHAREDIR = $(PREFIX)/share
 INCDIR = $(PREFIX)/include
 
+OPTS=CC=$(CC) CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS)' PREFIX=$(PREFIX) 
+CFG_FLAGS=$(OPTS) --prefix='$(PREFIX)' --disable-shared
+OPENSSL_CFG=--openssldir=$(PREFIX) --prefix=$(PREFIX) no-fuzz-libfuzzer no-fuzz-afl no-unit-test no-shared no-hw zlib no-dso no-threads zlib --with-zlib-include=$(INCDIR) --with-zlib-lib=$(LIBDIR)
+    
 LIBSLAB = $(LIBDIR)/libslab.a
 LIBLUAJIT = $(LIBDIR)/libluajit-5.1.a
 LIBUV = $(LIBDIR)/libuv.a
@@ -39,6 +40,15 @@ else
 ALL=$(MUST_STATIC)
 endif
 
+ifeq ($(DEVELOP_BUILD),yes)
+# LUAJIT_OPTS=CC=$(CC) PREFIX=$(PREFIX) LDFLAGS='$(EXTRA_CFLAGS) $(LDFLAGS)' CFLAGS='$(EXTRA_CFLAGS) $(CFLAGS)' CCOPT="-static -fPIC" BUILDMODE="static"
+else
+LUAJIT_OPTS=$(OPTS) BUILDMODE=static
+endif
+
+.DEFAULT: all
+.PHONY: clean
+
 all: $(MANDIR) $(SHAREDIR) $(BINDIR) $(INCDIR) $(LIBDIR) $(ALL)
 
 $(PREFIX)/%:
@@ -46,26 +56,26 @@ $(PREFIX)/%:
 
 $(LIBUV):
 	@ echo "  COMPILING	libuv"
-	@ cd libuv && ./autogen.sh && ./configure --without-pic --disable-shared $(CONFIGURE_FL) && $(MAKE) && $(MAKE) install
+	@ cd libuv && ./autogen.sh && ./configure $(CFG_FLAGS) && $(MAKE) && $(MAKE) install
 
 $(LIBLUAJIT):
 	@ echo "  COMPILING	luajit"
-	@ cd luajit && $(MAKE) CC=$(CC) PREFIX=$(PREFIX) LDFLAGS='$(EXTRA_CFLAGS) $(LDFLAGS)' CFLAGS='$(EXTRA_CFLAGS) $(CFLAGS)' && $(MAKE) install PREFIX=$(PREFIX)
+	@ cd luajit && $(MAKE) $(LUAJIT_OPTS) && $(MAKE) install $(LUAJIT_OPTS)
 
 $(LIBOPENSSL): $(LIBZ)
 	@ echo "  COMPILING libopenssl"
 	@ cd openssl && \
-		./config --openssldir=$(PREFIX) --prefix=$(PREFIX) \
-			zlib --with-zlib-include=$(INCDIR) --with-zlib-lib=$(LIBDIR) && \
-			$(MAKE) && $(MAKE) install
+		./config $(OPENSSL_CFG) && $(MAKE) $(OPTS) && $(MAKE) install $(OPTS)
 
 $(LIBPCRE):
 	@ echo "  COMPILING	libpcre"
-	@ cd pcre && aclocal && automake && autoconf && ./configure --disable-shared $(CONFIGURE_FL) && $(MAKE) && $(MAKE) install
+	@ cp pcre.patch pcre/pcre.patch
+	@- cd pcre && patch -N -p1 < pcre.patch
+	@ cd pcre && aclocal && automake && autoconf && ./configure $(CFG_FLAGS) && $(MAKE) $(OPTS) && $(MAKE) install $(OPTS)
 
 $(LIBZ):
 	@ echo "  COMPILING	zlib"
-	@ cd zlib && ./configure --prefix=$(PREFIX) && $(MAKE) && $(MAKE) install
+	@ cd zlib && ./configure --static --prefix=$(PREFIX) && $(MAKE) TEST_LDFLAGS='-L. libz.a $(LDFLAGS)' $(OPTS) && $(MAKE) install $(OPTS)
 
 $(LIBSLAB):
 	@ echo "  COMPILING	libslab"
@@ -93,7 +103,7 @@ $(LPEG): $(LPEGDEPS)
 	@ cp lpeg.patch lpeg/lpeg.patch
 	@- cd lpeg && patch -N -p1 < lpeg.patch
 	@ cd lpeg && $(MAKE)
-	@ cd lpeg && $(AR) rcs $(LPEG) *.o
+	@ cd lpeg && $(AR) rcs $(LPEG) *.o && ranlib $(LPEG)
 
 ifeq ($(STATIC_BUILD),yes)
 LPCREDEPS=$(LIBLUAJIT)
@@ -104,9 +114,9 @@ $(LPCRE): $(LPCREDEPS)
 	@ cd lrexlib && $(MAKE) CFLAGS="$(CFLAGS) -DLUA_VERSION_NUM=501 -DLUA_LIB -DLUA_COMPAT_APIINTCASTS -DVERSION='\"2.8.0\"'"
 	@ cp lrexlib/lpcre.a $(LPCRE)
 
-$(LSSL):
+$(LSSL): $(LIBOPENSSL)
 	@ echo "  COMPILING	lua-openssl"
-	@ cd lua-openssl && $(MAKE) TARGET_FLAGS='-DPTHREADS -DOPENSSL_NO_SM2 -DOPENSSL_NO_STDIO $(CFLAGS)'
+	@ cd lua-openssl && $(MAKE) libopenssl.a TARGET_FLAGS='-DPTHREADS -DOPENSSL_NO_SM2 -DOPENSSL_NO_STDIO $(CFLAGS)'
 	@ cp lua-openssl/libopenssl.a $(LSSL)
 
 ifeq ($(STATIC_BUILD),yes)
@@ -115,7 +125,7 @@ endif
 $(LZLIB): $(LIBZDEPS)
 	@ echo "  COMPILING	lua-zlib"
 	cd lua-zlib && $(CC) $(CFLAGS) -c -o lua_zlib.o lua_zlib.c
-	@ cd lua-zlib/ && $(AR) rcs $(LZLIB) *.o
+	@ cd lua-zlib/ && $(AR) rcs $(LZLIB) *.o && ranlib $(LZLIB)
 
 $(LUA_COMPAT):
 	@ echo "  LN lua-compat"

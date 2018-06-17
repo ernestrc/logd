@@ -7,7 +7,7 @@ LIBLUV = libluv.a
 src: $(LIBLUV)
 
 $(LIBLUV): $(OBJS)
-	@ $(AR) rcs $(LIBLUV) $(OBJS)
+	@ $(AR) rcs $(LIBLUV) $(OBJS) && ranlib $(LIBLUV)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@

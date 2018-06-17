@@ -627,6 +627,7 @@ ac_subst_vars='LTLIBOBJS
 DEV_CFLAGS
 EXTRA_LDFLAGS
 EXTRA_CFLAGS
+EXTRA_LIBS
 DEVELOP_BUILD
 STATIC_BUILD
 LUAJITBIN
@@ -647,6 +648,7 @@ LDFLAGS
 CFLAGS
 CC
 AWK
+MUSL_CHECK
 PKGCFG
 target_alias
 host_alias
@@ -2460,20 +2462,60 @@ if test x"$PKGCFG" != x"yes" ; then
     as_fn_error $? "Please install pkg-config before building logd." "$LINENO" 5
 fi
 
+if test "$enable_static" == yes
+then
+	# Extract the first word of "musl-gcc", so it can be a program name with args.
+set dummy musl-gcc; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_MUSL_CHECK+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$MUSL_CHECK"; then
+  ac_cv_prog_MUSL_CHECK="$MUSL_CHECK" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_MUSL_CHECK="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+MUSL_CHECK=$ac_cv_prog_MUSL_CHECK
+if test -n "$MUSL_CHECK"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $MUSL_CHECK" >&5
+$as_echo "$MUSL_CHECK" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+	if test x"$MUSL_CHECK" != x"yes" ; then
+		as_fn_error $? "Please install musl libc before building with --enable-static." "$LINENO" 5
+	fi
+fi
+
 test -z "$FUZZFLAGS" && FUZZFLAGS="-max_total_time=60"; # fuzzer flags
 
 if test "$enable_develop" == yes
 then
 	enable_static=yes
-	test -z "$CC" && CC="clang";
-	test -z "$CFLAGS" && CFLAGS="-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -ggdb";
-	test -z "$EXTRA_CFLAGS" && EXTRA_CFLAGS="-Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=gnu11";
-	test -z "$DEV_CFLAGS" && DEV_CFLAGS="-fsanitize=undefined";
-	test -z "$LDFLAGS" && LDFLAGS="-L$PWD/deps/lib";
-	test -z "$EXTRA_LDFLAGS" && EXTRA_LDFLAGS="-static";
-	test -z "$LIBS" && LIBS="-luv -lluajit-5.1 -lpcre -lssl -lcrypto -lz -lrt -lpthread -lm -ldl";
-	luajit="$PWD/deps/bin/luajit"
-
+	# SET_DEFLAG(CC,[clang])
+	# SET_DEFLAG(CFLAGS, [-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -ggdb])
+	# SET_DEFLAG(EXTRA_CFLAGS, [-specs "/home/ernestrc/src/logd/deps/lib/musl-gcc.specs" -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11])
+	# SET_DEFLAG(EXTRA_LDFLAGS,[-static -L$PWD/deps/lib])
+	# TODO SET_DEFLAG(LIBS,[-lpcre -lssl -lcrypto -luv -lrt -lpthread -lz -lluajit-5.1 -Wl,-E -lm -ldl])
 	$as_echo "#define LOGD_SLAB_CAP 32" >>confdefs.h
 
 	$as_echo "#define LOGD_BUF_INIT_CAP 4096" >>confdefs.h
@@ -2482,6 +2524,7 @@ then
 
 	$as_echo "#define LOGD_DEBUG 1" >>confdefs.h
 
+	luajit="LUA_PATH=\"$PWD/deps/luajit/src/?.lua;$PWD/deps/luajit/src/jit/?.lua\" $PWD/deps/luajit/src/luajit"
 else
 	$as_echo "#define LOGD_SLAB_CAP 256" >>confdefs.h
 
@@ -2493,11 +2536,15 @@ else
 
 	if test "$enable_static" == yes
 	then
-		test -z "$CFLAGS" && CFLAGS="-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -O3 -flto";
-		test -z "$LDFLAGS" && LDFLAGS="-L$PWD/deps/lib";
-		test -z "$EXTRA_LDFLAGS" && EXTRA_LDFLAGS="-static";
-		test -z "$LIBS" && LIBS="-luv -lluajit-5.1 -lpcre -lssl -lcrypto -lz -lrt -lpthread -lm -ldl";
-		luajit="$PWD/deps/bin/luajit"
+		test -z "$CC" && CC=""musl-gcc"";
+		test -z "$CFLAGS" && CFLAGS="-ggdb -O3 -flto -I$PWD/deps/include -I$PWD/deps/include/luajit-2.0";
+		test -z "$EXTRA_CFLAGS" && EXTRA_CFLAGS="-std=c99";
+		test -z "$LDFLAGS" && LDFLAGS="-static";
+		test -z "$EXTRA_LDFLAGS" && EXTRA_LDFLAGS="-L$PWD/deps/lib";
+		test -z "$EXTRA_LIBS" && EXTRA_LIBS="-lpcre -pthread -lssl -lcrypto -ldl -pthread -luv -lrt -lpthread -ldl -lz -lluajit-5.1 -Wl,-E -lm -ldl";
+		luajit="LUA_PATH=\"$PWD/deps/luajit/src/?.lua;$PWD/deps/luajit/src/jit/?.lua\" $PWD/deps/luajit/src/luajit"
+		$as_echo "#define OPENSSL_NO_SM2 1" >>confdefs.h
+
 	else
 		test -z "$LIBS" && LIBS="`pkg-config libpcre --libs` `pkg-config openssl --libs` `pkg-config libuv --libs` `pkg-config luajit --libs` `pkg-config zlib --libs` -lm -ldl";
 		test -z "$CFLAGS" && CFLAGS="-I$PWD/deps/include `pkg-config luajit --cflags-only-I` -O3 -flto";
@@ -4286,7 +4333,7 @@ fi
 done
 
 
-# TODO open up for configuration
+# TODO open up for configuration and add to usage string
 $as_echo "#define WITH_OPENSSL 1" >>confdefs.h
 
 $as_echo "#define WITH_ZLIB 1" >>confdefs.h
@@ -4814,6 +4861,20 @@ fi
   as_fn_error $? "library 'ssl' is required for OpenSSL" "$LINENO" 5
 fi
 else
+	for ac_header in linux/mman.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "linux/mman.h" "ac_cv_header_linux_mman_h" "$ac_includes_default"
+if test "x$ac_cv_header_linux_mman_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LINUX_MMAN_H 1
+_ACEOF
+
+else
+  as_fn_error $? "musl linux headers not found. Please install to continue." "$LINENO" 5
+fi
+
+done
+
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for uid_t in sys/types.h" >&5
 $as_echo_n "checking for uid_t in sys/types.h... " >&6; }
 if ${ac_cv_type_uid_t+:} false; then :
@@ -5725,6 +5786,8 @@ STATIC_BUILD="$enable_static"
 DEVELOP_BUILD="$enable_develop"
 
 LIBS="$LIBS"
+
+EXTRA_LIBS="$EXTRA_LIBS"
 
 EXTRA_CFLAGS="$EXTRA_CFLAGS"
 

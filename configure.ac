@@ -13,24 +13,29 @@ if test x"$PKGCFG" != x"yes" ; then
     AC_MSG_ERROR([Please install pkg-config before building logd.])
 fi
 
+if test "$enable_static" == yes
+then
+	AC_CHECK_PROG(MUSL_CHECK,musl-gcc,yes)
+	if test x"$MUSL_CHECK" != x"yes" ; then
+		AC_MSG_ERROR([Please install musl libc before building with --enable-static.])
+	fi
+fi
+
 SET_DEFLAG(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
 
 if test "$enable_develop" == yes
 then
 	enable_static=yes
-	SET_DEFLAG(CC,[clang])
-	SET_DEFLAG(CFLAGS, [-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -ggdb])
-	SET_DEFLAG(EXTRA_CFLAGS, [-Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=gnu11])
-	SET_DEFLAG(DEV_CFLAGS, [-fsanitize=undefined])
-	SET_DEFLAG(LDFLAGS,[-L$PWD/deps/lib])
-	SET_DEFLAG(EXTRA_LDFLAGS,[-static])
-	SET_DEFLAG(LIBS,[-luv -lluajit-5.1 -lpcre -lssl -lcrypto -lz -lrt -lpthread -lm -ldl])
-	luajit="$PWD/deps/bin/luajit"
-
+	# SET_DEFLAG(CC,[clang])
+	# SET_DEFLAG(CFLAGS, [-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -ggdb])
+	# SET_DEFLAG(EXTRA_CFLAGS, [-specs "/home/ernestrc/src/logd/deps/lib/musl-gcc.specs" -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11])
+	# SET_DEFLAG(EXTRA_LDFLAGS,[-static -L$PWD/deps/lib])
+	# TODO SET_DEFLAG(LIBS,[-lpcre -lssl -lcrypto -luv -lrt -lpthread -lz -lluajit-5.1 -Wl,-E -lm -ldl])
 	AC_DEFINE(LOGD_SLAB_CAP, 32)
 	AC_DEFINE(LOGD_BUF_INIT_CAP, 4096)
 	AC_DEFINE(LOGD_BUF_MAX_CAP, 409600)
 	AC_DEFINE(LOGD_DEBUG)
+	luajit="LUA_PATH=\"$PWD/deps/luajit/src/?.lua;$PWD/deps/luajit/src/jit/?.lua\" $PWD/deps/luajit/src/luajit"
 else
 	AC_DEFINE(LOGD_SLAB_CAP, 256)
 	AC_DEFINE(LOGD_BUF_INIT_CAP, 1638400)
@@ -38,11 +43,14 @@ else
 	AC_DEFINE(LOGD_INLINE)
 	if test "$enable_static" == yes
 	then
-		SET_DEFLAG(CFLAGS,[-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -O3 -flto])
-		SET_DEFLAG(LDFLAGS,[-L$PWD/deps/lib])
-		SET_DEFLAG(EXTRA_LDFLAGS,[-static])
-		SET_DEFLAG(LIBS,[-luv -lluajit-5.1 -lpcre -lssl -lcrypto -lz -lrt -lpthread -lm -ldl])
-		luajit="$PWD/deps/bin/luajit"
+		SET_DEFLAG(CC, ["musl-gcc"])
+		SET_DEFLAG(CFLAGS,[-ggdb -O3 -flto -I$PWD/deps/include -I$PWD/deps/include/luajit-2.0])
+		SET_DEFLAG(EXTRA_CFLAGS, [-std=c99])
+		SET_DEFLAG(LDFLAGS, [-static])
+		SET_DEFLAG(EXTRA_LDFLAGS,[-L$PWD/deps/lib])
+		SET_DEFLAG(EXTRA_LIBS,[-lpcre -pthread -lssl -lcrypto -ldl -pthread -luv -lrt -lpthread -ldl -lz -lluajit-5.1 -Wl,-E -lm -ldl])
+		luajit="LUA_PATH=\"$PWD/deps/luajit/src/?.lua;$PWD/deps/luajit/src/jit/?.lua\" $PWD/deps/luajit/src/luajit"
+		AC_DEFINE(OPENSSL_NO_SM2)
 	else
 		SET_DEFLAG(LIBS,[PKG_LIBS(libpcre) PKG_LIBS(openssl) PKG_LIBS(libuv) PKG_LIBS(luajit) PKG_LIBS(zlib) -lm -ldl])
 		SET_DEFLAG(CFLAGS,[-I$PWD/deps/include PKG_INCLUDE(luajit) -O3 -flto])
@@ -67,7 +75,7 @@ fi
 # source code system headers
 AC_CHECK_HEADERS([assert.h dlfcn.h errno.h fcntl.h getopt.h libgen.h stdbool.h stdint.h stdlib.h stdio.h string.h sys/stat.h time.h unistd.h utime.h], [], AC_MSG_ERROR([system header not found]))
 
-# TODO open up for configuration
+# TODO open up for configuration and add to usage string
 AC_DEFINE(WITH_OPENSSL)
 AC_DEFINE(WITH_ZLIB)
 AC_DEFINE(WITH_PCRE)
@@ -91,6 +99,7 @@ then
 	AC_CHECK_LIB(ssl, SSL_library_init, [FOUND_SSL_LIB="yes"])
 	AS_IF([test "x$FOUND_SSL_LIB" = xno], [AC_MSG_ERROR([library 'ssl' is required for OpenSSL])])
 else
+	AC_CHECK_HEADERS([linux/mman.h], [], AC_MSG_ERROR([musl linux headers not found. Please install to continue.]))
 	AC_TYPE_UID_T
 	AC_C_INLINE
 	AC_TYPE_INT16_T
@@ -124,6 +133,7 @@ AC_SUBST(LUAJITBIN, ["$luajit"])
 AC_SUBST([STATIC_BUILD], ["$enable_static"])
 AC_SUBST([DEVELOP_BUILD], ["$enable_develop"])
 AC_SUBST([LIBS], ["$LIBS"])
+AC_SUBST([EXTRA_LIBS], ["$EXTRA_LIBS"])
 AC_SUBST([EXTRA_CFLAGS], ["$EXTRA_CFLAGS"])
 AC_SUBST([EXTRA_LDFLAGS], ["$EXTRA_LDFLAGS"])
 AC_SUBST([DEV_CFLAGS], ["$DEV_CFLAGS"])

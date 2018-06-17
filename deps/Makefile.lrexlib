@@ -7,7 +7,7 @@ LPCRE = lpcre.a
 src: $(LPCRE)
 
 $(LPCRE): $(OBJS)
-	@ $(AR) rcs $(LPCRE) $(OBJS)
+	@ $(AR) rcs $(LPCRE) $(OBJS) && ranlib $(LPCRE)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@

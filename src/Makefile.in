@@ -1,9 +1,9 @@
 PWD=$(shell pwd)
 
 CC=@CC@
-CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@ @DEV_CFLAGS@
+CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
 LDFLAGS=@LDFLAGS@ @EXTRA_LDFLAGS@
-LIBS=@LIBS@
+LIBS=@LIBS@ @EXTRA_LIBS@
 LUAJIT=@LUAJITBIN@
 
 LIBDEPS=$(PWD)/../deps/lib
@@ -51,10 +51,12 @@ prepare:
 $(LIBJITTED): $(JITTED)
 	@ echo "  AR	$@"
 	@ $(AR) rcs $(LIBJITTED) $(JITTED)
+	@ ranlib $(LIBJITTED)
 
 $(LIB): $(OBJS) $(EXTOBJS)
 	@ echo "  AR	$@"
 	@ $(AR) rcs $(LIB) $(OBJS) $(EXTOBJS)
+	@ ranlib $(LIB)
 
 $(BINDIR)/%: %.c $(LIBJITTED) $(LIB)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< -L$(LIBDIR) -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive -llogd $(LIBS)
