@@ -65,7 +65,7 @@ $(LIB): $(OBJS) $(EXTOBJS)
 	@ ranlib $(LIB)
 
 $(BINDIR)/%: %.c $(LIBJITTED) $(LIB)
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< -L$(LIBDIR) -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive, -Wl,-E -llogd $(LIBS)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< -L$(LIBDIR) -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive -Wl,-E -llogd $(LIBS)
 
 $(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
 	$(CC) -o $(PARSER_SO) -shared -fPIC parser.c $(PARSER_DEPS)
