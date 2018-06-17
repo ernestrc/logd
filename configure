@@ -1313,10 +1313,10 @@ Optional Features:
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
   --enable-static         build local dependencies and statically link final
-                          executable
-  --enable-develop        enable development build. This forces
-                          --enable-static and sets a bunch of testing and
-                          debugging compiler flags.
+                          executable with musl libc and all the dependencies
+  --enable-develop        enable development build. This sets clang as the
+                          compiler and sets a bunch of testing and debugging
+                          compiler flags.
 
 Some influential environment variables:
   CC          C compiler command
@@ -2504,18 +2504,20 @@ fi
 	if test x"$MUSL_CHECK" != x"yes" ; then
 		as_fn_error $? "Please install musl libc before building with --enable-static." "$LINENO" 5
 	fi
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: THIS IS EXPERIMENTAL. USE THIS BUILD AT YOUR OWN RISK." >&5
+$as_echo "$as_me: WARNING: THIS IS EXPERIMENTAL. USE THIS BUILD AT YOUR OWN RISK." >&2;}
 fi
-
-test -z "$FUZZFLAGS" && FUZZFLAGS="-max_total_time=60"; # fuzzer flags
 
 if test "$enable_develop" == yes
 then
-	enable_static=yes
-	# SET_DEFLAG(CC,[clang])
-	# SET_DEFLAG(CFLAGS, [-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -ggdb])
-	# SET_DEFLAG(EXTRA_CFLAGS, [-specs "/home/ernestrc/src/logd/deps/lib/musl-gcc.specs" -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11])
-	# SET_DEFLAG(EXTRA_LDFLAGS,[-static -L$PWD/deps/lib])
-	# TODO SET_DEFLAG(LIBS,[-lpcre -lssl -lcrypto -luv -lrt -lpthread -lz -lluajit-5.1 -Wl,-E -lm -ldl])
+	test -z "$CC" && CC="clang";
+	test -z "$CFLAGS" && CFLAGS="-ggdb -I$PWD/deps/include `pkg-config luajit --cflags-only-I` -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping";
+	test -z "$EXTRA_CFLAGS" && EXTRA_CFLAGS="";
+	test -z "$LDFLAGS" && LDFLAGS="";
+	test -z "$LIBS" && LIBS="`pkg-config libpcre --libs` `pkg-config openssl --libs` `pkg-config libuv --libs` `pkg-config luajit --libs` `pkg-config zlib --libs` -lm -ldl";
+	test -z "$FUZZFLAGS" && FUZZFLAGS="-max_total_time=60"; # fuzzer flags
+	# TODO luajit="LUA_PATH=\"$PWD/deps/luajit/src/?.lua;$PWD/deps/luajit/src/jit/?.lua\" $PWD/deps/luajit/src/luajit"
+	luajit=/usr/bin/luajit
 	$as_echo "#define LOGD_SLAB_CAP 32" >>confdefs.h
 
 	$as_echo "#define LOGD_BUF_INIT_CAP 4096" >>confdefs.h
@@ -2524,7 +2526,6 @@ then
 
 	$as_echo "#define LOGD_DEBUG 1" >>confdefs.h
 
-	luajit="LUA_PATH=\"$PWD/deps/luajit/src/?.lua;$PWD/deps/luajit/src/jit/?.lua\" $PWD/deps/luajit/src/luajit"
 else
 	$as_echo "#define LOGD_SLAB_CAP 256" >>confdefs.h
 
@@ -2536,8 +2537,8 @@ else
 
 	if test "$enable_static" == yes
 	then
-		test -z "$CC" && CC=""musl-gcc"";
-		test -z "$CFLAGS" && CFLAGS="-ggdb -O3 -flto -I$PWD/deps/include -I$PWD/deps/include/luajit-2.0";
+		test -z "$CC" && CC="musl-gcc";
+		test -z "$CFLAGS" && CFLAGS="-fPIC -ggdb -I$PWD/deps/include -I$PWD/deps/include/luajit-2.0";
 		test -z "$EXTRA_CFLAGS" && EXTRA_CFLAGS="-std=c99";
 		test -z "$LDFLAGS" && LDFLAGS="-static";
 		test -z "$EXTRA_LDFLAGS" && EXTRA_LDFLAGS="-L$PWD/deps/lib";

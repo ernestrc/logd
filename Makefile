@@ -38,13 +38,13 @@ fuzz: build
 coverage:
 	@ $(MAKE) $@ -C $(TEST)
 
-full-coverage:
+html-coverage:
 	@ $(MAKE) $@ -C $(TEST)
 
 fuzz-coverage:
 	@ $(MAKE) $@ -C $(TEST)
 
-fuzz-full-coverage:
+fuzz-html-coverage:
 	@ $(MAKE) $@ -C $(TEST)
 
 format:

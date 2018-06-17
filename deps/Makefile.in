@@ -16,7 +16,7 @@ INCDIR = $(PREFIX)/include
 
 OPTS=CC=$(CC) CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS)' PREFIX=$(PREFIX) 
 CFG_FLAGS=$(OPTS) --prefix='$(PREFIX)' --disable-shared
-OPENSSL_CFG=--openssldir=$(PREFIX) --prefix=$(PREFIX) no-fuzz-libfuzzer no-fuzz-afl no-unit-test no-shared no-hw zlib no-dso no-threads zlib --with-zlib-include=$(INCDIR) --with-zlib-lib=$(LIBDIR)
+OPENSSL_CFG=--openssldir=$(PREFIX) --prefix=$(PREFIX) no-fuzz-libfuzzer no-fuzz-afl no-unit-test no-shared no-hw no-dso no-threads zlib --with-zlib-include=$(INCDIR) --with-zlib-lib=$(LIBDIR)
     
 LIBSLAB = $(LIBDIR)/libslab.a
 LIBLUAJIT = $(LIBDIR)/libluajit-5.1.a
@@ -40,11 +40,7 @@ else
 ALL=$(MUST_STATIC)
 endif
 
-ifeq ($(DEVELOP_BUILD),yes)
-# LUAJIT_OPTS=CC=$(CC) PREFIX=$(PREFIX) LDFLAGS='$(EXTRA_CFLAGS) $(LDFLAGS)' CFLAGS='$(EXTRA_CFLAGS) $(CFLAGS)' CCOPT="-static -fPIC" BUILDMODE="static"
-else
-LUAJIT_OPTS=$(OPTS) BUILDMODE=static
-endif
+LUAJIT_OPTS=CC=$(CC) CFLAGS='-O2 -fPIC -fomit-frame-pointer' LDFLAGS='$(LDFLAGS)' PREFIX=$(PREFIX) BUILDMODE=static
 
 .DEFAULT: all
 .PHONY: clean
@@ -93,7 +89,7 @@ $(LIBLUV): $(LIBLUVDEPS)
 	@ cp luv.patch luv/luv.patch
 	@- cd luv && patch -N -p1 < luv.patch
 	$(CC) $(CFLAGS) -c luv/src/luv.c -o luv/src/luv.o && $(AR) rcs $(LIBLUV) luv/src/luv.o
-	@ mkdir $(INCDIR)/luv && cp luv/src/*.h  $(INCDIR)/luv
+	@ mkdir -p $(INCDIR)/luv && cp luv/src/*.h  $(INCDIR)/luv
 
 ifeq ($(STATIC_BUILD),yes)
 LPEGDEPS=$(LIBLUAJIT)
@@ -114,7 +110,10 @@ $(LPCRE): $(LPCREDEPS)
 	@ cd lrexlib && $(MAKE) CFLAGS="$(CFLAGS) -DLUA_VERSION_NUM=501 -DLUA_LIB -DLUA_COMPAT_APIINTCASTS -DVERSION='\"2.8.0\"'"
 	@ cp lrexlib/lpcre.a $(LPCRE)
 
-$(LSSL): $(LIBOPENSSL)
+ifeq ($(STATIC_BUILD),yes)
+LSSLDEPS=$(LIBOPENSSL)
+endif
+$(LSSL): $(LSSLDEPS)
 	@ echo "  COMPILING	lua-openssl"
 	@ cd lua-openssl && $(MAKE) libopenssl.a TARGET_FLAGS='-DPTHREADS -DOPENSSL_NO_SM2 -DOPENSSL_NO_STDIO $(CFLAGS)'
 	@ cp lua-openssl/libopenssl.a $(LSSL)

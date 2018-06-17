@@ -5,8 +5,8 @@ AC_DEFUN([SET_DEFLAG],[test -z "$$1" && $1="$2";])
 AC_DEFUN([PKG_LIBS],[`pkg-config $1 --libs`])
 AC_DEFUN([PKG_INCLUDE],[`pkg-config $1 --cflags-only-I`])
 
-AC_ARG_ENABLE(static, [AS_HELP_STRING([--enable-static], [build local dependencies and statically link final executable])], [enable_static=yes], [enable_static=no])
-AC_ARG_ENABLE(develop, [AS_HELP_STRING([--enable-develop], [enable development build. This forces --enable-static and sets a bunch of testing and debugging compiler flags.])], [enable_develop=yes], [enable_develop=no])
+AC_ARG_ENABLE(static, [AS_HELP_STRING([--enable-static], [build local dependencies and statically link final executable with musl libc and all the dependencies])], [enable_static=yes], [enable_static=no])
+AC_ARG_ENABLE(develop, [AS_HELP_STRING([--enable-develop], [enable development build. This sets clang as the compiler and sets a bunch of testing and debugging compiler flags.])], [enable_develop=yes], [enable_develop=no])
 
 AC_CHECK_PROG(PKGCFG,pkg-config,yes)
 if test x"$PKGCFG" != x"yes" ; then
@@ -19,23 +19,23 @@ then
 	if test x"$MUSL_CHECK" != x"yes" ; then
 		AC_MSG_ERROR([Please install musl libc before building with --enable-static.])
 	fi
+	AC_MSG_WARN([THIS IS EXPERIMENTAL. USE THIS BUILD AT YOUR OWN RISK.])
 fi
-
-SET_DEFLAG(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
 
 if test "$enable_develop" == yes
 then
-	enable_static=yes
-	# SET_DEFLAG(CC,[clang])
-	# SET_DEFLAG(CFLAGS, [-I$PWD/deps/include -I$PWD/deps/include/luajit-2.0 -ggdb])
-	# SET_DEFLAG(EXTRA_CFLAGS, [-specs "/home/ernestrc/src/logd/deps/lib/musl-gcc.specs" -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -std=c11])
-	# SET_DEFLAG(EXTRA_LDFLAGS,[-static -L$PWD/deps/lib])
-	# TODO SET_DEFLAG(LIBS,[-lpcre -lssl -lcrypto -luv -lrt -lpthread -lz -lluajit-5.1 -Wl,-E -lm -ldl])
+	SET_DEFLAG(CC, [clang])
+	SET_DEFLAG(CFLAGS,[-ggdb -I$PWD/deps/include PKG_INCLUDE(luajit) -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping])
+	SET_DEFLAG(EXTRA_CFLAGS, [])
+	SET_DEFLAG(LDFLAGS, [])
+	SET_DEFLAG(LIBS,[PKG_LIBS(libpcre) PKG_LIBS(openssl) PKG_LIBS(libuv) PKG_LIBS(luajit) PKG_LIBS(zlib) -lm -ldl])
+	SET_DEFLAG(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
+	# TODO luajit="LUA_PATH=\"$PWD/deps/luajit/src/?.lua;$PWD/deps/luajit/src/jit/?.lua\" $PWD/deps/luajit/src/luajit"
+	luajit=/usr/bin/luajit
 	AC_DEFINE(LOGD_SLAB_CAP, 32)
 	AC_DEFINE(LOGD_BUF_INIT_CAP, 4096)
 	AC_DEFINE(LOGD_BUF_MAX_CAP, 409600)
 	AC_DEFINE(LOGD_DEBUG)
-	luajit="LUA_PATH=\"$PWD/deps/luajit/src/?.lua;$PWD/deps/luajit/src/jit/?.lua\" $PWD/deps/luajit/src/luajit"
 else
 	AC_DEFINE(LOGD_SLAB_CAP, 256)
 	AC_DEFINE(LOGD_BUF_INIT_CAP, 1638400)
@@ -43,8 +43,8 @@ else
 	AC_DEFINE(LOGD_INLINE)
 	if test "$enable_static" == yes
 	then
-		SET_DEFLAG(CC, ["musl-gcc"])
-		SET_DEFLAG(CFLAGS,[-ggdb -O3 -flto -I$PWD/deps/include -I$PWD/deps/include/luajit-2.0])
+		SET_DEFLAG(CC, [musl-gcc])
+		SET_DEFLAG(CFLAGS,[-fPIC -ggdb -I$PWD/deps/include -I$PWD/deps/include/luajit-2.0])
 		SET_DEFLAG(EXTRA_CFLAGS, [-std=c99])
 		SET_DEFLAG(LDFLAGS, [-static])
 		SET_DEFLAG(EXTRA_LDFLAGS,[-L$PWD/deps/lib])
