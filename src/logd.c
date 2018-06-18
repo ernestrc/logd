@@ -49,6 +49,11 @@ static void (*free_parser)(void*) = (void (*)(void*))(&parser_free);
 static void* (*create_parser)() = (void* (*)())(&parser_create);
 static void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
 
+void print_version()
+{
+	printf("logd %s\n", LOGD_VERSION);
+}
+
 void on_close_lua_handle(uv_handle_t* handle)
 {
 	DEBUG_ASSERT((void*)handle != (void*)&uv_read_in_req);
@@ -97,22 +102,23 @@ void free_all()
 char* args_init(int argc, char* argv[])
 {
 	/* set defaults for arguments */
-	args.debug = OPT_DEFAULT_DEBUG;
 	args.input_file = "/dev/stdin";
 	args.help = 0;
 	args.dlparser = NULL;
 
 	static struct option long_options[] = {{"debug", no_argument, 0, 'd'},
 	  {"file", required_argument, 0, 'f'}, {"help", no_argument, 0, 'h'},
-	  {"parser", required_argument, 0, 'p'}, {0, 0, 0, 0}};
+	  {"parser", required_argument, 0, 'p'}, {"version", no_argument, 0, 'v'},
+	  {0, 0, 0, 0}};
 
 	int option_index = 0;
 	int c = 0;
 	while ((c = getopt_long(
-			  argc, argv, "p:df:o:h", long_options, &option_index)) != -1) {
+			  argc, argv, "vp:df:o:h", long_options, &option_index)) != -1) {
 		switch (c) {
-		case 'd':
-			args.debug = true;
+		case 'v':
+			print_version();
+			exit(0);
 			break;
 		case 'p':
 			args.dlparser = optarg;
@@ -403,14 +409,13 @@ void print_usage(const char* exe)
 {
 	printf("usage: %s <script> [options]\n", exe);
 	printf("\noptions:\n");
-	printf("\t-d, --debug			enable debug logs [default: %s]\n",
-	  OPT_DEFAULT_DEBUG ? "true" : "false");
-	printf("\t-f, --file=<path>		file to read data from [default: "
+	printf("\t-f, --file=<path>		File to read data from [default: "
 		   "/dev/stdin]\n");
-	printf("\t-p, --parser=<parser_so>	load dynamic shared object C ABI "
+	printf("\t-p, --parser=<parser_so>	Load shared object "
 		   "parser via dlopen [default: "
 		   "builtin]\n");
-	printf("\t-h, --help			prints this message\n");
+	printf("\t-h, --help			Display this message.\n");
+	printf("\t-v, --version			Display logd version information.\n");
 }
 
 int main(int argc, char* argv[])

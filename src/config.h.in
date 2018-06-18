@@ -10,5 +10,6 @@
 #undef LOGD_WITH_OPENSSL
 #undef LOGD_WITH_PCRE
 #undef LOGD_WITH_LPEG
+#undef LOGD_VERSION
 
 #endif

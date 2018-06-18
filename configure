@@ -624,6 +624,7 @@ ac_includes_default="\
 ac_unique_file="src/logd_module.c"
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+LOGD_VERSION
 ROOT_DIR
 EXTRA_LDFLAGS
 EXTRA_CFLAGS
@@ -656,6 +657,7 @@ LOGD_BUF_INIT_CAP
 LOGD_SLAB_CAP
 MUSL_CHECK
 PATCHPGR
+GITPRG
 PKGCFG
 target_alias
 host_alias
@@ -2215,6 +2217,47 @@ if test x"$PKGCFG" != x"yes" ; then
     as_fn_error $? "Please install pkg-config before building logd." "$LINENO" 5
 fi
 
+# Extract the first word of "git", so it can be a program name with args.
+set dummy git; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_GITPRG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$GITPRG"; then
+  ac_cv_prog_GITPRG="$GITPRG" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_GITPRG="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+GITPRG=$ac_cv_prog_GITPRG
+if test -n "$GITPRG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $GITPRG" >&5
+$as_echo "$GITPRG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+if test x"$GITPRG" != x"yes" ; then
+    as_fn_error $? "Please install git before building logd." "$LINENO" 5
+fi
+
 # Extract the first word of "patch", so it can be a program name with args.
 set dummy patch; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -2255,6 +2298,8 @@ fi
 if test x"$PATCHPGR" != x"yes" ; then
     as_fn_error $? "Please install patch before building logd." "$LINENO" 5
 fi
+
+version=`git describe --tags --long 2>/dev/null || echo "untagged-$(git rev-parse --short HEAD)"`
 
 if test "$enable_static" == yes
 then
@@ -5392,6 +5437,13 @@ $as_echo "$as_me: using include_lpeg=$include_lpeg" >&6;}
 $as_echo "$as_me: using BUILD_LIBS=$BUILD_LIBS" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using LIBS=$LIBS" >&5
 $as_echo "$as_me: using LIBS=$LIBS" >&6;}
+
+cat >>confdefs.h <<_ACEOF
+#define LOGD_VERSION "$version"
+_ACEOF
+
+LOGD_VERSION="$version"
+
 
 ac_config_files="$ac_config_files src/Makefile deps/Makefile test/Makefile"
 

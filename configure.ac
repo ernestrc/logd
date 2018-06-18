@@ -49,10 +49,17 @@ if test x"$PKGCFG" != x"yes" ; then
     AC_MSG_ERROR([Please install pkg-config before building logd.])
 fi
 
+AC_CHECK_PROG(GITPRG,git,yes)
+if test x"$GITPRG" != x"yes" ; then
+    AC_MSG_ERROR([Please install git before building logd.])
+fi
+
 AC_CHECK_PROG(PATCHPGR,patch,yes)
 if test x"$PATCHPGR" != x"yes" ; then
     AC_MSG_ERROR([Please install patch before building logd.])
 fi
+
+version=`git describe --tags --long 2>/dev/null || echo "untagged-$(git rev-parse --short HEAD)"`
 
 if test "$enable_static" == yes
 then
@@ -236,6 +243,9 @@ AC_MSG_NOTICE([using include_libpcre=$include_libpcre])
 AC_MSG_NOTICE([using include_lpeg=$include_lpeg])
 AC_MSG_NOTICE([using BUILD_LIBS=$BUILD_LIBS])
 AC_MSG_NOTICE([using LIBS=$LIBS])
+
+AC_DEFINE_UNQUOTED(LOGD_VERSION, ["$version"])
+AC_SUBST(LOGD_VERSION, ["$version"])
 
 AC_CONFIG_FILES([src/Makefile
 				 deps/Makefile
