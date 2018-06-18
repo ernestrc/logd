@@ -1,7 +1,3 @@
-PWD=$(shell pwd)
-BINDIR = $(PWD)/../bin
-LIBDIR=$(PWD)/../lib
-
 CC=@CC@
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
 LDFLAGS=@LDFLAGS@ @EXTRA_LDFLAGS@
@@ -11,6 +7,10 @@ LUAJIT= @LUAJITBIN@
 LOGD_BUF_MAX_CAP=@LOGD_BUF_MAX_CAP@
 LOGD_BUF_INIT_CAP=@LOGD_BUF_INIT_CAP@
 LOGD_SLAB_CAP=@LOGD_SLAB_CAP@
+ROOT_DIR=@ROOT_DIR@
+BINDIR = $(ROOT_DIR)/bin
+LIBDIR=$(ROOT_DIR)/lib
+
 
 TESTS=$(wildcard test_*.c)
 LUA_TESTS=$(wildcard test_*.lua)
@@ -25,13 +25,13 @@ TARGET_FPROFILES = $(addprefix $(BINDIR)/,$(patsubst %.c,%.profraw,$(FUZZERS)))
 
 LIB = $(LIBDIR)/liblogd.a
 SO = $(LIBDIR)/logd.so
-LINK_SO = $(PWD)/logd.so
+LINK_SO = $(ROOT_DIR)/test/logd.so
 EXEC = $(BINDIR)/logd
 
 # a regular lua interpreter should suffice but
 # we compile a test runner with instrumentation so lua tests are 
 # considered for code coverage
-LUNIT_RUNNER=$(PWD)/lunit/extra/lunit.sh
+LUNIT_RUNNER=$(ROOT_DIR)/test/lunit/extra/lunit.sh
 LUNIT_FLAGS ?= --interpreter $(LUAJIT)
 LUA_PATH=./?.lua;./lunit/lua/?.lua;
 
@@ -65,7 +65,7 @@ coverage: $(TESTPROFDATA)
 
 html-coverage: $(TESTPROFDATA) BROWSER
 	llvm-cov show -format=html -instr-profile=$(TESTPROFDATA) $(addprefix -object ,$(TARGET_TESTS)) > $(BINDIR)/coverage.html
-	@$(BROWSER) $(PWD)/$(BINDIR)/coverage.html
+	@$(BROWSER) $(BINDIR)/coverage.html
 
 fuzz: $(TARGET_FUZZERS)
 	@ for f in $^; do mkdir -p $$f.corpus && LLVM_PROFILE_FILE="$$f.profraw" $$f $$f.corpus $(FUZZFLAGS); done; wait
@@ -82,7 +82,7 @@ fuzz-coverage: $(FUZZPROFDATA)
 
 fuzz-html-coverage: $(FUZZPROFDATA) BROWSER
 	llvm-cov show -format=html -instr-profile=$(FUZZPROFDATA) $(addprefix -object ,$(TARGET_FUZZERS)) > $(BINDIR)/fuzz-coverage.html
-	@$(BROWSER) $(PWD)/$(BINDIR)/fuzz-coverage.html
+	@$(BROWSER) $(BINDIR)/fuzz-coverage.html
 
 clean:
 	@rm -f $(TARGET_TESTS) $(TARGET_FUZZERS) $(FUZZPROFDATA) $(TESTPROFDATA) $(TARGET_TPROFILES) $(TARGET_FPROFILES) $(LINK_SO)

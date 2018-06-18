@@ -1,17 +1,17 @@
-PWD=$(shell pwd)
-
 CC=@CC@
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
 CFLAGS_NO_EXTRA=@CFLAGS@
 LDFLAGS=@LDFLAGS@ @EXTRA_LDFLAGS@
-LIBS=@LIBS@ @EXTRA_LIBS@
+LIBS=@LIBS@
+BUILD_LIBS= @BUILD_LIBS@
 LUAJIT=@LUAJITBIN@
 DEVELOP_BUILD=@DEVELOP_BUILD@
+ROOT_DIR=@ROOT_DIR@
 
-LIBDEPS=$(PWD)/../deps/lib
-INCDIR=$(PWD)/../include
-BINDIR =$(PWD)/../bin
-LIBDIR =$(PWD)/../lib
+LIBDEPS=$(ROOT_DIR)/deps/lib
+INCDIR=$(ROOT_DIR)/include
+BINDIR =$(ROOT_DIR)/bin
+LIBDIR =$(ROOT_DIR)/lib
 
 EXEC_SRC = logd.c
 EXEC_OBJ = logd.o
@@ -20,7 +20,7 @@ LUA_SRCS = $(wildcard *.lua)
 OBJS = $(filter-out $(patsubst %.c,%.o,$(EXEC_SRC)), $(patsubst %.c,%.o,$(SRCS)))
 JITTED = $(patsubst %.lua,%.jit.o,$(LUA_SRCS))
 EXEC = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(EXEC_SRC)))
-STATIC_LIBS = $(LIBDEPS)/libslab.a $(LIBDEPS)/liblssl.a $(LIBDEPS)/libluv.a $(LIBDEPS)/liblpcre.a $(LIBDEPS)/liblpeg.a $(LIBDEPS)/liblzlib.a
+STATIC_LIBS = $(LIBDEPS)/libslab.a $(LIBDEPS)/liblssl.a $(LIBDEPS)/libluv.a $(LIBDEPS)/liblpcre.a $(LIBDEPS)/liblpeg.a $(LIBDEPS)/liblzlib.a $(BUILD_LIBS)
 CMOD = $(LIBDIR)/logd.so
 CMOD_DEPS=log.c util.c
 PARSER_SO = $(LIBDIR)/logd_parser.so

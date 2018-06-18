@@ -4,41 +4,40 @@ export CFLAGS=@CFLAGS@
 export LDFLAGS=@LDFLAGS@
 export PREFIX=$(shell pwd)
 
+ROOT_DIR=@ROOT_DIR@
 EXTRA_CFLAGS=@EXTRA_CFLAGS@
-STATIC_BUILD=@STATIC_BUILD@
 DEVELOP_BUILD=@DEVELOP_BUILD@
+BUILD_LIBUV=@BUILD_LIBUV@
+BUILD_LUAJIT=@BUILD_LUAJIT@
+BUILD_ZLIB=@BUILD_ZLIB@
+BUILD_PCRE=@BUILD_PCRE@
+BUILD_OPENSSL=@BUILD_OPENSSL@
+BUILD_LIBS=@BUILD_LIBS@
 
-LIBDIR = $(PREFIX)/lib
-BINDIR = $(PREFIX)/bin
-MANDIR = $(PREFIX)/man
-SHAREDIR = $(PREFIX)/share
-INCDIR = $(PREFIX)/include
+LIBDIR = $(ROOT_DIR)/deps/lib/
+BINDIR = $(ROOT_DIR)/deps/bin/
+MANDIR = $(ROOT_DIR)/deps/man/
+SHAREDIR = $(ROOT_DIR)/deps/share/
+INCDIR = $(ROOT_DIR)/deps/include/
 
 OPTS=CC=$(CC) CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS)' PREFIX=$(PREFIX) 
 CFG_FLAGS=$(OPTS) --prefix='$(PREFIX)' --disable-shared
-OPENSSL_CFG=--openssldir=$(PREFIX) --prefix=$(PREFIX) no-fuzz-libfuzzer no-fuzz-afl no-unit-test no-shared no-hw no-dso no-threads zlib --with-zlib-include=$(INCDIR) --with-zlib-lib=$(LIBDIR)
-    
-LIBSLAB = $(LIBDIR)/libslab.a
-LIBLUAJIT = $(LIBDIR)/libluajit-5.1.a
-LIBUV = $(LIBDIR)/libuv.a
-LIBLUV = $(LIBDIR)/libluv.a
-LPEG = $(LIBDIR)/liblpeg.a
-LPCRE = $(LIBDIR)/liblpcre.a
-LIBOPENSSL = $(LIBDIR)/libssl.a
-LSSL = $(LIBDIR)/liblssl.a
-LZLIB = $(LIBDIR)/liblzlib.a
-LIBPCRE = $(LIBDIR)/libpcre.a
-LIBZ = $(LIBDIR)/libz.a
-LUA_COMPAT= $(INCDIR)/c-api
 
-MUST_STATIC = $(LIBSLAB) $(LIBLUV) $(LPEG) $(LPCRE) $(LSSL) $(LZLIB) $(LUA_COMPAT)
-CAN_STATIC = $(LIBLUAJIT) $(LIBUV) $(LIBOPENSSL) $(LIBPCRE) $(LIBZ)
+LIBSLAB = $(LIBDIR)libslab.a
+LIBLUAJIT = $(LIBDIR)libluajit-5.1.a
+LIBUV = $(LIBDIR)libuv.a
+LIBLUV = $(LIBDIR)libluv.a
+LPEG = $(LIBDIR)liblpeg.a
+LPCRE = $(LIBDIR)liblpcre.a
+LIBCRYPTO = $(LIBDIR)libcrypto.a
+LIBSSL = $(LIBDIR)libssl.a
+LSSL = $(LIBDIR)liblssl.a
+LZLIB = $(LIBDIR)liblzlib.a
+LIBPCRE = $(LIBDIR)libpcre.a
+LIBZ = $(LIBDIR)libz.a
+LUA_COMPAT= $(INCDIR)c-api
 
-ifeq ($(STATIC_BUILD),yes)
-ALL=$(CAN_STATIC) $(MUST_STATIC)
-else
-ALL=$(MUST_STATIC)
-endif
+ALL = $(BUILD_LIBS) $(LIBSLAB) $(LIBLUV) $(LPEG) $(LPCRE) $(LSSL) $(LZLIB) $(LUA_COMPAT)
 
 LUAJIT_OPTS=CC=$(CC) CFLAGS='-O2 -fPIC -fomit-frame-pointer' LDFLAGS='$(LDFLAGS)' PREFIX=$(PREFIX) BUILDMODE=static
 
@@ -47,7 +46,7 @@ LUAJIT_OPTS=CC=$(CC) CFLAGS='-O2 -fPIC -fomit-frame-pointer' LDFLAGS='$(LDFLAGS)
 
 all: $(MANDIR) $(SHAREDIR) $(BINDIR) $(INCDIR) $(LIBDIR) $(ALL)
 
-$(PREFIX)/%:
+$(ROOT_DIR)/deps/%/:
 	@ mkdir -p $@
 
 $(LIBUV):
@@ -58,8 +57,17 @@ $(LIBLUAJIT):
 	@ echo "  COMPILING	luajit"
 	@ cd luajit && $(MAKE) $(LUAJIT_OPTS) && $(MAKE) install $(LUAJIT_OPTS)
 
-$(LIBOPENSSL): $(LIBZ)
-	@ echo "  COMPILING libopenssl"
+ifeq ($(BUILD_ZLIB),yes)
+OPENSSL_CFG=--openssldir=$(PREFIX) --prefix=$(PREFIX) no-fuzz-libfuzzer no-fuzz-afl no-unit-test no-shared no-hw no-dso no-threads zlib --with-zlib-include=$(INCDIR) --with-zlib-lib=$(LIBDIR)
+OPENSSLDEPS=$(LIBZ)
+else
+OPENSSL_CFG=--openssldir=$(PREFIX) --prefix=$(PREFIX) no-fuzz-libfuzzer no-fuzz-afl no-unit-test no-shared no-hw no-dso no-threads zlib
+endif
+    
+$(LIBCRYPTO): $(LIBSSL)
+
+$(LIBSSL): $(OPENSSLDEPS)
+	@ echo "  COMPILING openssl"
 	@ cd openssl && \
 		./config $(OPENSSL_CFG) && $(MAKE) $(OPTS) && $(MAKE) install $(OPTS)
 
@@ -77,21 +85,23 @@ $(LIBSLAB):
 	@ echo "  COMPILING	libslab"
 	@ cd slab && $(MAKE)
 	@ cp slab/lib/libslab.a $(LIBSLAB)
-	@ mkdir -p $(INCDIR)/slab && cp slab/src/*.h $(INCDIR)/slab
+	@ mkdir -p $(INCDIR)slab && cp slab/src/*.h $(INCDIR)slab
 
-ifeq ($(STATIC_BUILD),yes)
-LIBLUVDEPS=$(LUA_COMPAT) $(LIBLUAJIT)
-else
-LIBLUVDEPS=$(LUA_COMPAT)
+LIBLUVDEPS = $(LUA_COMPAT)
+ifeq ($(BUILD_LUAJIT),yes)
+LIBLUVDEPS += $(LIBLUAJIT)
+endif
+ifeq ($(BUILD_LIBUV),yes)
+LIBLUVDEPS += $(LIBUV)
 endif
 $(LIBLUV): $(LIBLUVDEPS)
 	@ echo "  COMPILING	luv"
 	@ cp luv.patch luv/luv.patch
 	@- cd luv && patch -N -p1 < luv.patch
 	$(CC) $(CFLAGS) -c luv/src/luv.c -o luv/src/luv.o && $(AR) rcs $(LIBLUV) luv/src/luv.o
-	@ mkdir -p $(INCDIR)/luv && cp luv/src/*.h  $(INCDIR)/luv
+	@ mkdir -p $(INCDIR)luv && cp luv/src/*.h  $(INCDIR)luv
 
-ifeq ($(STATIC_BUILD),yes)
+ifeq ($(BUILD_LUAJIT),yes)
 LPEGDEPS=$(LIBLUAJIT)
 endif
 $(LPEG): $(LPEGDEPS)
@@ -101,8 +111,12 @@ $(LPEG): $(LPEGDEPS)
 	@ cd lpeg && $(MAKE)
 	@ cd lpeg && $(AR) rcs $(LPEG) *.o && ranlib $(LPEG)
 
-ifeq ($(STATIC_BUILD),yes)
-LPCREDEPS=$(LIBLUAJIT)
+LPCREDEPS=
+ifeq ($(BUILD_LUAJIT),yes)
+LPCREDEPS += $(LIBLUAJIT)
+endif
+ifeq ($(BUILD_PCRE),yes)
+LPCREDEPS += $(LIBPCRE)
 endif
 $(LPCRE): $(LPCREDEPS)
 	@ echo "  COMPILING	lpcre"
@@ -110,16 +124,20 @@ $(LPCRE): $(LPCREDEPS)
 	@ cd lrexlib && $(MAKE) CFLAGS="$(CFLAGS) -DLUA_VERSION_NUM=501 -DLUA_LIB -DLUA_COMPAT_APIINTCASTS -DVERSION='\"2.8.0\"'"
 	@ cp lrexlib/lpcre.a $(LPCRE)
 
-ifeq ($(STATIC_BUILD),yes)
-LSSLDEPS=$(LIBOPENSSL)
+ifeq ($(BUILD_OPENSSL),yes)
+LSSLDEPS=$(LIBCRYPTO) $(LIBSSL)
 endif
 $(LSSL): $(LSSLDEPS)
 	@ echo "  COMPILING	lua-openssl"
 	@ cd lua-openssl && $(MAKE) libopenssl.a TARGET_FLAGS='-DPTHREADS -DOPENSSL_NO_SM2 -DOPENSSL_NO_STDIO $(CFLAGS)'
 	@ cp lua-openssl/libopenssl.a $(LSSL)
 
-ifeq ($(STATIC_BUILD),yes)
-LIBZDEPS=$(LIBLUAJIT)
+LIBZDEPS=
+ifeq ($(BUILD_LUAJIT),yes)
+LIBZDEPS += $(LIBLUAJIT)
+endif
+ifeq ($(BUILD_ZLIB),yes)
+LIBZDEPS += $(LIBZ)
 endif
 $(LZLIB): $(LIBZDEPS)
 	@ echo "  COMPILING	lua-zlib"
