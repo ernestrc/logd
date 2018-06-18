@@ -39,7 +39,7 @@ LUA_COMPAT= $(INCDIR)c-api
 
 ALL = $(BUILD_LIBS) $(LIBSLAB) $(LIBLUV) $(LPEG) $(LPCRE) $(LSSL) $(LZLIB) $(LUA_COMPAT)
 
-LUAJIT_OPTS=CC=$(CC) CFLAGS='-O2 -fPIC -fomit-frame-pointer' LDFLAGS='$(LDFLAGS)' PREFIX=$(PREFIX) BUILDMODE=static
+LUAJIT_OPTS=CC='$(CC)' CFLAGS='-O2 -fPIC -fomit-frame-pointer' LDFLAGS='$(LDFLAGS)' PREFIX='$(PREFIX)' BUILDMODE='static'
 
 .DEFAULT: all
 .PHONY: clean
@@ -81,11 +81,19 @@ $(LIBZ):
 	@ echo "  COMPILING	zlib"
 	@ cd zlib && ./configure --static --prefix=$(PREFIX) && $(MAKE) TEST_LDFLAGS='-L. libz.a $(LDFLAGS)' $(OPTS) && $(MAKE) install $(OPTS)
 
+# to maximize compatiblity, as full libslab requires -std=c11/gnu11
+ifeq ($(DEVELOP_BUILD),yes)
 $(LIBSLAB):
 	@ echo "  COMPILING	libslab"
 	@ cd slab && $(MAKE)
 	@ cp slab/lib/libslab.a $(LIBSLAB)
 	@ mkdir -p $(INCDIR)slab && cp slab/src/*.h $(INCDIR)slab
+else
+$(LIBSLAB):
+	@ echo "  COMPILING	libslab"
+	$(CC) $(CFLAGS) -c slab/src/buf.c -o slab/src/buf.o && $(AR) rcs $(LIBSLAB) slab/src/buf.o
+	@ mkdir -p $(INCDIR)slab && cp slab/src/buf.h $(INCDIR)slab
+endif
 
 LIBLUVDEPS = $(LUA_COMPAT)
 ifeq ($(BUILD_LUAJIT),yes)
