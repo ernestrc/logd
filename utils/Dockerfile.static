@@ -1,0 +1,12 @@
+FROM alpine:3.7
+
+RUN apk update && apk add alpine-sdk libtool automake m4 autoconf linux-headers
+
+WORKDIR /opt/logd
+VOLUME /opt/logd/bin
+
+COPY . /opt/logd
+
+RUN ./configure CC=gcc CFLAGS='-I/opt/logd/deps/include -I/opt/logd/deps/include/luajit-2.0 -O3' --enable-static
+
+CMD make

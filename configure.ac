@@ -64,11 +64,7 @@ version=`git describe --tags --long 2>/dev/null || echo "untagged-$(git rev-pars
 if test "$enable_static" == yes
 then
 	build_all=yes
-	AC_CHECK_PROG(MUSL_CHECK,musl-gcc,yes)
-	if test x"$MUSL_CHECK" != x"yes" ; then
-		AC_MSG_ERROR([Please install musl libc before building with --enable-static.])
-	fi
-	AC_MSG_WARN([THIS IS EXPERIMENTAL. USE THIS BUILD AT YOUR OWN RISK.])
+	AC_MSG_WARN([--enable-static IS EXPERIMENTAL. USE THIS BUILD AT YOUR OWN RISK.])
 fi
 
 if test "$build_all" == yes

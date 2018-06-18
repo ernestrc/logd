@@ -6,5 +6,8 @@ RUN yum install -y git make gcc libtool zlib-devel pcre-devel openssl-devel patc
 WORKDIR /opt/logd
 VOLUME /opt/logd/bin
 
-CMD ./configure CFLAGS='-DOPENSSL_NO_SRP -I/opt/logd/deps/include -I/opt/logd/deps/include/luajit-2.0 -O3' --enable-build-luajit --enable-build-libuv && make -j4
 COPY . /opt/logd
+
+RUN ./configure CFLAGS='-DOPENSSL_NO_SRP -I/opt/logd/deps/include -I/opt/logd/deps/include/luajit-2.0 -O3' --enable-build-luajit --enable-build-libuv
+
+CMD make
