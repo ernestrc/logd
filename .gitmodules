@@ -36,7 +36,7 @@
     ignore = dirty
 [submodule "deps/openssl"]
 	path = deps/openssl
-	url = git@github.com:openssl/openssl.git
+	url = https://github.com/openssl/openssl.git
     ignore = dirty
 [submodule "test/lunit"]
 	path = test/lunit
