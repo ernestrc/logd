@@ -60,11 +60,10 @@ clean:
 	@ $(MAKE) $@ -C $(TEST)
 	@ rm -f *.profraw
 
-purge: prepare clean
+purge: clean
 	@ rm -rf autom4te.cache config.status config.log
-	@ $(MAKE) clean -C $(DEPS)
-	@ git submodule foreach --recursive git clean -xfd
-	@ git submodule foreach --recursive git reset --hard
+	@ $(MAKE) -C $(DEPS) clean
+	@ git submodule deinit --all -f
 	@ rm -f tags
 
 # TODO

@@ -20,24 +20,25 @@ MANDIR = $(ROOT_DIR)/deps/man/
 SHAREDIR = $(ROOT_DIR)/deps/share/
 INCDIR = $(ROOT_DIR)/deps/include/
 
-OPTS=CC=$(CC) CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS)' PREFIX=$(PREFIX) 
+OPTS=CC='$(CC)' CFLAGS='$(CFLAGS)' LDFLAGS='$(LDFLAGS)' PREFIX='$(PREFIX)'
 CFG_FLAGS=$(OPTS) --prefix='$(PREFIX)' --disable-shared
 
 LIBSLAB = $(LIBDIR)libslab.a
 LIBLUAJIT = $(LIBDIR)libluajit-5.1.a
 LIBUV = $(LIBDIR)libuv.a
 LIBLUV = $(LIBDIR)libluv.a
-LPEG = $(LIBDIR)liblpeg.a
-LPCRE = $(LIBDIR)liblpcre.a
 LIBCRYPTO = $(LIBDIR)libcrypto.a
 LIBSSL = $(LIBDIR)libssl.a
-LSSL = $(LIBDIR)liblssl.a
-LZLIB = $(LIBDIR)liblzlib.a
-LIBPCRE = $(LIBDIR)libpcre.a
 LIBZ = $(LIBDIR)libz.a
 LUA_COMPAT= $(INCDIR)c-api
+LIBPCRE = $(LIBDIR)libpcre.a
 
-ALL = $(BUILD_LIBS) $(LIBSLAB) $(LIBLUV) $(LPEG) $(LPCRE) $(LSSL) $(LZLIB) $(LUA_COMPAT)
+LPEG = $(LIBDIR)liblpeg.a
+LPCRE = $(LIBDIR)liblpcre.a
+LSSL = $(LIBDIR)liblssl.a
+LZLIB = $(LIBDIR)liblzlib.a
+
+ALL = $(BUILD_LIBS) $(LIBSLAB) $(LIBLUV) $(LUA_COMPAT)
 
 LUAJIT_OPTS=CC='$(CC)' CFLAGS='-O2 -fPIC -fomit-frame-pointer' LDFLAGS='$(LDFLAGS)' PREFIX='$(PREFIX)' BUILDMODE='static'
 
@@ -132,12 +133,21 @@ $(LPCRE): $(LPCREDEPS)
 	@ cd lrexlib && $(MAKE) CFLAGS="$(CFLAGS) -DLUA_VERSION_NUM=501 -DLUA_LIB -DLUA_COMPAT_APIINTCASTS -DVERSION='\"2.8.0\"'"
 	@ cp lrexlib/lpcre.a $(LPCRE)
 
+LSSLDEPS=
+ifeq ($(BUILD_LUAJIT),yes)
+LSSLDEPS += $(LIBLUAJIT)
+endif
 ifeq ($(BUILD_OPENSSL),yes)
-LSSLDEPS=$(LIBCRYPTO) $(LIBSSL)
+LSSLDEPS += $(LIBCRYPTO) $(LIBSSL)
+LSSL_TARGET_FLAGS=$(CFLAGS) -DOPENSSL_NO_STDIO -DOPENSSL_NO_SM2 -DPTHREADS
+else
+LSSL_TARGET_FLAGS=$(CFLAGS)
 endif
 $(LSSL): $(LSSLDEPS)
 	@ echo "  COMPILING	lua-openssl"
-	@ cd lua-openssl && $(MAKE) libopenssl.a TARGET_FLAGS='-DPTHREADS -DOPENSSL_NO_SM2 -DOPENSSL_NO_STDIO $(CFLAGS)'
+	@ cp lssl.patch lua-openssl/lssl.patch
+	@- cd lua-openssl && patch -N -p1 < lssl.patch
+	@ cd lua-openssl && $(MAKE) libopenssl.a TARGET_FLAGS='$(LSSL_TARGET_FLAGS)'
 	@ cp lua-openssl/libopenssl.a $(LSSL)
 
 LIBZDEPS=
@@ -157,4 +167,5 @@ $(LUA_COMPAT):
 	@ ln -s $(PREFIX)/luv/deps/lua-compat-5.3/c-api $(LUA_COMPAT)
 
 clean:
-	@- rm -rf $(LIBDIR) $(BINDIR) $(INCDIR) $(MANDIR) $(SHAREDIR)
+	@ rm -rf $(LIBDIR) $(BINDIR) $(INCDIR) $(MANDIR) $(SHAREDIR)
+	@ rm -f *.cnf *.cnf.dist

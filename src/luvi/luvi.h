@@ -33,26 +33,35 @@
 #include <unistd.h>
 #endif
 
+LUALIB_API int luaopen_luvi(lua_State* L);
+LUALIB_API int luaopen_env(lua_State* L);
+
 #if (LUA_VERSION_NUM != 503)
 #include <c-api/compat-5.3.h>
 #endif
 
-#ifdef WITH_OPENSSL
-#define OPENSSL_API_COMPAT 1
+#ifdef LOGD_WITH_OPENSSL
 #include <openssl/ssl.h>
+LUALIB_API int luaopen_openssl(lua_State* L);
 #endif
-#ifdef WITH_PCRE
+
+#ifdef LOGD_WITH_PCRE
 #include <pcre.h>
+LUALIB_API int luaopen_rex_pcre(lua_State* L);
 #endif
-#ifdef WITH_ZLIB
+
+#ifdef LOGD_WITH_ZLIB
 #include <zlib.h>
-LUALIB_API int luaopen_zlib(lua_State* const L);
+LUALIB_API int luaopen_zlib(lua_State* L);
 #endif
-#ifdef WITH_WINSVC
+
+#ifdef LOGD_WITH_WINSVC
 #include <winsvc.h>
 #include <winsvcaux.h>
 #endif
-#ifdef WITH_LPEG
-int luaopen_lpeg(lua_State* L);
+
+#ifdef LOGD_WITH_LPEG
+LUALIB_API int luaopen_lpeg(lua_State* L);
 #endif
+
 #endif

@@ -655,6 +655,7 @@ LOGD_BUF_MAX_CAP
 LOGD_BUF_INIT_CAP
 LOGD_SLAB_CAP
 MUSL_CHECK
+PATCHPGR
 PKGCFG
 target_alias
 host_alias
@@ -699,12 +700,16 @@ ac_user_opts='
 enable_option_checking
 enable_static
 enable_develop
+enable_build_all
 enable_build_libuv
 enable_build_luajit
 enable_build_zlib
 enable_build_pcre
 enable_build_openssl
-enable_build_all
+enable_zlib
+enable_openssl
+enable_pcre
+enable_lpeg
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1328,12 +1333,19 @@ Optional Features:
   --enable-develop        enable development build. This sets clang as the
                           compiler and sets a bunch of testing and debugging
                           compiler flags.
+  --enable-build-all      build all local dependencies
   --enable-build-libuv    build local libuv
   --enable-build-luajit   build local luajit
   --enable-build-zlib     build local zlib
   --enable-build-pcre     build local pcre
   --enable-build-openssl  build local openssl
-  --enable-build-all      build all local dependencies
+  --disable-zlib          do not include zlib as system or local dependency.
+                          This overrides --enable-build-zlib
+  --disable-openssl       do not include openssl as system or local
+                          dependency. This overrides --enable-build-openssl
+  --disable-pcre          do not include pcre as system or local dependency.
+                          This overrides --enable-build-pcre
+  --disable-lpeg          do not include lpeg module.
 
 Some influential environment variables:
   CC          C compiler command
@@ -2067,7 +2079,8 @@ build_libs=""
 system_libs="-lm -ldl"
 libs_ldflags="-L$root_dir/deps/lib"
 libs_cflags="-I$root_dir/deps/include"
-
+include_luajit=yes
+include_libuv=yes
 
 
 
@@ -2087,6 +2100,14 @@ if test "${enable_develop+set}" = set; then :
 else
   enable_develop=no
 fi
+
+# Check whether --enable-build-all was given.
+if test "${enable_build_all+set}" = set; then :
+  enableval=$enable_build_all; build_all=yes
+else
+  build_all=no
+fi
+
 
 # Check whether --enable-build-libuv was given.
 if test "${enable_build_libuv+set}" = set; then :
@@ -2123,11 +2144,33 @@ else
   build_libopenssl=no
 fi
 
-# Check whether --enable-build-all was given.
-if test "${enable_build_all+set}" = set; then :
-  enableval=$enable_build_all; build_all=yes
+
+# Check whether --enable-zlib was given.
+if test "${enable_zlib+set}" = set; then :
+  enableval=$enable_zlib; include_libz=no
 else
-  build_all=no
+  include_libz=yes
+fi
+
+# Check whether --enable-openssl was given.
+if test "${enable_openssl+set}" = set; then :
+  enableval=$enable_openssl; include_libopenssl=no
+else
+  include_libopenssl=yes
+fi
+
+# Check whether --enable-pcre was given.
+if test "${enable_pcre+set}" = set; then :
+  enableval=$enable_pcre; include_libpcre=no
+else
+  include_libpcre=yes
+fi
+
+# Check whether --enable-lpeg was given.
+if test "${enable_lpeg+set}" = set; then :
+  enableval=$enable_lpeg; include_lpeg=no
+else
+  include_lpeg=yes
 fi
 
 
@@ -2170,6 +2213,47 @@ fi
 
 if test x"$PKGCFG" != x"yes" ; then
     as_fn_error $? "Please install pkg-config before building logd." "$LINENO" 5
+fi
+
+# Extract the first word of "patch", so it can be a program name with args.
+set dummy patch; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_PATCHPGR+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$PATCHPGR"; then
+  ac_cv_prog_PATCHPGR="$PATCHPGR" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_PATCHPGR="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+PATCHPGR=$ac_cv_prog_PATCHPGR
+if test -n "$PATCHPGR"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PATCHPGR" >&5
+$as_echo "$PATCHPGR" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+if test x"$PATCHPGR" != x"yes" ; then
+    as_fn_error $? "Please install patch before building logd." "$LINENO" 5
 fi
 
 if test "$enable_static" == yes
@@ -2228,12 +2312,53 @@ then
 	build_libopenssl=yes
 fi
 
+# add zlib lua module
+if test "$include_libz" == yes
+then
+	$as_echo "#define LOGD_WITH_ZLIB 1" >>confdefs.h
+
+	build_libs="$build_libs $root_dir/deps/lib/liblzlib.a"
+else
+	build_libz=no
+fi
+
+# add openssl lua module
+if test "$include_libopenssl" == yes
+then
+	$as_echo "#define LOGD_WITH_OPENSSL 1" >>confdefs.h
+
+	build_libs="$build_libs $root_dir/deps/lib/liblssl.a"
+else
+	build_libopenssl=no
+fi
+
+# add pcre lua module
+if test "$include_libpcre" == yes
+then
+	$as_echo "#define LOGD_WITH_PCRE 1" >>confdefs.h
+
+	build_libs="$build_libs $root_dir/deps/lib/liblpcre.a"
+else
+	build_libpcre=no
+fi
+
+# add lpeg lua module
+if test "$include_lpeg" == yes
+then
+	$as_echo "#define LOGD_WITH_LPEG 1" >>confdefs.h
+
+	build_libs="$build_libs $root_dir/deps/lib/liblpeg.a"
+fi
+
 
 	if test "$build_libz" == yes
 	then
 		build_libs="$build_libs $root_dir/deps/lib/libz.a"
 	else
-		system_libs="$(pkg-config zlib --libs) $system_libs"
+		if test "$include_libz" == yes
+		then
+			system_libs="$(pkg-config zlib --libs) $system_libs"
+		fi
 	fi
 
 
@@ -2241,7 +2366,10 @@ fi
 	then
 		build_libs="$build_libs $root_dir/deps/lib/libpcre.a"
 	else
-		system_libs="$(pkg-config libpcre --libs) $system_libs"
+		if test "$include_libpcre" == yes
+		then
+			system_libs="$(pkg-config libpcre --libs) $system_libs"
+		fi
 	fi
 
 
@@ -2249,7 +2377,10 @@ fi
 	then
 		build_libs="$build_libs $root_dir/deps/lib/libuv.a"
 	else
-		system_libs="$(pkg-config libuv --libs) $system_libs"
+		if test "$include_libuv" == yes
+		then
+			system_libs="$(pkg-config libuv --libs) $system_libs"
+		fi
 	fi
 
 
@@ -2257,7 +2388,10 @@ fi
 	then
 		build_libs="$build_libs $root_dir/deps/lib/libluajit-5.1.a"
 	else
-		system_libs="$(pkg-config luajit --libs) $system_libs"
+		if test "$include_libluajit" == yes
+		then
+			system_libs="$(pkg-config luajit --libs) $system_libs"
+		fi
 	fi
 
 
@@ -2266,7 +2400,10 @@ if test "$build_libopenssl" == yes
 then
 	build_libs="$root_dir/deps/lib/libssl.a $root_dir/deps/lib/libcrypto.a $build_libs"
 else
-	system_libs="$(pkg-config openssl --libs) $system_libs"
+	if test "$include_libopenssl" == yes
+	then
+		system_libs="$(pkg-config openssl --libs) $system_libs"
+	fi
 fi
 
 # add -I/usr/local/include/luajit
@@ -2275,20 +2412,15 @@ then
 	libs_cflags="$libs_cflags $(pkg-config luajit --cflags-only-I)"
 	luajit=/usr/bin/luajit
 else
-	# TODO add instrumentation luajit="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\" $root_dir/deps/luajit/src/luajit"
 	libs_cflags="$libs_cflags -I$root_dir/deps/include/luajit-2.0"
-	luajit=/usr/bin/luajit
-fi
-
-if test "$build_libopenssl" == yes
-then
-	$as_echo "#define OPENSSL_NO_SM2 1" >>confdefs.h
-
+	luajit="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\" $root_dir/deps/luajit/src/luajit"
 fi
 
 if test "$enable_develop" == yes
 then
-	# TODO luajit="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\" $root_dir/deps/luajit/src/luajit"
+	# TODO develop build for now requires luajit to be installed in system
+	# until we add coverage instrumentation to luajit executable
+	luajit=/usr/bin/luajit
 	test -z "$LOGD_SLAB_CAP" && LOGD_SLAB_CAP="30"; $as_echo "#define LOGD_SLAB_CAP 30" >>confdefs.h
  LOGD_SLAB_CAP=30
 
@@ -5181,14 +5313,6 @@ else
 fi
 
 
-# TODO open up for configuration and add to usage string
-$as_echo "#define WITH_OPENSSL 1" >>confdefs.h
-
-$as_echo "#define WITH_ZLIB 1" >>confdefs.h
-
-$as_echo "#define WITH_PCRE 1" >>confdefs.h
-
-
 if test "$enable_static" == yes
 then
 	for ac_header in linux/mman.h
@@ -5246,10 +5370,28 @@ $as_echo "$as_me: using CC=$CC" >&6;}
 $as_echo "$as_me: using CFLAGS=$CFLAGS" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using LDFLAGS=$LDFLAGS" >&5
 $as_echo "$as_me: using LDFLAGS=$LDFLAGS" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: using LIBS=$LIBS" >&5
-$as_echo "$as_me: using LIBS=$LIBS" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using build_libz=$build_libz" >&5
+$as_echo "$as_me: using build_libz=$build_libz" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using build_libpcre=$build_libpcre" >&5
+$as_echo "$as_me: using build_libpcre=$build_libpcre" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using build_libuv=$build_libuv" >&5
+$as_echo "$as_me: using build_libuv=$build_libuv" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using build_libluajit=$build_libluajit" >&5
+$as_echo "$as_me: using build_libluajit=$build_libluajit" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using build_libopenssl=$build_libopenssl" >&5
+$as_echo "$as_me: using build_libopenssl=$build_libopenssl" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using include_libz=$include_libz" >&5
+$as_echo "$as_me: using include_libz=$include_libz" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using include_libopenssl=$include_libopenssl" >&5
+$as_echo "$as_me: using include_libopenssl=$include_libopenssl" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using include_libpcre=$include_libpcre" >&5
+$as_echo "$as_me: using include_libpcre=$include_libpcre" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using include_lpeg=$include_lpeg" >&5
+$as_echo "$as_me: using include_lpeg=$include_lpeg" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using BUILD_LIBS=$BUILD_LIBS" >&5
 $as_echo "$as_me: using BUILD_LIBS=$BUILD_LIBS" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using LIBS=$LIBS" >&5
+$as_echo "$as_me: using LIBS=$LIBS" >&6;}
 
 ac_config_files="$ac_config_files src/Makefile deps/Makefile test/Makefile"
 

@@ -6,6 +6,7 @@
 
 #include "./lua.h"
 
+#include "./config.h"
 #include "luvi/luvi.h"
 #include "luvi/lenv.c"
 #include "luvi/lminiz.c"
@@ -17,14 +18,6 @@
 #include "logd_module.h"
 #include "util.h"
 
-int luaopen_rex_pcre(lua_State* L);
-int luaopen_openssl(lua_State* L);
-int luaopen_lpeg(lua_State* L);
-int luaopen_zlib(lua_State* L);
-int luaopen_env(lua_State* L);
-int luaopen_miniz(lua_State* L);
-int luaopen_luvi(lua_State* L);
-
 static int lua_load_libs(lua_t* l, uv_loop_t* loop)
 {
 	luaopen_logd(l->state);
@@ -32,34 +25,40 @@ static int lua_load_libs(lua_t* l, uv_loop_t* loop)
 	if (luaopen_luv_loop(l->state, loop) < 0)
 		return 1;
 
-	/* preload all luvi builtins except:
-	 *		- snapshot
-	 *		- init
-	 */
 	lua_getglobal(l->state, "package");
 	lua_getfield(l->state, -1, "preload");
 	lua_remove(l->state, -2);
 
-	lua_pushcfunction(l->state, luaopen_env);
-	lua_setfield(l->state, -2, "env");
-
+#ifdef LOGD_WITH_ZLIB
 	lua_pushcfunction(l->state, luaopen_zlib);
 	lua_setfield(l->state, -2, "zlib");
+#endif
 
+#ifdef LOGD_WITH_LPEG
+	lua_pushcfunction(l->state, luaopen_lpeg);
+	lua_setfield(l->state, -2, "lpeg");
+#endif
+
+#ifdef LOGD_WITH_PCRE
+	lua_pushcfunction(l->state, luaopen_rex_pcre);
+	lua_setfield(l->state, -2, "rex");
+#endif
+
+#ifdef LOGD_WITH_OPENSSL
+	lua_pushcfunction(l->state, luaopen_openssl);
+	lua_setfield(l->state, -2, "openssl");
+#endif
+
+	/* used by luvibundle.lua */
 	lua_pushcfunction(l->state, luaopen_miniz);
 	lua_setfield(l->state, -2, "miniz");
 
-	lua_pushcfunction(l->state, luaopen_lpeg);
-	lua_setfield(l->state, -2, "lpeg");
-
-	lua_pushcfunction(l->state, luaopen_rex_pcre);
-	lua_setfield(l->state, -2, "rex");
-
+	/* used for version checking */
 	lua_pushcfunction(l->state, luaopen_luvi);
 	lua_setfield(l->state, -2, "luvi");
 
-	lua_pushcfunction(l->state, luaopen_openssl);
-	lua_setfield(l->state, -2, "openssl");
+	lua_pushcfunction(l->state, luaopen_env);
+	lua_setfield(l->state, -2, "env");
 
 	lua_pop(l->state, 1);
 

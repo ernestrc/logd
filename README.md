@@ -27,10 +27,45 @@ If you need to parse logs with a different format, you can load a dynamic shared
 
 ## Preloaded Lua modules
 - [logd](#logd-module-api)
-- [lpeg](http://www.inf.puc-rio.br/~roberto/lpeg/)
 - [miniz](https://github.com/luvit/luvi/blob/master/src/lminiz.c) 
-- [lpcre](https://github.com/rrthomas/lrexlib)
-- [openssl](https://github.com/zhaozg/lua-openssl)
+
+## Optionally Preloaded Lua modules 
+Depending on the build, the following modules are preloaded:
+- [lpeg](http://www.inf.puc-rio.br/~roberto/lpeg/)
+- [lrexlib](https://github.com/rrthomas/lrexlib)
+- [lua-openssl](https://github.com/zhaozg/lua-openssl)
+- [lua-zlib](https://github.com/brimworks/lua-zlib)
+
+## Build instructions
+Run configure script and then make:
+```sh
+$ ./configure
+$ make
+```
+If you have problems linking with a system dependency, you can configure the project to build the dependency from source:
+```sh
+$ ./configure --enable-build-luajit --enable-build-openssl
+$ make
+```
+Alternatively, you can provide your own CFLAGS or LDFLAGS:
+```sh
+$ ./configure CFLAGS='-DOPENSSL_NO_STDIO -DOPENSSL_NO_SM2'
+$ make
+```
+Finally, you can also disable some of the modules:
+```sh
+$ ./configure --disable-openssl --disable-lpeg
+$ make
+```
+For a full list of options run `./configure --help`.
+
+## Running tests
+Configure and enable the development build:
+```sh
+$ ./configure --enable-develop
+$ make
+$ make test
+```
 
 ## Luvit
 Logd uses Libuv under the hood and is compatible with [Luvit](https://luvit.io) modules. The Luvit runtime and standard modules are not preloaded by default but you can do so by running `lit install luvit/luvit` in your script's directory and then supplying your script to the logd executable.

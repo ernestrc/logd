@@ -1,0 +1,316 @@
+diff --git a/Makefile b/Makefile
+index 38b560b..c0bf6c0 100644
+--- a/Makefile
++++ b/Makefile
+@@ -70,7 +70,7 @@ endif
+ 
+ LIBNAME= $T.so.$V
+ 
+-CFLAGS		+= $(OPENSSL_CFLAGS) $(LUA_CFLAGS) $(TARGET_FLAGS)
++CFLAGS		+= $(TARGET_FLAGS)
+ LDFLAGS		+= -shared $(OPENSSL_LIBS) $(LUA_LIBS)
+ # Compilation directives
+ WARN_MIN	 = -Wall -Wno-unused-value
+diff --git a/src/bio.c b/src/bio.c
+index f88807a..6b4349d 100644
+--- a/src/bio.c
++++ b/src/bio.c
+@@ -9,6 +9,7 @@
+ #include "private.h"
+ #include <openssl/ssl.h>
+ 
++#if !defined(OPENSSL_NO_BIO)
+ #define MYNAME    "bio"
+ #define MYVERSION MYNAME " library for " LUA_VERSION " / Nov 2014 / "\
+   "based on OpenSSL " SHLIB_VERSION_NUMBER
+@@ -743,4 +744,4 @@ int luaopen_bio(lua_State *L)
+ 
+   return 1;
+ }
+-
++#endif
+diff --git a/src/cms.c b/src/cms.c
+index f543be5..d50ab85 100644
+--- a/src/cms.c
++++ b/src/cms.c
+@@ -7,7 +7,7 @@
+ 
+ #include "openssl.h"
+ #include "private.h"
+-#if OPENSSL_VERSION_NUMBER > 0x00909000L && !defined (LIBRESSL_VERSION_NUMBER)
++#if OPENSSL_VERSION_NUMBER > 0x00909000L && !defined (LIBRESSL_VERSION_NUMBER) && !defined(OPENSSL_NO_CMS)
+ #include <openssl/cms.h>
+ 
+ #define MYNAME    "cms"
+diff --git a/src/dh.c b/src/dh.c
+index 8375f3e..3a71eef 100644
+--- a/src/dh.c
++++ b/src/dh.c
+@@ -9,6 +9,7 @@
+ #include <openssl/dh.h>
+ #include <openssl/engine.h>
+ 
++#ifndef OPENSSL_NO_DH
+ #define MYNAME    "dh"
+ #define MYVERSION MYNAME " library for " LUA_VERSION " / Nov 2014 / "\
+   "based on OpenSSL " SHLIB_VERSION_NUMBER
+@@ -84,3 +85,4 @@ int luaopen_dh(lua_State *L)
+   lua_settable(L, -3);
+   return 1;
+ }
++#endif
+diff --git a/src/dsa.c b/src/dsa.c
+index 3cb81c9..21f51aa 100644
+--- a/src/dsa.c
++++ b/src/dsa.c
+@@ -9,6 +9,8 @@
+ #include <openssl/dsa.h>
+ #include <openssl/engine.h>
+ 
++#ifndef OPENSSL_NO_DSA
++
+ #define MYNAME    "dsa"
+ #define MYVERSION MYNAME " library for " LUA_VERSION " / Nov 2014 / "\
+   "based on OpenSSL " SHLIB_VERSION_NUMBER
+@@ -83,3 +85,4 @@ int luaopen_dsa(lua_State *L)
+   lua_settable(L, -3);
+   return 1;
+ }
++#endif
+diff --git a/src/ocsp.c b/src/ocsp.c
+index 5ebed3e..0f2ea31 100644
+--- a/src/ocsp.c
++++ b/src/ocsp.c
+@@ -8,6 +8,7 @@
+ #include "private.h"
+ #include "openssl/ocsp.h"
+ 
++#ifndef OPENSSL_NO_OCSP
+ #define MYNAME    "ocsp"
+ #define MYVERSION MYNAME " library for " LUA_VERSION " / Nov 2014 / "\
+   "based on OpenSSL " SHLIB_VERSION_NUMBER
+@@ -524,3 +525,4 @@ int luaopen_ocsp(lua_State *L)
+ 
+   return 1;
+ }
++#endif
+diff --git a/src/openssl.c b/src/openssl.c
+index 6bb0a99..8fe2759 100644
+--- a/src/openssl.c
++++ b/src/openssl.c
+@@ -392,8 +392,11 @@ LUALIB_API int luaopen_openssl(lua_State*L)
+   openssl_register_lhash(L);
+   openssl_register_engine(L);
+ 
++
++#ifndef OPENSSL_NO_BIO
+   luaopen_bio(L);
+   lua_setfield(L, -2, "bio");
++#endif
+ 
+   luaopen_asn1(L);
+   lua_setfield(L, -2, "asn1");
+@@ -411,13 +414,15 @@ LUALIB_API int luaopen_openssl(lua_State*L)
+   luaopen_pkey(L);
+   lua_setfield(L, -2, "pkey");
+ 
+-#ifdef EVP_PKEY_EC
++#ifndef OPENSSL_NO_EC
+   luaopen_ec(L);
+   lua_setfield(L, -2, "ec");
+ #endif
+ 
++#ifndef OPENSSL_NO_X509
+   luaopen_x509(L);
+   lua_setfield(L, -2, "x509");
++#endif
+ 
+   luaopen_pkcs7(L);
+   lua_setfield(L, -2, "pkcs7");
+@@ -425,8 +430,10 @@ LUALIB_API int luaopen_openssl(lua_State*L)
+   luaopen_pkcs12(L);
+   lua_setfield(L, -2, "pkcs12");
+ 
++#ifndef OPENSSL_NO_OCSP
+   luaopen_ocsp(L);
+   lua_setfield(L, -2, "ocsp");
++#endif
+ 
+ #ifdef OPENSSL_HAVE_TS
+   /* timestamp handling */
+@@ -434,8 +441,10 @@ LUALIB_API int luaopen_openssl(lua_State*L)
+   lua_setfield(L, -2, "ts");
+ #endif
+ 
++#ifndef OPENSSL_NO_CMS
+   luaopen_cms(L);
+   lua_setfield(L, -2, "cms");
++#endif
+ 
+   luaopen_ssl(L);
+   lua_setfield(L, -2, "ssl");
+@@ -444,20 +453,28 @@ LUALIB_API int luaopen_openssl(lua_State*L)
+   luaopen_bn(L);
+   lua_setfield(L, -2, "bn");
+ 
++#ifndef OPENSSL_NO_RSA
+   luaopen_rsa(L);
+   lua_setfield(L, -2, "rsa");
++#endif
++#ifndef OPENSSL_NO_DSA
+   luaopen_dsa(L);
+   lua_setfield(L, -2, "dsa");
++#endif
++#ifndef OPENSSL_NO_DH
+   luaopen_dh(L);
+   lua_setfield(L, -2, "dh");
++#endif
+ 
+ #if (OPENSSL_VERSION_NUMBER >= 0x10101007L) && !defined(OPENSSL_NO_SM2)
+   luaopen_sm2(L);
+   lua_setfield(L, -2, "sm2");
+ #endif
+ 
++#ifndef OPENSSL_NO_SRP
+   luaopen_srp(L);
+   lua_setfield(L, -2, "srp");
++#endif
+ 
+ #ifdef ENABLE_OPENSSL_GLOBAL
+   lua_pushvalue(L, -1);
+diff --git a/src/openssl.h b/src/openssl.h
+index f66e214..b3ab3e5 100644
+--- a/src/openssl.h
++++ b/src/openssl.h
+@@ -16,9 +16,8 @@
+ #include <assert.h>
+ #include <string.h>
+ /* OpenSSL includes */
++#include <openssl/opensslconf.h>
+ #include <openssl/evp.h>
+-#include <openssl/x509.h>
+-#include <openssl/x509v3.h>
+ #include <openssl/crypto.h>
+ #include <openssl/pem.h>
+ #include <openssl/err.h>
+@@ -106,22 +105,42 @@ LUA_FUNCTION(luaopen_hmac);
+ LUA_FUNCTION(luaopen_cipher);
+ LUA_FUNCTION(luaopen_bn);
+ LUA_FUNCTION(luaopen_pkey);
++#ifndef OPENSSL_NO_X509
++#include <openssl/x509.h>
++#include <openssl/x509v3.h>
+ LUA_FUNCTION(luaopen_x509);
++LUA_FUNCTION(luaopen_x509_req);
++LUA_FUNCTION(luaopen_x509_crl);
++#endif
+ LUA_FUNCTION(luaopen_pkcs7);
+ LUA_FUNCTION(luaopen_pkcs12);
++#ifndef OPENSSL_NO_BIO
+ LUA_FUNCTION(luaopen_bio);
++#endif
+ LUA_FUNCTION(luaopen_asn1);
+ 
++#ifndef OPENSSL_NO_TS
+ LUA_FUNCTION(luaopen_ts);
+-LUA_FUNCTION(luaopen_x509_req);
+-LUA_FUNCTION(luaopen_x509_crl);
++#endif
++#ifndef OPENSSL_NO_OCSP
+ LUA_FUNCTION(luaopen_ocsp);
++#endif
++#ifndef OPENSSL_NO_CMS
+ LUA_FUNCTION(luaopen_cms);
++#endif
+ LUA_FUNCTION(luaopen_ssl);
++#ifndef OPENSSL_NO_EC
+ LUA_FUNCTION(luaopen_ec);
++#endif
++#ifndef OPENSSL_NO_RSA
+ LUA_FUNCTION(luaopen_rsa);
++#endif
++#ifndef OPENSSL_NO_DSA
+ LUA_FUNCTION(luaopen_dsa);
++#endif
++#ifndef OPENSSL_NO_DH
+ LUA_FUNCTION(luaopen_dh);
++#endif
+ 
+ void openssl_add_method_or_alias(const OBJ_NAME *name, void *arg) ;
+ void openssl_add_method(const OBJ_NAME *name, void *arg);
+@@ -164,7 +183,9 @@ int openssl_register_engine(lua_State* L);
+ #if (OPENSSL_VERSION_NUMBER >= 0x10101007L) && !defined(OPENSSL_NO_SM2)
+ LUA_FUNCTION(luaopen_sm2);
+ #endif
++#ifndef OPENSSL_NO_SRP
+ LUA_FUNCTION(luaopen_srp);
++#endif
+ 
+ #endif
+ 
+diff --git a/src/ots.c b/src/ots.c
+index fafd481..c40f23b 100644
+--- a/src/ots.c
++++ b/src/ots.c
+@@ -7,7 +7,7 @@
+ #include "openssl.h"
+ #include "private.h"
+ #include <stdint.h>
+-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
++#if OPENSSL_VERSION_NUMBER >= 0x10000000L && !defined(OPENSSL_NO_TS)
+ #include <openssl/ts.h>
+ 
+ #define MYNAME    "ts"
+diff --git a/src/rsa.c b/src/rsa.c
+index 62deec6..3a57daa 100644
+--- a/src/rsa.c
++++ b/src/rsa.c
+@@ -9,6 +9,8 @@
+ #include <openssl/rsa.h>
+ #include <openssl/engine.h>
+ 
++#ifndef OPENSSL_NO_RSA
++
+ #define MYNAME    "rsa"
+ #define MYVERSION MYNAME " library for " LUA_VERSION " / Nov 2014 / "\
+   "based on OpenSSL " SHLIB_VERSION_NUMBER
+@@ -224,3 +226,4 @@ int luaopen_rsa(lua_State *L)
+ 
+   return 1;
+ }
++#endif
+diff --git a/src/srp.c b/src/srp.c
+index 85626b5..2dfcc39 100644
+--- a/src/srp.c
++++ b/src/srp.c
+@@ -1,6 +1,7 @@
+ #include "openssl.h"
+ #include "private.h"
+ 
++#ifndef OPENSSL_NO_SRP
+ #include <openssl/srp.h>
+ #include <openssl/bn.h>
+ 
+@@ -198,4 +199,4 @@ int luaopen_srp(lua_State *L)
+   lua_settable(L, -3);
+   return 1;
+ }
+-
++#endif
+diff --git a/src/x509.c b/src/x509.c
+index 29213eb..3f06cb5 100644
+--- a/src/x509.c
++++ b/src/x509.c
+@@ -8,6 +8,7 @@
+ #include "private.h"
+ #define CRYPTO_LOCK_REF
+ #include "sk.h"
++#if !defined(OPENSSL_NO_X509)
+ 
+ #define MYNAME    "x509"
+ #define MYVERSION MYNAME " library for " LUA_VERSION " / Nov 2014 / "\
+@@ -1181,3 +1182,4 @@ int luaopen_x509(lua_State *L)
+ 
+   return 1;
+ }
++#endif

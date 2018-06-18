@@ -6,14 +6,19 @@ build_libs=""
 system_libs="-lm -ldl"
 libs_ldflags="-L$root_dir/deps/lib"
 libs_cflags="-I$root_dir/deps/include"
+include_luajit=yes
+include_libuv=yes
 
 AC_DEFUN([SET_DEFLAG],[test -z "$$1" && $1="$2";])
 AC_DEFUN([CHECK_BUILD],[
 	if test "$build_$2" == yes
 	then
 		build_libs="$build_libs $root_dir/deps/lib/$2$3.a"
-	else
-		system_libs="$(pkg-config $1 --libs) $system_libs"
+	else 
+		if test "$include_$2" == yes
+		then
+			system_libs="$(pkg-config $1 --libs) $system_libs"
+		fi
 	fi
 ])
 AC_DEFUN([CHECK_LIB],[
@@ -22,21 +27,31 @@ AC_DEFUN([CHECK_LIB],[
 		$2
 	fi
 ])
-
 AC_DEFUN([SET_DEFLAG_DEFINE],[test -z "$$1" && $1="$2"; AC_DEFINE($1, $2) AC_SUBST($1, $2)])
 
 AC_ARG_ENABLE(static, [AS_HELP_STRING([--enable-static-musl], [statically link executable with system musl libc])], [enable_static=yes], [enable_static=no])
 AC_ARG_ENABLE(develop, [AS_HELP_STRING([--enable-develop], [enable development build. This sets clang as the compiler and sets a bunch of testing and debugging compiler flags.])], [enable_develop=yes], [enable_develop=no])
+AC_ARG_ENABLE(build-all, [AS_HELP_STRING([--enable-build-all], [build all local dependencies])], [build_all=yes], [build_all=no])
+
 AC_ARG_ENABLE(build-libuv, [AS_HELP_STRING([--enable-build-libuv], [build local libuv])], [build_libuv=yes], [build_libuv=no])
 AC_ARG_ENABLE(build-luajit, [AS_HELP_STRING([--enable-build-luajit], [build local luajit])], [build_libluajit=yes], [build_libluajit=no])
 AC_ARG_ENABLE(build-zlib, [AS_HELP_STRING([--enable-build-zlib], [build local zlib])], [build_libz=yes], [build_libz=no])
 AC_ARG_ENABLE(build-pcre, [AS_HELP_STRING([--enable-build-pcre], [build local pcre])], [build_libpcre=yes], [build_libpcre=no])
 AC_ARG_ENABLE(build-openssl, [AS_HELP_STRING([--enable-build-openssl], [build local openssl])], [build_libopenssl=yes], [build_libopenssl=no])
-AC_ARG_ENABLE(build-all, [AS_HELP_STRING([--enable-build-all], [build all local dependencies])], [build_all=yes], [build_all=no])
+
+AC_ARG_ENABLE(zlib, [AS_HELP_STRING([--disable-zlib], [do not include zlib as system or local dependency. This overrides --enable-build-zlib])], [include_libz=no], [include_libz=yes])
+AC_ARG_ENABLE(openssl, [AS_HELP_STRING([--disable-openssl], [do not include openssl as system or local dependency. This overrides --enable-build-openssl])], [include_libopenssl=no], [include_libopenssl=yes])
+AC_ARG_ENABLE(pcre, [AS_HELP_STRING([--disable-pcre], [do not include pcre as system or local dependency. This overrides --enable-build-pcre])], [include_libpcre=no], [include_libpcre=yes])
+AC_ARG_ENABLE(lpeg, [AS_HELP_STRING([--disable-lpeg], [do not include lpeg module.])], [include_lpeg=no], [include_lpeg=yes])
 
 AC_CHECK_PROG(PKGCFG,pkg-config,yes)
 if test x"$PKGCFG" != x"yes" ; then
     AC_MSG_ERROR([Please install pkg-config before building logd.])
+fi
+
+AC_CHECK_PROG(PATCHPGR,patch,yes)
+if test x"$PATCHPGR" != x"yes" ; then
+    AC_MSG_ERROR([Please install patch before building logd.])
 fi
 
 if test "$enable_static" == yes
@@ -58,6 +73,40 @@ then
 	build_libopenssl=yes
 fi
 
+# add zlib lua module
+if test "$include_libz" == yes
+then
+	AC_DEFINE(LOGD_WITH_ZLIB)
+	build_libs="$build_libs $root_dir/deps/lib/liblzlib.a"
+else
+	build_libz=no
+fi
+
+# add openssl lua module
+if test "$include_libopenssl" == yes
+then
+	AC_DEFINE(LOGD_WITH_OPENSSL)
+	build_libs="$build_libs $root_dir/deps/lib/liblssl.a"
+else
+	build_libopenssl=no
+fi
+
+# add pcre lua module
+if test "$include_libpcre" == yes
+then
+	AC_DEFINE(LOGD_WITH_PCRE)
+	build_libs="$build_libs $root_dir/deps/lib/liblpcre.a"
+else
+	build_libpcre=no
+fi
+
+# add lpeg lua module
+if test "$include_lpeg" == yes
+then
+	AC_DEFINE(LOGD_WITH_LPEG)
+	build_libs="$build_libs $root_dir/deps/lib/liblpeg.a"
+fi
+
 CHECK_BUILD(zlib, libz)
 CHECK_BUILD(libpcre, libpcre)
 CHECK_BUILD(libuv, libuv)
@@ -68,7 +117,10 @@ if test "$build_libopenssl" == yes
 then
 	build_libs="$root_dir/deps/lib/libssl.a $root_dir/deps/lib/libcrypto.a $build_libs"
 else
-	system_libs="$(pkg-config openssl --libs) $system_libs"
+	if test "$include_libopenssl" == yes
+	then
+		system_libs="$(pkg-config openssl --libs) $system_libs"
+	fi
 fi
 
 # add -I/usr/local/include/luajit
@@ -77,19 +129,15 @@ then
 	libs_cflags="$libs_cflags $(pkg-config luajit --cflags-only-I)"
 	luajit=/usr/bin/luajit
 else
-	# TODO add instrumentation luajit="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\" $root_dir/deps/luajit/src/luajit"
 	libs_cflags="$libs_cflags -I$root_dir/deps/include/luajit-2.0"
-	luajit=/usr/bin/luajit
-fi
-
-if test "$build_libopenssl" == yes
-then
-	AC_DEFINE(OPENSSL_NO_SM2)
+	luajit="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\" $root_dir/deps/luajit/src/luajit"
 fi
 
 if test "$enable_develop" == yes
 then
-	# TODO luajit="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\" $root_dir/deps/luajit/src/luajit"
+	# TODO develop build for now requires luajit to be installed in system
+	# until we add coverage instrumentation to luajit executable
+	luajit=/usr/bin/luajit
 	SET_DEFLAG_DEFINE(LOGD_SLAB_CAP, 30)
 	SET_DEFLAG_DEFINE(LOGD_BUF_INIT_CAP, 64000)
 	SET_DEFLAG_DEFINE(LOGD_BUF_MAX_CAP, 1000000)
@@ -151,11 +199,6 @@ AC_CHECK_LIB(dl, dlopen, [], [AC_MSG_ERROR([dl not available.])])
 AC_CHECK_LIB(m, acos, [], [AC_MSG_ERROR([math not available])])
 AC_CHECK_LIB(pthread, pthread_create, [], [AC_MSG_ERROR([pthread not available])])
 
-# TODO open up for configuration and add to usage string
-AC_DEFINE(WITH_OPENSSL)
-AC_DEFINE(WITH_ZLIB)
-AC_DEFINE(WITH_PCRE)
-
 if test "$enable_static" == yes
 then
 	AC_CHECK_HEADERS([linux/mman.h], [], AC_MSG_ERROR([musl linux headers not found. Please install to continue.]))
@@ -182,8 +225,17 @@ AC_MSG_NOTICE([using ROOT_DIR=$root_dir])
 AC_MSG_NOTICE([using CC=$CC])
 AC_MSG_NOTICE([using CFLAGS=$CFLAGS])
 AC_MSG_NOTICE([using LDFLAGS=$LDFLAGS])
-AC_MSG_NOTICE([using LIBS=$LIBS])
+AC_MSG_NOTICE([using build_libz=$build_libz])
+AC_MSG_NOTICE([using build_libpcre=$build_libpcre])
+AC_MSG_NOTICE([using build_libuv=$build_libuv])
+AC_MSG_NOTICE([using build_libluajit=$build_libluajit])
+AC_MSG_NOTICE([using build_libopenssl=$build_libopenssl])
+AC_MSG_NOTICE([using include_libz=$include_libz])
+AC_MSG_NOTICE([using include_libopenssl=$include_libopenssl])
+AC_MSG_NOTICE([using include_libpcre=$include_libpcre])
+AC_MSG_NOTICE([using include_lpeg=$include_lpeg])
 AC_MSG_NOTICE([using BUILD_LIBS=$BUILD_LIBS])
+AC_MSG_NOTICE([using LIBS=$LIBS])
 
 AC_CONFIG_FILES([src/Makefile
 				 deps/Makefile
