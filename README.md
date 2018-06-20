@@ -27,14 +27,15 @@ If you need to parse logs with a different format, you can load a dynamic shared
 
 ## Preloaded Lua modules
 - [logd](#logd-module-api)
+- [uv](https://github.com/luvit/luv)
 - [miniz](https://github.com/luvit/luvi/blob/master/src/lminiz.c) 
 
 ## Optionally Preloaded Lua modules 
 Depending on the build, the following modules are preloaded:
 - [lpeg](http://www.inf.puc-rio.br/~roberto/lpeg/)
-- [lrexlib](https://github.com/rrthomas/lrexlib)
-- [lua-openssl](https://github.com/zhaozg/lua-openssl)
-- [lua-zlib](https://github.com/brimworks/lua-zlib)
+- [rex](https://github.com/rrthomas/lrexlib)
+- [openssl](https://github.com/zhaozg/lua-openssl)
+- [zlib](https://github.com/brimworks/lua-zlib)
 
 ## Build instructions
 Run configure script and then make:
