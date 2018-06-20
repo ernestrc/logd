@@ -35,16 +35,16 @@ test: build
 fuzz: build
 	@ $(MAKE) $@ -C $(TEST)
 
-coverage:
+coverage: build
 	@ $(MAKE) $@ -C $(TEST)
 
-html-coverage:
+html-coverage: build
 	@ $(MAKE) $@ -C $(TEST)
 
-fuzz-coverage:
+fuzz-coverage: build
 	@ $(MAKE) $@ -C $(TEST)
 
-fuzz-html-coverage:
+fuzz-html-coverage: build
 	@ $(MAKE) $@ -C $(TEST)
 
 format:

@@ -2303,8 +2303,8 @@ version=`git describe --tags --long 2>/dev/null || echo "untagged-$(git rev-pars
 if test "$enable_static" == yes
 then
 	build_all=yes
-	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: THIS IS EXPERIMENTAL. USE THIS BUILD AT YOUR OWN RISK." >&5
-$as_echo "$as_me: WARNING: THIS IS EXPERIMENTAL. USE THIS BUILD AT YOUR OWN RISK." >&2;}
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: --enable-static IS EXPERIMENTAL. USE THIS BUILD AT YOUR OWN RISK." >&5
+$as_echo "$as_me: WARNING: --enable-static IS EXPERIMENTAL. USE THIS BUILD AT YOUR OWN RISK." >&2;}
 fi
 
 if test "$build_all" == yes

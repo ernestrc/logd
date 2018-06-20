@@ -10,17 +10,18 @@ LOGD_SLAB_CAP=@LOGD_SLAB_CAP@
 ROOT_DIR=@ROOT_DIR@
 BINDIR = $(ROOT_DIR)/bin
 LIBDIR=$(ROOT_DIR)/lib
+SRCDIR=$(ROOT_DIR)/src
 
-
+COVERAGE_SRC_OBJ=$(SRCDIR)/log.o $(SRCDIR)/parser.o $(SRCDIR)/logd_module.o $(SRCDIR)/util.o $(SRCDIR)/lua.o
+COVERAGE_OBJ=$(addprefix -object , $(COVERAGE_SRC_OBJ))
 TESTS=$(wildcard test_*.c)
 LUA_TESTS=$(wildcard test_*.lua)
 INT_TESTS=$(wildcard test_*.sh)
 FUZZERS=$(wildcard fuzz_*.c)
 TARGET_TESTS = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(TESTS)))
 TARGET_FUZZERS = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(FUZZERS)))
-# TODO also add int tests prof data
-# TARGET_TPROFILES = $(addprefix $(BINDIR)/,$(patsubst %.c,%.profraw,$(TESTS))) $(addprefix $(BINDIR)/,$(patsubst %.lua,%.lua.profraw,$(LUA_TESTS)))
-TARGET_TPROFILES = $(addprefix $(BINDIR)/,$(patsubst %.c,%.profraw,$(TESTS)))
+# TODO also add lua tests prof data
+TARGET_TPROFILES = $(addprefix $(BINDIR)/,$(patsubst %.c,%.profraw,$(TESTS))) $(addprefix $(BINDIR)/,$(patsubst %.sh,%.sh.profraw,$(INT_TESTS)))
 TARGET_FPROFILES = $(addprefix $(BINDIR)/,$(patsubst %.c,%.profraw,$(FUZZERS)))
 
 LIB = $(LIBDIR)/liblogd.a
@@ -49,22 +50,22 @@ unit_test: $(TARGET_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" $$f --silent; done
 
 int_test: $(INT_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LOGD_SLAB_CAP=$(LOGD_SLAB_CAP) LOGD_BUF_MAX_CAP=$(LOGD_BUF_MAX_CAP) ./$$f 2>&1; done
+	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LOGD_SLAB_CAP=$(LOGD_SLAB_CAP) LOGD_BUF_MAX_CAP=$(LOGD_BUF_MAX_CAP) ./$$f 2>&1; done
 
 lua_test: $(LUA_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LUA_PATH="$(LUA_PATH)" LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f 2>/dev/null 1>/dev/null; done
+	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LUA_PATH="$(LUA_PATH)" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f 2>/dev/null 1>/dev/null; done
 
 $(BINDIR)/test_%: test_%.c $(LIB)
 	$(CC) $(LDFLAGS) $(CFLAGS) $(addprefix ../src/,$(patsubst test_%.c, %.c, $<)) $< -o $@ $(LIB)
 
-$(TESTPROFDATA): $(TARGET_TESTS)
+$(TESTPROFDATA): $(LINK_SO) int_test lua_test unit_test
 	llvm-profdata merge -sparse $(TARGET_TPROFILES) -o $(TESTPROFDATA)
 
 coverage: $(TESTPROFDATA)
-	llvm-cov report -instr-profile=$(TESTPROFDATA) $(addprefix -object ,$(TARGET_TESTS))
+	llvm-cov report -instr-profile=$(TESTPROFDATA) $(COVERAGE_OBJ)
 
 html-coverage: $(TESTPROFDATA) BROWSER
-	llvm-cov show -format=html -instr-profile=$(TESTPROFDATA) $(addprefix -object ,$(TARGET_TESTS)) > $(BINDIR)/coverage.html
+	llvm-cov show -format=html -instr-profile=$(TESTPROFDATA) $(COVERAGE_OBJ) > $(BINDIR)/coverage.html
 	@$(BROWSER) $(BINDIR)/coverage.html
 
 fuzz: $(TARGET_FUZZERS)
@@ -78,10 +79,10 @@ $(FUZZPROFDATA): $(TARGET_FUZZERS)
 	llvm-profdata merge -sparse $(TARGET_FPROFILES) -o $(FUZZPROFDATA)
 
 fuzz-coverage: $(FUZZPROFDATA)
-	llvm-cov report -instr-profile=$(FUZZPROFDATA) $(addprefix -object ,$(TARGET_FUZZERS))
+	llvm-cov report -instr-profile=$(FUZZPROFDATA) $(COVERAGE_OBJ)
 
 fuzz-html-coverage: $(FUZZPROFDATA) BROWSER
-	llvm-cov show -format=html -instr-profile=$(FUZZPROFDATA) $(addprefix -object ,$(TARGET_FUZZERS)) > $(BINDIR)/fuzz-coverage.html
+	llvm-cov show -format=html -instr-profile=$(FUZZPROFDATA) $(COVERAGE_OBJ) > $(BINDIR)/fuzz-coverage.html
 	@$(BROWSER) $(BINDIR)/fuzz-coverage.html
 
 clean:
