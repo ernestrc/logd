@@ -13,6 +13,10 @@ return function(script)
 	local bundles = { [1] = dir }
 	local appArgs = { [1] = "logd" }
 
+
+	-- set an expected output buffering
+	io.output():setvbuf("line")
+
 	-- for simple use cases, add script dirname to package.path
 	package.path = package.path .. string.format(";%s/?.lua", dir)
 
