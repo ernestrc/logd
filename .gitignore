@@ -48,3 +48,4 @@ src/config.h
 autom4te.cache/
 config.log
 config.status
+.vimrc
