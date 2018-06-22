@@ -144,6 +144,7 @@ then
 	SET_DEFLAG_DEFINE(LOGD_SLAB_CAP, 30)
 	SET_DEFLAG_DEFINE(LOGD_BUF_INIT_CAP, 64000)
 	SET_DEFLAG_DEFINE(LOGD_BUF_MAX_CAP, 1000000)
+	SET_DEFLAG_DEFINE(LOGD_PRINT_MAX_KEYS, 50)
 
 	SET_DEFLAG(CC, [clang])
 	SET_DEFLAG(CFLAGS,[$libs_cflags -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping])
@@ -154,6 +155,7 @@ else
 	SET_DEFLAG_DEFINE(LOGD_SLAB_CAP, 256)
 	SET_DEFLAG_DEFINE(LOGD_BUF_INIT_CAP, 1638400)
 	SET_DEFLAG_DEFINE(LOGD_BUF_MAX_CAP, 8192000)
+	SET_DEFLAG_DEFINE(LOGD_PRINT_MAX_KEYS, 100)
 	AC_DEFINE(LOGD_INLINE)
 	if test "$enable_static" == yes
 	then

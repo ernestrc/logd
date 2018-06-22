@@ -11,5 +11,6 @@
 #undef LOGD_WITH_PCRE
 #undef LOGD_WITH_LPEG
 #undef LOGD_VERSION
+#undef LOGD_PRINT_MAX_KEYS
 
 #endif

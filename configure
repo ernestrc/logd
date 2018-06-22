@@ -652,6 +652,7 @@ LDFLAGS
 CFLAGS
 CC
 FUZZFLAGS
+LOGD_PRINT_MAX_KEYS
 LOGD_BUF_MAX_CAP
 LOGD_BUF_INIT_CAP
 LOGD_SLAB_CAP
@@ -2434,6 +2435,9 @@ then
 	test -z "$LOGD_BUF_MAX_CAP" && LOGD_BUF_MAX_CAP="1000000"; $as_echo "#define LOGD_BUF_MAX_CAP 1000000" >>confdefs.h
  LOGD_BUF_MAX_CAP=1000000
 
+	test -z "$LOGD_PRINT_MAX_KEYS" && LOGD_PRINT_MAX_KEYS="50"; $as_echo "#define LOGD_PRINT_MAX_KEYS 50" >>confdefs.h
+ LOGD_PRINT_MAX_KEYS=50
+
 
 	test -z "$CC" && CC="clang";
 	test -z "$CFLAGS" && CFLAGS="$libs_cflags -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping";
@@ -2452,6 +2456,9 @@ else
 
 	test -z "$LOGD_BUF_MAX_CAP" && LOGD_BUF_MAX_CAP="8192000"; $as_echo "#define LOGD_BUF_MAX_CAP 8192000" >>confdefs.h
  LOGD_BUF_MAX_CAP=8192000
+
+	test -z "$LOGD_PRINT_MAX_KEYS" && LOGD_PRINT_MAX_KEYS="100"; $as_echo "#define LOGD_PRINT_MAX_KEYS 100" >>confdefs.h
+ LOGD_PRINT_MAX_KEYS=100
 
 	$as_echo "#define LOGD_INLINE 1" >>confdefs.h
 

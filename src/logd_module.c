@@ -5,6 +5,7 @@
 #include <lua.h>
 #include <lualib.h>
 
+#include "config.h"
 #include "log.h"
 #include "logd_module.h"
 #include "util.h"
@@ -18,8 +19,6 @@
 #define LUA_NAME_TABLE_TO_LOGPTR "to_logptr"
 #define LUA_NAME_LOG_TO_STR "to_str"
 #define LUA_LEGACY_NAME_LOG_STRING "log_string"
-
-#define MAX_LOG_TABLE_LEN 50
 
 #define ASSERT_LOG_PTR(L, idx, fn_name)                                        \
 	switch (lua_type(L, idx)) {                                                \
@@ -118,12 +117,12 @@ static int table_to_logptr(lua_State* L, int idx)
 {
 	log_t* log = (log_t*)lua_newuserdata(L, sizeof(log_t));
 	prop_t* props =
-	  (prop_t*)lua_newuserdata(L, MAX_LOG_TABLE_LEN * sizeof(prop_t));
+	  (prop_t*)lua_newuserdata(L, LOGD_PRINT_MAX_KEYS * sizeof(prop_t));
 	log_init(log);
 
 	switch (lua_type(L, idx)) {
 	case LUA_TTABLE:
-		table_to_log(L, idx, props, MAX_LOG_TABLE_LEN, log);
+		table_to_log(L, idx, props, LOGD_PRINT_MAX_KEYS, log);
 		break;
 	default:
 		luaL_error(L,
