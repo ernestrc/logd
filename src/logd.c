@@ -54,7 +54,7 @@ void on_close_lua_handle(uv_handle_t* handle)
 
 void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
 {
-	if (handle->data == LOGD_HANDLE) {
+	if (handle->data == LOGD_HANDLE || uv_is_closing(handle)) {
 		DEBUG_LOG("skipping uv handle %p", handle);
 		return;
 	}
@@ -199,6 +199,14 @@ err:
 	return 1;
 }
 
+void on_poll_err(int ret)
+{
+	errno = -ret;
+	perror("uv_poll");
+	close_all_handles();
+	pret = 1;
+}
+
 void on_read_err()
 {
 	perror("input read");
@@ -239,6 +247,10 @@ parse:
 void on_read_skip(uv_poll_t* req, int status, int events)
 {
 	parse_res_t res;
+	if (status < 0) {
+		on_poll_err(status);
+		return;
+	}
 
 	int ret = read(infd, b->next_write, buf_writable(b));
 	if (errno == EAGAIN) {
@@ -275,16 +287,17 @@ void on_read_skip(uv_poll_t* req, int status, int events)
 
 	if ((ret = uv_poll_stop(&uv_poll_in_req)) < 0 ||
 	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
-		errno = -ret;
-		perror("uv_poll");
-		close_all_handles();
-		pret = 1;
+		on_poll_err(ret);
 	}
 }
 
 void on_read(uv_poll_t* req, int status, int events)
 {
 	parse_res_t res;
+	if (status < 0) {
+		on_poll_err(status);
+		return;
+	}
 
 	int ret = read(infd, b->next_write, buf_writable(b));
 	if (errno == EAGAIN) {
@@ -361,10 +374,7 @@ read:
 skip:
 	if ((ret = uv_poll_stop(&uv_poll_in_req)) < 0 ||
 	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read_skip)) < 0) {
-		errno = -ret;
-		perror("uv_poll");
-		close_all_handles();
-		pret = 1;
+		on_poll_err(ret);
 	}
 	return;
 }
@@ -482,7 +492,7 @@ int main(int argc, char* argv[])
 
 	if ((script = args_init(argc, argv)) == NULL || args.help) {
 		print_usage(argv[0]);
-		pret = args.help ? 0 : 1;
+		pret = !args.help;
 		goto exit;
 	}
 
