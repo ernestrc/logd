@@ -30,7 +30,7 @@ static void* dlparser_handle;
 static lua_t* lstate;
 static buf_t* b;
 
-static uv_signal_t sigh;
+static uv_signal_t sigusr1, sigint;
 static uv_loop_t* loop;
 static uv_file infd;
 static uv_poll_t uv_poll_in_req;
@@ -44,18 +44,23 @@ static void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
 
 void print_version() { printf("logd %s\n", LOGD_VERSION); }
 
+#define LOGD_HANDLE ((void*)"__LOGD_HANDLE")
+#define STAMP_HANDLE(handle) (handle)->data = LOGD_HANDLE;
+
 void on_close_lua_handle(uv_handle_t* handle)
 {
-	DEBUG_ASSERT((void*)handle != (void*)&uv_poll_in_req);
-	DEBUG_ASSERT((void*)handle != (void*)&sigh);
 	DEBUG_LOG("closed uv handle %p", handle);
 }
 
 void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
 {
-	if ((void*)handle != (void*)&uv_poll_in_req &&
-	  (void*)handle != (void*)&sigh && !uv_is_closing(handle))
-		uv_close(handle, on_close_lua_handle);
+	if (handle->data == LOGD_HANDLE) {
+		DEBUG_LOG("skipping uv handle %p", handle);
+		return;
+	}
+
+	DEBUG_LOG("closing uv handle %p", handle);
+	uv_close(handle, on_close_lua_handle);
 }
 
 void close_lua_uv_handles() { uv_walk(loop, uv_walk_close_lua_handles, NULL); }
@@ -64,8 +69,16 @@ void close_logd_uv_handles()
 {
 	uv_fs_t req_in_close;
 	uv_fs_close(loop, &req_in_close, infd, NULL);
+	uv_fs_req_cleanup(&req_in_close);
 	uv_poll_stop(&uv_poll_in_req);
-	uv_signal_stop(&sigh);
+	uv_signal_stop(&sigusr1);
+	uv_signal_stop(&sigint);
+}
+
+void close_all_handles()
+{
+	close_lua_uv_handles();
+	close_logd_uv_handles();
 }
 
 void on_eof()
@@ -80,6 +93,7 @@ void free_all()
 {
 	lua_free(lstate);
 	if (loop) {
+		uv_loop_close(loop);
 		free(loop);
 	}
 	free_parser(parser);
@@ -188,8 +202,7 @@ err:
 void on_read_err()
 {
 	perror("input read");
-	close_lua_uv_handles();
-	close_logd_uv_handles();
+	close_all_handles();
 	pret = 1;
 }
 
@@ -227,22 +240,21 @@ void on_read_skip(uv_poll_t* req, int status, int events)
 {
 	parse_res_t res;
 
-	int result = read(infd, b->next_write, buf_writable(b));
-	if (result < 0) {
+	int ret = read(infd, b->next_write, buf_writable(b));
+	if (errno == EAGAIN) {
+		return;
+	}
+	if (ret < 0) {
 		on_read_err();
 		return;
 	}
 
-	if (result == 0 && errno == EAGAIN) {
-		return;
-	}
-
-	if (result == 0) {
+	if (ret == 0) {
 		on_eof();
 		return;
 	}
 
-	buf_extend(b, result);
+	buf_extend(b, ret);
 	res = parse_parser(parser, b->next_read, buf_readable(b));
 	if (res.type == PARSE_PARTIAL) {
 		buf_reset_offsets(b);
@@ -261,10 +273,12 @@ void on_read_skip(uv_poll_t* req, int status, int events)
 	  buf_readable(b), buf_writable(b));
 	reset_parser(parser);
 
-	if ((result = uv_poll_stop(&uv_poll_in_req)) < 0 ||
-		(result = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
+	if ((ret = uv_poll_stop(&uv_poll_in_req)) < 0 ||
+	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
+		errno = -ret;
+		perror("uv_poll");
+		close_all_handles();
 		pret = 1;
-		// TODO stop loop
 	}
 }
 
@@ -272,21 +286,21 @@ void on_read(uv_poll_t* req, int status, int events)
 {
 	parse_res_t res;
 
-	int result = read(infd, b->next_write, buf_writable(b));
+	int ret = read(infd, b->next_write, buf_writable(b));
 	if (errno == EAGAIN) {
 		return;
 	}
-	if (result < 0) {
+	if (ret < 0) {
 		on_read_err();
 		return;
 	}
 
-	if (result == 0) {
+	if (ret == 0) {
 		on_read_eof();
 		return;
 	}
 
-	buf_extend(b, result);
+	buf_extend(b, ret);
 parse:
 	res = parse_parser(parser, b->next_read, buf_readable(b));
 	switch (res.type) {
@@ -345,10 +359,12 @@ parse:
 read:
 	return;
 skip:
-	if ((result = uv_poll_stop(&uv_poll_in_req)) < 0 ||
-		(result = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read_skip)) < 0) {
+	if ((ret = uv_poll_stop(&uv_poll_in_req)) < 0 ||
+	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read_skip)) < 0) {
+		errno = -ret;
+		perror("uv_poll");
+		close_all_handles();
 		pret = 1;
-		// TODO stop loop
 	}
 	return;
 }
@@ -376,28 +392,45 @@ int input_init(uv_loop_t* loop, const char* input_file)
 		goto exit;
 	}
 
+	STAMP_HANDLE((uv_handle_t*)&uv_poll_in_req);
+
 exit:
 	return ret;
 }
 
-void sigusr1_signal_handler(uv_signal_t* handle, int signum)
+void reload_sig_h(uv_signal_t* handle, int signum)
 {
-	DEBUG_LOG("received signal %d", signum);
+	DEBUG_LOG("Received signal %d. Reloading ...", signum);
 	close_lua_uv_handles();
 	uv_stop(loop);
+}
+
+void shutdown_sig_h(uv_signal_t* handle, int signum)
+{
+	DEBUG_LOG("Received signal %d. Shutdown ...", signum);
+	close_all_handles();
+	pret = signum + 128;
 }
 
 int signals_init(uv_loop_t* loop)
 {
 	int ret;
 
-	if ((ret = uv_signal_init(loop, &sigh)) < 0)
+	if ((ret = uv_signal_init(loop, &sigusr1)) < 0)
 		goto error;
 
-	if ((ret = uv_signal_start(&sigh, sigusr1_signal_handler, SIGUSR1)) < 0)
+	if ((ret = uv_signal_init(loop, &sigint)) < 0)
 		goto error;
 
-	DEBUG_LOG("initialized SIGUSR1 signal handler %p", &sigh);
+	if ((ret = uv_signal_start(&sigusr1, reload_sig_h, SIGUSR1)) < 0)
+		goto error;
+
+	if ((ret = uv_signal_start(&sigint, shutdown_sig_h, SIGINT)) < 0)
+		goto error;
+
+	STAMP_HANDLE((uv_handle_t*)&sigusr1);
+	STAMP_HANDLE((uv_handle_t*)&sigint);
+
 	return 0;
 error:
 	fprintf(

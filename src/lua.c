@@ -160,6 +160,7 @@ int lua_init(lua_t* l, uv_loop_t* loop, const char* script)
 	/* pop logd module and on_log from the stack */
 	lua_pop(l->state, 2);
 
+	free(run_str);
 	return 0;
 
 error:
