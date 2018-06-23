@@ -125,16 +125,8 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-# using -f flag
-$LOGD_EXEC $SCRIPT -f $IN 2> $OUT 1> $OUT
-if [ $? -ne 0 ]; then
-	cat $OUT
-	echo "error processing file via -f flag"
-	exit 1
-fi
-
 # using SO parser
-$LOGD_EXEC $SCRIPT -f $IN --parser="$DIR/../lib/logd_parser.so" 2> $OUT 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT --parser="$DIR/../lib/logd_parser.so" 2> $OUT 1> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
 	echo "error processing file with dynamic parser"

@@ -13,14 +13,8 @@
 
 #define OPT_DEFAULT_DEBUG false
 
-#define SUBMIT_ON_READ(cb)                                                     \
-	iov.base = b->next_write;                                                  \
-	iov.len = buf_writable(b);                                                 \
-	DEBUG_ASSERT(iov.len > 0);                                                 \
-	uv_fs_read(loop, &uv_read_in_req, infd, &iov, 1, -1, (cb));
-
-void on_read_skip(uv_fs_t* req);
-void on_read(uv_fs_t* req);
+void on_read_skip(uv_poll_t* req, int status, int events);
+void on_read(uv_poll_t* req, int status, int events);
 
 static struct args_s {
 	bool debug;
@@ -39,9 +33,8 @@ static buf_t* b;
 static uv_signal_t sigh;
 static uv_loop_t* loop;
 static uv_file infd;
-static uv_fs_t uv_read_in_req;
+static uv_poll_t uv_poll_in_req;
 static uv_fs_t uv_open_in_req;
-static uv_buf_t iov;
 
 static parse_res_t (*parse_parser)(
   void*, char*, size_t) = (parse_res_t(*)(void*, char*, size_t))(&parser_parse);
@@ -49,21 +42,18 @@ static void (*free_parser)(void*) = (void (*)(void*))(&parser_free);
 static void* (*create_parser)() = (void* (*)())(&parser_create);
 static void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
 
-void print_version()
-{
-	printf("logd %s\n", LOGD_VERSION);
-}
+void print_version() { printf("logd %s\n", LOGD_VERSION); }
 
 void on_close_lua_handle(uv_handle_t* handle)
 {
-	DEBUG_ASSERT((void*)handle != (void*)&uv_read_in_req);
+	DEBUG_ASSERT((void*)handle != (void*)&uv_poll_in_req);
 	DEBUG_ASSERT((void*)handle != (void*)&sigh);
 	DEBUG_LOG("closed uv handle %p", handle);
 }
 
 void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
 {
-	if ((void*)handle != (void*)&uv_read_in_req &&
+	if ((void*)handle != (void*)&uv_poll_in_req &&
 	  (void*)handle != (void*)&sigh && !uv_is_closing(handle))
 		uv_close(handle, on_close_lua_handle);
 }
@@ -74,7 +64,7 @@ void close_logd_uv_handles()
 {
 	uv_fs_t req_in_close;
 	uv_fs_close(loop, &req_in_close, infd, NULL);
-	uv_fs_req_cleanup(&uv_read_in_req);
+	uv_poll_stop(&uv_poll_in_req);
 	uv_signal_stop(&sigh);
 }
 
@@ -134,6 +124,24 @@ char* args_init(int argc, char* argv[])
 		}
 	}
 
+	/* check that -f/--file arg is not a directory or a regular file */
+	uv_fs_t uv_stat_in_req;
+	int ret;
+	if ((ret = uv_fs_stat(loop, &uv_stat_in_req, args.input_file, NULL)) < 0) {
+		errno = -ret;
+		perror("uv_fs_stat");
+		return NULL;
+	}
+
+	int mode = uv_stat_in_req.statbuf.st_mode;
+	if (S_ISREG(mode) || S_ISDIR(mode)) {
+		errno = EINVAL;
+		perror("args_init: --file, -f");
+		return NULL;
+	}
+
+	uv_fs_req_cleanup(&uv_stat_in_req);
+
 	return argv[optind];
 }
 
@@ -177,15 +185,15 @@ err:
 	return 1;
 }
 
-void on_read_err(uv_fs_t* req)
+void on_read_err()
 {
-	fprintf(stderr, "input read error: %s\n", uv_strerror(req->result));
+	perror("input read");
 	close_lua_uv_handles();
 	close_logd_uv_handles();
 	pret = 1;
 }
 
-void on_read_eof(uv_fs_t* req)
+void on_read_eof()
 {
 	parse_res_t res;
 	DEBUG_LOG("EOF while reading input file %d", infd);
@@ -215,27 +223,29 @@ parse:
 	return;
 }
 
-void on_read_skip(uv_fs_t* req)
+void on_read_skip(uv_poll_t* req, int status, int events)
 {
 	parse_res_t res;
 
-	// DEBUG_LOG("result: %zd", req->result);
-
-	if (req->result < 0) {
-		on_read_err(req);
+	int result = read(infd, b->next_write, buf_writable(b));
+	if (result < 0) {
+		on_read_err();
 		return;
 	}
 
-	if (req->result == 0) {
+	if (result == 0 && errno == EAGAIN) {
+		return;
+	}
+
+	if (result == 0) {
 		on_eof();
 		return;
 	}
 
-	buf_extend(b, req->result);
+	buf_extend(b, result);
 	res = parse_parser(parser, b->next_read, buf_readable(b));
 	if (res.type == PARSE_PARTIAL) {
 		buf_reset_offsets(b);
-		SUBMIT_ON_READ(&on_read_skip);
 		return;
 	}
 
@@ -250,26 +260,33 @@ void on_read_skip(uv_fs_t* req)
 			  "and %zu writable bytes",
 	  buf_readable(b), buf_writable(b));
 	reset_parser(parser);
-	SUBMIT_ON_READ(&on_read);
+
+	if ((result = uv_poll_stop(&uv_poll_in_req)) < 0 ||
+		(result = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
+		pret = 1;
+		// TODO stop loop
+	}
 }
 
-void on_read(uv_fs_t* req)
+void on_read(uv_poll_t* req, int status, int events)
 {
 	parse_res_t res;
 
-	// DEBUG_LOG("result: %zd", req->result);
-
-	if (req->result < 0) {
-		on_read_err(req);
+	int result = read(infd, b->next_write, buf_writable(b));
+	if (errno == EAGAIN) {
+		return;
+	}
+	if (result < 0) {
+		on_read_err();
 		return;
 	}
 
-	if (req->result == 0) {
-		on_read_eof(req);
+	if (result == 0) {
+		on_read_eof();
 		return;
 	}
 
-	buf_extend(b, req->result);
+	buf_extend(b, result);
 parse:
 	res = parse_parser(parser, b->next_read, buf_readable(b));
 	switch (res.type) {
@@ -326,33 +343,41 @@ parse:
 	}
 
 read:
-	SUBMIT_ON_READ(&on_read);
 	return;
 skip:
-	SUBMIT_ON_READ(&on_read_skip);
+	if ((result = uv_poll_stop(&uv_poll_in_req)) < 0 ||
+		(result = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read_skip)) < 0) {
+		pret = 1;
+		// TODO stop loop
+	}
 	return;
-}
-
-void on_open(uv_fs_t* req)
-{
-	infd = uv_open_in_req.result;
-	uv_fs_req_cleanup(&uv_open_in_req);
-	DEBUG_LOG("input file open with fd %d", infd);
-	SUBMIT_ON_READ(&on_read);
 }
 
 int input_init(uv_loop_t* loop, const char* input_file)
 {
 	int ret;
 
-	if ((ret = uv_fs_open(
-		   loop, &uv_open_in_req, input_file, O_RDONLY, 0, on_open)) < 0) {
+	if ((ret = uv_fs_open(loop, &uv_open_in_req, input_file,
+		   O_NONBLOCK | O_RDONLY, 0, NULL)) < 0) {
 		errno = -ret;
 		perror("uv_fs_open");
-		return 1;
+		goto exit;
 	}
 
-	return 0;
+	infd = uv_open_in_req.result;
+	uv_fs_req_cleanup(&uv_open_in_req);
+
+	DEBUG_LOG("input file open with fd %d", infd);
+
+	if ((ret = uv_poll_init(loop, &uv_poll_in_req, infd)) < 0 ||
+	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
+		errno = -ret;
+		perror("uv_poll");
+		goto exit;
+	}
+
+exit:
+	return ret;
 }
 
 void sigusr1_signal_handler(uv_signal_t* handle, int signum)
@@ -409,8 +434,9 @@ void print_usage(const char* exe)
 {
 	printf("usage: %s <script> [options]\n", exe);
 	printf("\noptions:\n");
-	printf("\t-f, --file=<path>		File to read data from [default: "
-		   "/dev/stdin]\n");
+	printf(
+	  "\t-f, --file=<path>		Pipe/Unix Socket to read data from [default: "
+	  "/dev/stdin]\n");
 	printf("\t-p, --parser=<parser_so>	Load shared object "
 		   "parser via dlopen [default: "
 		   "builtin]\n");
@@ -423,6 +449,7 @@ int main(int argc, char* argv[])
 
 	if ((script = args_init(argc, argv)) == NULL || args.help) {
 		print_usage(argv[0]);
+		pret = args.help ? 0 : 1;
 		goto exit;
 	}
 
@@ -479,5 +506,6 @@ int main(int argc, char* argv[])
 
 exit:
 	free_all();
+	DEBUG_LOG("realeased all resources; exiting with status code: %d", pret);
 	return pret;
 }

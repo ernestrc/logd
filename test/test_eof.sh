@@ -37,7 +37,7 @@ function logd.on_eof()
 end
 EOF
 
-$LOGD_EXEC $SCRIPT -f $IN 2> /dev/null 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT 2> /dev/null 1> $OUT
 assert_file_content "2" $OUT
 
 exit 0
