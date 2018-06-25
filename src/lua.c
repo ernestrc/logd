@@ -18,6 +18,8 @@
 #include "logd_module.h"
 #include "util.h"
 
+#define ON_LOG_INTERNAL "__logd_on_log"
+
 static int lua_load_libs(lua_t* l, uv_loop_t* loop)
 {
 	luaopen_logd(l->state);
@@ -93,13 +95,6 @@ static void lua_push_on_eof(lua_State* state)
 	lua_getfield(state, -1, LUA_NAME_ON_EOF);
 }
 
-static void lua_push_on_log(lua_State* state)
-{
-	// TODO optimize by pre-loading
-	lua_getglobal(state, LUA_NAME_LOGD_MODULE);
-	lua_getfield(state, -1, LUA_NAME_ON_LOG);
-}
-
 lua_t* lua_create(uv_loop_t* loop, const char* script)
 {
 	lua_t* l = NULL;
@@ -148,7 +143,8 @@ int lua_init(lua_t* l, uv_loop_t* loop, const char* script)
 		goto error;
 	}
 
-	lua_push_on_log(l->state);
+	lua_getglobal(l->state, LUA_NAME_LOGD_MODULE);
+	lua_getfield(l->state, -1, LUA_NAME_ON_LOG);
 	if (!lua_isfunction(l->state, -1)) {
 		fprintf(stderr,
 		  "Couldn not find '" LUA_NAME_LOGD_MODULE "." LUA_NAME_ON_LOG
@@ -157,8 +153,9 @@ int lua_init(lua_t* l, uv_loop_t* loop, const char* script)
 		goto error;
 	}
 
-	/* pop logd module and on_log from the stack */
-	lua_pop(l->state, 2);
+	lua_setglobal(l->state, ON_LOG_INTERNAL);
+	/* pop logd module */
+	lua_pop(l->state, 1);
 
 	free(run_str);
 	return 0;
@@ -175,13 +172,12 @@ error:
 
 void lua_call_on_log(lua_t* l, log_t* log)
 {
-	lua_push_on_log(l->state);
+	lua_getglobal(l->state, ON_LOG_INTERNAL);
 	DEBUG_ASSERT(lua_isfunction(l->state, -1));
 
 	lua_pushlightuserdata(l->state, log);
 
 	lua_call(l->state, 1, 0);
-	lua_pop(l->state, 1); // logd module
 }
 
 bool lua_on_error_defined(lua_t* l)
