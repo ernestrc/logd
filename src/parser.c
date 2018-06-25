@@ -7,12 +7,6 @@
 #include "./parser.h"
 #include "./util.h"
 
-#ifdef LOGD_INLINE
-#define INLINE inline
-#else
-#define INLINE
-#endif
-
 #define TRIM_SPACES(p, SET_MACRO, label, END_MACRO)                            \
 	switch (p->token) {                                                        \
 	case '\n':                                                                 \

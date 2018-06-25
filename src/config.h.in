@@ -12,5 +12,13 @@
 #undef LOGD_WITH_LPEG
 #undef LOGD_VERSION
 #undef LOGD_PRINT_MAX_KEYS
+#undef LOGD_INLINE
+
+#ifdef LOGD_INLINE
+#define INLINE inline
+#else
+#define INLINE
+#endif
+
 
 #endif
