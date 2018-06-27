@@ -18,7 +18,7 @@
 #include "./luvi.h"
 
 LUALIB_API int luaopen_luvi(lua_State *L) {
-#if defined(LOGD_WITH_OPENSSL) || defined(LOGD_WITH_PCRE)
+#if defined(LOGD_WITH_OPENSSL)
   char buffer[1024];
 #endif
   lua_newtable(L);
@@ -31,10 +31,6 @@ LUALIB_API int luaopen_luvi(lua_State *L) {
   snprintf(buffer, sizeof(buffer), "%s", SSLeay_version(SSLEAY_VERSION));
   lua_pushstring(L, buffer);
   lua_setfield(L, -2, "ssl");
-#endif
-#ifdef LOGD_WITH_PCRE
-  lua_pushstring(L, pcre_version());
-  lua_setfield(L, -2, "rex");
 #endif
 #ifdef LOGD_WITH_ZLIB
   lua_pushstring(L, zlibVersion());

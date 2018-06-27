@@ -41,11 +41,6 @@ static int lua_load_libs(lua_t* l, uv_loop_t* loop)
 	lua_setfield(l->state, -2, "lpeg");
 #endif
 
-#ifdef LOGD_WITH_PCRE
-	lua_pushcfunction(l->state, luaopen_rex_pcre);
-	lua_setfield(l->state, -2, "rex");
-#endif
-
 #ifdef LOGD_WITH_OPENSSL
 	lua_pushcfunction(l->state, luaopen_openssl);
 	lua_setfield(l->state, -2, "openssl");

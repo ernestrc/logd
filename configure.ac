@@ -36,12 +36,10 @@ AC_ARG_ENABLE(build-all, [AS_HELP_STRING([--enable-build-all], [build all local 
 AC_ARG_ENABLE(build-libuv, [AS_HELP_STRING([--enable-build-libuv], [build local libuv])], [build_libuv=yes], [build_libuv=no])
 AC_ARG_ENABLE(build-luajit, [AS_HELP_STRING([--enable-build-luajit], [build local luajit])], [build_libluajit=yes], [build_libluajit=no])
 AC_ARG_ENABLE(build-zlib, [AS_HELP_STRING([--enable-build-zlib], [build local zlib])], [build_libz=yes], [build_libz=no])
-AC_ARG_ENABLE(build-pcre, [AS_HELP_STRING([--enable-build-pcre], [build local pcre])], [build_libpcre=yes], [build_libpcre=no])
 AC_ARG_ENABLE(build-openssl, [AS_HELP_STRING([--enable-build-openssl], [build local openssl])], [build_libopenssl=yes], [build_libopenssl=no])
 
 AC_ARG_ENABLE(zlib, [AS_HELP_STRING([--disable-zlib], [do not include zlib as system or local dependency. This overrides --enable-build-zlib])], [include_libz=no], [include_libz=yes])
 AC_ARG_ENABLE(openssl, [AS_HELP_STRING([--disable-openssl], [do not include openssl as system or local dependency. This overrides --enable-build-openssl])], [include_libopenssl=no], [include_libopenssl=yes])
-AC_ARG_ENABLE(pcre, [AS_HELP_STRING([--disable-pcre], [do not include pcre as system or local dependency. This overrides --enable-build-pcre])], [include_libpcre=no], [include_libpcre=yes])
 AC_ARG_ENABLE(lpeg, [AS_HELP_STRING([--disable-lpeg], [do not include lpeg module.])], [include_lpeg=no], [include_lpeg=yes])
 
 AC_CHECK_PROG(PKGCFG,pkg-config,yes)
@@ -70,7 +68,6 @@ fi
 if test "$build_all" == yes
 then
 	build_libz=yes
-	build_libpcre=yes
 	build_libuv=yes
 	build_libluajit=yes
 	build_libopenssl=yes
@@ -94,15 +91,6 @@ else
 	build_libopenssl=no
 fi
 
-# add pcre lua module
-if test "$include_libpcre" == yes
-then
-	AC_DEFINE(LOGD_WITH_PCRE)
-	build_libs="$build_libs $root_dir/deps/lib/liblpcre.a"
-else
-	build_libpcre=no
-fi
-
 # add lpeg lua module
 if test "$include_lpeg" == yes
 then
@@ -111,7 +99,6 @@ then
 fi
 
 CHECK_BUILD(zlib, libz)
-CHECK_BUILD(libpcre, libpcre)
 CHECK_BUILD(libuv, libuv)
 CHECK_BUILD(luajit, libluajit, -5.1)
 
@@ -189,7 +176,6 @@ fi
 
 CHECK_LIB(libuv, [AC_CHECK_LIB(uv, uv_loop_close, [], [AC_MSG_ERROR([libuv not installed])])])
 CHECK_LIB(libluajit, [AC_CHECK_LIB(luajit-5.1, luaJIT_setmode, [], [AC_MSG_ERROR([luajit not installed])])])
-CHECK_LIB(libpcre, [AC_CHECK_LIB(pcre, pcre_compile, [], [AC_MSG_ERROR([pcre not installed])])])
 CHECK_LIB(libz, [AC_CHECK_LIB(z, gzread, [], [AC_MSG_ERROR([zlib not installed])])])
 CHECK_LIB(libopenssl, [
 	AC_CHECK_LIB(crypto, CRYPTO_new_ex_data, [], [AC_MSG_ERROR([library 'crypto' is required for OpenSSL])])
@@ -215,7 +201,6 @@ AC_SUBST(LUAJITBIN, ["$luajit"])
 AC_SUBST([BUILD_LIBUV], ["$build_libuv"])
 AC_SUBST([BUILD_LUAJIT], ["$build_libluajit"])
 AC_SUBST([BUILD_ZLIB], ["$build_libz"])
-AC_SUBST([BUILD_PCRE], ["$build_libpcre"])
 AC_SUBST([BUILD_OPENSSL], ["$build_libopenssl"])
 AC_SUBST([DEVELOP_BUILD], ["$enable_develop"])
 AC_SUBST([LIBS], ["$LIBS"])
@@ -231,13 +216,11 @@ AC_MSG_NOTICE([using CC=$CC])
 AC_MSG_NOTICE([using CFLAGS=$CFLAGS])
 AC_MSG_NOTICE([using LDFLAGS=$LDFLAGS])
 AC_MSG_NOTICE([using build_libz=$build_libz])
-AC_MSG_NOTICE([using build_libpcre=$build_libpcre])
 AC_MSG_NOTICE([using build_libuv=$build_libuv])
 AC_MSG_NOTICE([using build_libluajit=$build_libluajit])
 AC_MSG_NOTICE([using build_libopenssl=$build_libopenssl])
 AC_MSG_NOTICE([using include_libz=$include_libz])
 AC_MSG_NOTICE([using include_libopenssl=$include_libopenssl])
-AC_MSG_NOTICE([using include_libpcre=$include_libpcre])
 AC_MSG_NOTICE([using include_lpeg=$include_lpeg])
 AC_MSG_NOTICE([using BUILD_LIBS=$BUILD_LIBS])
 AC_MSG_NOTICE([using LIBS=$LIBS])

@@ -45,11 +45,6 @@ LUALIB_API int luaopen_env(lua_State* L);
 LUALIB_API int luaopen_openssl(lua_State* L);
 #endif
 
-#ifdef LOGD_WITH_PCRE
-#include <pcre.h>
-LUALIB_API int luaopen_rex_pcre(lua_State* L);
-#endif
-
 #ifdef LOGD_WITH_ZLIB
 #include <zlib.h>
 LUALIB_API int luaopen_zlib(lua_State* L);

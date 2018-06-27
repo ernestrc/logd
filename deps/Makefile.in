@@ -10,7 +10,6 @@ DEVELOP_BUILD=@DEVELOP_BUILD@
 BUILD_LIBUV=@BUILD_LIBUV@
 BUILD_LUAJIT=@BUILD_LUAJIT@
 BUILD_ZLIB=@BUILD_ZLIB@
-BUILD_PCRE=@BUILD_PCRE@
 BUILD_OPENSSL=@BUILD_OPENSSL@
 BUILD_LIBS=@BUILD_LIBS@
 
@@ -31,10 +30,8 @@ LIBCRYPTO = $(LIBDIR)libcrypto.a
 LIBSSL = $(LIBDIR)libssl.a
 LIBZ = $(LIBDIR)libz.a
 LUA_COMPAT= $(INCDIR)c-api
-LIBPCRE = $(LIBDIR)libpcre.a
 
 LPEG = $(LIBDIR)liblpeg.a
-LPCRE = $(LIBDIR)liblpcre.a
 LSSL = $(LIBDIR)liblssl.a
 LZLIB = $(LIBDIR)liblzlib.a
 
@@ -71,12 +68,6 @@ $(LIBSSL): $(OPENSSLDEPS)
 	@ echo "  COMPILING openssl"
 	@ cd openssl && \
 		./config $(OPENSSL_CFG) && $(MAKE) $(OPTS) && $(MAKE) install $(OPTS)
-
-$(LIBPCRE):
-	@ echo "  COMPILING	libpcre"
-	@ cp pcre.patch pcre/pcre.patch
-	@- cd pcre && patch -N -p1 < pcre.patch
-	@ cd pcre && aclocal && automake && autoconf && ./configure $(CFG_FLAGS) && $(MAKE) $(OPTS) && $(MAKE) install $(OPTS)
 
 $(LIBZ):
 	@ echo "  COMPILING	zlib"
@@ -119,19 +110,6 @@ $(LPEG): $(LPEGDEPS)
 	@- cd lpeg && patch -N -p1 < lpeg.patch
 	@ cd lpeg && $(MAKE)
 	@ cd lpeg && $(AR) rcs $(LPEG) *.o && ranlib $(LPEG)
-
-LPCREDEPS=
-ifeq ($(BUILD_LUAJIT),yes)
-LPCREDEPS += $(LIBLUAJIT)
-endif
-ifeq ($(BUILD_PCRE),yes)
-LPCREDEPS += $(LIBPCRE)
-endif
-$(LPCRE): $(LPCREDEPS)
-	@ echo "  COMPILING	lpcre"
-	@ cp Makefile.lrexlib lrexlib/Makefile
-	@ cd lrexlib && $(MAKE) CFLAGS="$(CFLAGS) -DLUA_VERSION_NUM=501 -DLUA_LIB -DLUA_COMPAT_APIINTCASTS -DVERSION='\"2.8.0\"'"
-	@ cp lrexlib/lpcre.a $(LPCRE)
 
 LSSLDEPS=
 ifeq ($(BUILD_LUAJIT),yes)

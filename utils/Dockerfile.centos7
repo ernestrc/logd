@@ -1,7 +1,7 @@
 FROM centos:7
 
 RUN yum install -y epel-release && yum update -y
-RUN yum install -y git make gcc libtool zlib-devel pcre-devel openssl-devel patch
+RUN yum install -y git make gcc libtool zlib-devel openssl-devel patch
 
 WORKDIR /opt/logd
 VOLUME /opt/logd/bin

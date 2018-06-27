@@ -631,7 +631,6 @@ EXTRA_CFLAGS
 BUILD_LIBS
 DEVELOP_BUILD
 BUILD_OPENSSL
-BUILD_PCRE
 BUILD_ZLIB
 BUILD_LUAJIT
 BUILD_LIBUV
@@ -706,11 +705,9 @@ enable_build_all
 enable_build_libuv
 enable_build_luajit
 enable_build_zlib
-enable_build_pcre
 enable_build_openssl
 enable_zlib
 enable_openssl
-enable_pcre
 enable_lpeg
 '
       ac_precious_vars='build_alias
@@ -1339,14 +1336,11 @@ Optional Features:
   --enable-build-libuv    build local libuv
   --enable-build-luajit   build local luajit
   --enable-build-zlib     build local zlib
-  --enable-build-pcre     build local pcre
   --enable-build-openssl  build local openssl
   --disable-zlib          do not include zlib as system or local dependency.
                           This overrides --enable-build-zlib
   --disable-openssl       do not include openssl as system or local
                           dependency. This overrides --enable-build-openssl
-  --disable-pcre          do not include pcre as system or local dependency.
-                          This overrides --enable-build-pcre
   --disable-lpeg          do not include lpeg module.
 
 Some influential environment variables:
@@ -2132,13 +2126,6 @@ else
   build_libz=no
 fi
 
-# Check whether --enable-build-pcre was given.
-if test "${enable_build_pcre+set}" = set; then :
-  enableval=$enable_build_pcre; build_libpcre=yes
-else
-  build_libpcre=no
-fi
-
 # Check whether --enable-build-openssl was given.
 if test "${enable_build_openssl+set}" = set; then :
   enableval=$enable_build_openssl; build_libopenssl=yes
@@ -2159,13 +2146,6 @@ if test "${enable_openssl+set}" = set; then :
   enableval=$enable_openssl; include_libopenssl=no
 else
   include_libopenssl=yes
-fi
-
-# Check whether --enable-pcre was given.
-if test "${enable_pcre+set}" = set; then :
-  enableval=$enable_pcre; include_libpcre=no
-else
-  include_libpcre=yes
 fi
 
 # Check whether --enable-lpeg was given.
@@ -2311,7 +2291,6 @@ fi
 if test "$build_all" == yes
 then
 	build_libz=yes
-	build_libpcre=yes
 	build_libuv=yes
 	build_libluajit=yes
 	build_libopenssl=yes
@@ -2337,16 +2316,6 @@ else
 	build_libopenssl=no
 fi
 
-# add pcre lua module
-if test "$include_libpcre" == yes
-then
-	$as_echo "#define LOGD_WITH_PCRE 1" >>confdefs.h
-
-	build_libs="$build_libs $root_dir/deps/lib/liblpcre.a"
-else
-	build_libpcre=no
-fi
-
 # add lpeg lua module
 if test "$include_lpeg" == yes
 then
@@ -2363,17 +2332,6 @@ fi
 		if test "$include_libz" == yes
 		then
 			system_libs="$(pkg-config zlib --libs) $system_libs"
-		fi
-	fi
-
-
-	if test "$build_libpcre" == yes
-	then
-		build_libs="$build_libs $root_dir/deps/lib/libpcre.a"
-	else
-		if test "$include_libpcre" == yes
-		then
-			system_libs="$(pkg-config libpcre --libs) $system_libs"
 		fi
 	fi
 
@@ -4925,58 +4883,6 @@ fi
 	fi
 
 
-	if test "$build_libpcre" == no
-	then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for pcre_compile in -lpcre" >&5
-$as_echo_n "checking for pcre_compile in -lpcre... " >&6; }
-if ${ac_cv_lib_pcre_pcre_compile+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  ac_check_lib_save_LIBS=$LIBS
-LIBS="-lpcre  $LIBS"
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-/* Override any GCC internal prototype to avoid an error.
-   Use char because int might match the return type of a GCC
-   builtin and then its argument prototype would still apply.  */
-#ifdef __cplusplus
-extern "C"
-#endif
-char pcre_compile ();
-int
-main ()
-{
-return pcre_compile ();
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-  ac_cv_lib_pcre_pcre_compile=yes
-else
-  ac_cv_lib_pcre_pcre_compile=no
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-LIBS=$ac_check_lib_save_LIBS
-fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_pcre_pcre_compile" >&5
-$as_echo "$ac_cv_lib_pcre_pcre_compile" >&6; }
-if test "x$ac_cv_lib_pcre_pcre_compile" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBPCRE 1
-_ACEOF
-
-  LIBS="-lpcre $LIBS"
-
-else
-  as_fn_error $? "pcre not installed" "$LINENO" 5
-fi
-
-	fi
-
-
 	if test "$build_libz" == no
 	then
 		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gzread in -lz" >&5
@@ -5352,8 +5258,6 @@ BUILD_LUAJIT="$build_libluajit"
 
 BUILD_ZLIB="$build_libz"
 
-BUILD_PCRE="$build_libpcre"
-
 BUILD_OPENSSL="$build_libopenssl"
 
 DEVELOP_BUILD="$enable_develop"
@@ -5383,8 +5287,6 @@ $as_echo "$as_me: using CFLAGS=$CFLAGS" >&6;}
 $as_echo "$as_me: using LDFLAGS=$LDFLAGS" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using build_libz=$build_libz" >&5
 $as_echo "$as_me: using build_libz=$build_libz" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: using build_libpcre=$build_libpcre" >&5
-$as_echo "$as_me: using build_libpcre=$build_libpcre" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using build_libuv=$build_libuv" >&5
 $as_echo "$as_me: using build_libuv=$build_libuv" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using build_libluajit=$build_libluajit" >&5
@@ -5395,8 +5297,6 @@ $as_echo "$as_me: using build_libopenssl=$build_libopenssl" >&6;}
 $as_echo "$as_me: using include_libz=$include_libz" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using include_libopenssl=$include_libopenssl" >&5
 $as_echo "$as_me: using include_libopenssl=$include_libopenssl" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: using include_libpcre=$include_libpcre" >&5
-$as_echo "$as_me: using include_libpcre=$include_libpcre" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using include_lpeg=$include_lpeg" >&5
 $as_echo "$as_me: using include_lpeg=$include_lpeg" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using BUILD_LIBS=$BUILD_LIBS" >&5
