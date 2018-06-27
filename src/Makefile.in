@@ -1,13 +1,12 @@
 CC=@CC@
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
-CFLAGS_NO_EXTRA=@CFLAGS@
 LDFLAGS=@LDFLAGS@ @EXTRA_LDFLAGS@
 LIBS=@LIBS@
 BUILD_LIBS= @BUILD_LIBS@
+LUAPATH=@LUAPATH@
 LUAJIT=@LUAJITBIN@
 DEVELOP_BUILD=@DEVELOP_BUILD@
 ROOT_DIR=@ROOT_DIR@
-VERSION=@VERSION@
 
 LIBDEPS=$(ROOT_DIR)/deps/lib
 INCDIR=$(ROOT_DIR)/include
@@ -50,7 +49,7 @@ prepare:
 
 %.jit.o: %.lua
 	@ echo "  JIT	$@"
-	@ $(LUAJIT) -b $< `basename $< .lua`.jit.o
+	@ $(LUAPATH) $(LUAJIT) -b $< `basename $< .lua`.jit.o
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
@@ -69,10 +68,10 @@ $(BINDIR)/%: %.c $(LIBJITTED) $(LIB)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< -L$(LIBDIR) -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive -Wl,-E -llogd $(LIBS)
 
 $(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
-	$(CC) -o $(PARSER_SO) -shared -fPIC parser.c $(PARSER_DEPS)
+	$(CC) -o $(PARSER_SO) $(CFLAGS) -shared -fPIC parser.c $(PARSER_DEPS)
 
 $(CMOD): logd_module.h logd_module.c $(CMOD_DEPS)
-	$(CC) -o $(CMOD) $(shell pkg-config luajit --cflags) -shared -fPIC logd_module.c $(CMOD_DEPS)
+	$(CC) -o $(CMOD) $(CFLAGS) -shared -fPIC logd_module.c $(CMOD_DEPS)
 
 $(INCDIR)/logd/%.h: %.h
 	@ cd ../include/logd && \

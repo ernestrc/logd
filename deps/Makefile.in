@@ -37,7 +37,7 @@ LZLIB = $(LIBDIR)liblzlib.a
 
 ALL = $(BUILD_LIBS) $(LIBSLAB) $(LIBLUV) $(LUA_COMPAT)
 
-LUAJIT_OPTS=CC='$(CC)' CFLAGS='-O2 -fPIC -fomit-frame-pointer' LDFLAGS='$(LDFLAGS)' PREFIX='$(PREFIX)' BUILDMODE='static'
+LUAJIT_OPTS=CC='$(CC)' CFLAGS='$(CFLAGS) -fomit-frame-pointer' LDFLAGS='$(LDFLAGS) $(CFLAGS)' PREFIX='$(PREFIX)' BUILDMODE='static'
 
 .DEFAULT: all
 .PHONY: clean

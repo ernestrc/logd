@@ -20,8 +20,9 @@ INT_TESTS=$(wildcard test_*.sh)
 FUZZERS=$(wildcard fuzz_*.c)
 TARGET_TESTS = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(TESTS)))
 TARGET_FUZZERS = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(FUZZERS)))
-# TODO also add lua tests prof data
-TARGET_TPROFILES = $(addprefix $(BINDIR)/,$(patsubst %.c,%.profraw,$(TESTS))) $(addprefix $(BINDIR)/,$(patsubst %.sh,%.sh.profraw,$(INT_TESTS)))
+TARGET_TPROFILES = $(addprefix $(BINDIR)/,$(patsubst %.c,%.profraw,$(TESTS))) \
+				   $(addprefix $(BINDIR)/,$(patsubst %.sh,%.sh.profraw,$(INT_TESTS))) \
+				   $(addprefix $(BINDIR)/,$(patsubst %.lua,%.lua.profraw,$(LUA_TESTS)))
 TARGET_FPROFILES = $(addprefix $(BINDIR)/,$(patsubst %.c,%.profraw,$(FUZZERS)))
 
 LIB = $(LIBDIR)/liblogd.a
@@ -53,7 +54,7 @@ int_test: $(INT_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LOGD_SLAB_CAP=$(LOGD_SLAB_CAP) LOGD_BUF_MAX_CAP=$(LOGD_BUF_MAX_CAP) ./$$f 2>&1; done
 
 lua_test: $(LUA_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LUA_PATH="$(LUA_PATH)" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f 2>/dev/null 1>/dev/null; done
+	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LUA_PATH="$(LUA_PATH)" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
 
 $(BINDIR)/test_%: test_%.c $(LIB)
 	$(CC) $(LDFLAGS) $(CFLAGS) $(addprefix ../src/,$(patsubst test_%.c, %.c, $<)) $< -o $@ $(LIB)

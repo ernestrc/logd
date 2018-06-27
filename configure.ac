@@ -117,17 +117,16 @@ fi
 if test "$build_libluajit" == no
 then
 	libs_cflags="$libs_cflags $(pkg-config luajit --cflags-only-I)"
+	luapath=
 	luajit=/usr/bin/luajit
 else
 	libs_cflags="$libs_cflags -I$root_dir/deps/include/luajit-2.0"
-	luajit="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\" $root_dir/deps/luajit/src/luajit"
+	luapath="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\"" 
+	luajit="$root_dir/deps/luajit/src/luajit"
 fi
 
 if test "$enable_develop" == yes
 then
-	# TODO develop build for now requires luajit to be installed in system
-	# until we add coverage instrumentation to luajit executable
-	luajit=/usr/bin/luajit
 	SET_DEFLAG_DEFINE(LOGD_SLAB_CAP, 30)
 	SET_DEFLAG_DEFINE(LOGD_BUF_INIT_CAP, 64000)
 	SET_DEFLAG_DEFINE(LOGD_BUF_MAX_CAP, 1000000)
@@ -198,6 +197,7 @@ fi
 AC_CONFIG_SRCDIR(src/logd_module.c)
 
 AC_SUBST(LUAJITBIN, ["$luajit"])
+AC_SUBST(LUAPATH, ["$luapath"])
 AC_SUBST([BUILD_LIBUV], ["$build_libuv"])
 AC_SUBST([BUILD_LUAJIT], ["$build_libluajit"])
 AC_SUBST([BUILD_ZLIB], ["$build_libz"])

@@ -634,6 +634,7 @@ BUILD_OPENSSL
 BUILD_ZLIB
 BUILD_LUAJIT
 BUILD_LIBUV
+LUAPATH
 LUAJITBIN
 OBJDUMP_CHECK
 EGREP
@@ -2373,17 +2374,16 @@ fi
 if test "$build_libluajit" == no
 then
 	libs_cflags="$libs_cflags $(pkg-config luajit --cflags-only-I)"
+	luapath=
 	luajit=/usr/bin/luajit
 else
 	libs_cflags="$libs_cflags -I$root_dir/deps/include/luajit-2.0"
-	luajit="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\" $root_dir/deps/luajit/src/luajit"
+	luapath="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\""
+	luajit="$root_dir/deps/luajit/src/luajit"
 fi
 
 if test "$enable_develop" == yes
 then
-	# TODO develop build for now requires luajit to be installed in system
-	# until we add coverage instrumentation to luajit executable
-	luajit=/usr/bin/luajit
 	test -z "$LOGD_SLAB_CAP" && LOGD_SLAB_CAP="30"; $as_echo "#define LOGD_SLAB_CAP 30" >>confdefs.h
  LOGD_SLAB_CAP=30
 
@@ -5251,6 +5251,8 @@ fi
 
 
 LUAJITBIN="$luajit"
+
+LUAPATH="$luapath"
 
 BUILD_LIBUV="$build_libuv"
 
