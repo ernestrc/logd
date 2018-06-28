@@ -115,11 +115,9 @@ fi
 if test "$build_libluajit" == no
 then
 	libs_cflags="$libs_cflags $(pkg-config luajit --cflags-only-I)"
-	luapath=
 	luajit=/usr/bin/luajit
 else
 	libs_cflags="$libs_cflags -I$root_dir/deps/include/luajit-2.0"
-	luapath="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\"" 
 	luajit="$root_dir/deps/luajit/src/luajit"
 fi
 
@@ -183,7 +181,6 @@ AC_CHECK_LIB(pthread, pthread_create, [], [AC_MSG_ERROR([pthread not available])
 AC_CONFIG_SRCDIR(src/logd_module.c)
 
 AC_SUBST(LUAJITBIN, ["$luajit"])
-AC_SUBST(LUAPATH, ["$luapath"])
 AC_SUBST([BUILD_LIBUV], ["$build_libuv"])
 AC_SUBST([BUILD_LUAJIT], ["$build_libluajit"])
 AC_SUBST([BUILD_ZLIB], ["$build_libz"])

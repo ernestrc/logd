@@ -634,7 +634,6 @@ BUILD_OPENSSL
 BUILD_ZLIB
 BUILD_LUAJIT
 BUILD_LIBUV
-LUAPATH
 LUAJITBIN
 OBJDUMP_CHECK
 EGREP
@@ -2400,11 +2399,9 @@ fi
 if test "$build_libluajit" == no
 then
 	libs_cflags="$libs_cflags $(pkg-config luajit --cflags-only-I)"
-	luapath=
 	luajit=/usr/bin/luajit
 else
 	libs_cflags="$libs_cflags -I$root_dir/deps/include/luajit-2.0"
-	luapath="LUA_PATH=\"$root_dir/deps/luajit/src/?.lua;$root_dir/deps/luajit/src/jit/?.lua\""
 	luajit="$root_dir/deps/luajit/src/luajit"
 fi
 
@@ -5252,8 +5249,6 @@ fi
 
 
 LUAJITBIN="$luajit"
-
-LUAPATH="$luapath"
 
 BUILD_LIBUV="$build_libuv"
 
