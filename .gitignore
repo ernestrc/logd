@@ -40,6 +40,7 @@ tags
 *.profraw
 *.profdata
 
+Makefile
 src/Makefile
 deps/Makefile
 test/Makefile

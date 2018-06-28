@@ -42,6 +42,7 @@ Run configure script and then make:
 ```sh
 $ ./configure
 $ make
+$ make install
 ```
 If you have problems linking with a system dependency, you can configure the project to build the dependency from source:
 ```sh

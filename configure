@@ -5270,6 +5270,8 @@ EXTRA_LDFLAGS="$EXTRA_LDFLAGS"
 
 ROOT_DIR="$root_dir"
 
+bindir="$bindir"
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: using enable_develop=$enable_develop" >&5
 $as_echo "$as_me: using enable_develop=$enable_develop" >&6;}
@@ -5307,7 +5309,7 @@ _ACEOF
 LOGD_VERSION="$version"
 
 
-ac_config_files="$ac_config_files src/Makefile deps/Makefile test/Makefile"
+ac_config_files="$ac_config_files Makefile src/Makefile deps/Makefile test/Makefile"
 
 
 ac_config_headers="$ac_config_headers src/config.h"
@@ -6003,6 +6005,7 @@ cat >>$CONFIG_STATUS <<\_ACEOF || ac_write_fail=1
 for ac_config_target in $ac_config_targets
 do
   case $ac_config_target in
+    "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "deps/Makefile") CONFIG_FILES="$CONFIG_FILES deps/Makefile" ;;
     "test/Makefile") CONFIG_FILES="$CONFIG_FILES test/Makefile" ;;

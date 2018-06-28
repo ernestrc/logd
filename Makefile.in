@@ -1,5 +1,7 @@
 .PHONY: analysis full-analysis format tags purge test fuzz coverage html-coverage fuzz-coverage fuzz-html-coverage
 
+bindir=@bindir@
+
 PWD=$(shell pwd)
 BIN=$(PWD)/bin
 INCLUDE=$(PWD)/include
@@ -66,6 +68,5 @@ purge: clean
 	@ git submodule deinit --all -f
 	@ rm -f tags
 
-# TODO
 install:
-	@ echo TODO
+	@ install -m 0755 $(BIN)/logd $(bindir)/logd

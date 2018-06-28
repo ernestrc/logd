@@ -191,6 +191,7 @@ AC_SUBST([BUILD_LIBS], ["$BUILD_LIBS"])
 AC_SUBST([EXTRA_CFLAGS], ["$EXTRA_CFLAGS"])
 AC_SUBST([EXTRA_LDFLAGS], ["$EXTRA_LDFLAGS"])
 AC_SUBST([ROOT_DIR], ["$root_dir"])
+AC_SUBST(bindir, ["$bindir"])
 
 AC_MSG_NOTICE([using enable_develop=$enable_develop])
 AC_MSG_NOTICE([using ROOT_DIR=$root_dir])
@@ -210,7 +211,8 @@ AC_MSG_NOTICE([using LIBS=$LIBS])
 AC_DEFINE_UNQUOTED(LOGD_VERSION, ["$version"])
 AC_SUBST(LOGD_VERSION, ["$version"])
 
-AC_CONFIG_FILES([src/Makefile
+AC_CONFIG_FILES([Makefile
+				 src/Makefile
 				 deps/Makefile
                  test/Makefile])
 
