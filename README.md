@@ -33,7 +33,6 @@ If you need to parse logs with a different format, you can load a dynamic shared
 ## Optionally Preloaded Lua modules 
 Depending on the build, the following modules are preloaded:
 - [lpeg](http://www.inf.puc-rio.br/~roberto/lpeg/)
-- [rex](https://github.com/rrthomas/lrexlib)
 - [openssl](https://github.com/zhaozg/lua-openssl)
 - [zlib](https://github.com/brimworks/lua-zlib)
 
