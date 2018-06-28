@@ -4797,7 +4797,9 @@ fi
 
 	if test "$build_libuv" == no
 	then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for uv_loop_close in -luv" >&5
+		if test "$include_libuv" == yes
+		then
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for uv_loop_close in -luv" >&5
 $as_echo_n "checking for uv_loop_close in -luv... " >&6; }
 if ${ac_cv_lib_uv_uv_loop_close+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -4844,12 +4846,15 @@ else
   as_fn_error $? "libuv not installed" "$LINENO" 5
 fi
 
+		fi
 	fi
 
 
 	if test "$build_libluajit" == no
 	then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for luaJIT_setmode in -lluajit-5.1" >&5
+		if test "$include_libluajit" == yes
+		then
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for luaJIT_setmode in -lluajit-5.1" >&5
 $as_echo_n "checking for luaJIT_setmode in -lluajit-5.1... " >&6; }
 if ${ac_cv_lib_luajit_5_1_luaJIT_setmode+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -4896,12 +4901,15 @@ else
   as_fn_error $? "luajit not installed" "$LINENO" 5
 fi
 
+		fi
 	fi
 
 
 	if test "$build_libz" == no
 	then
-		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gzread in -lz" >&5
+		if test "$include_libz" == yes
+		then
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for gzread in -lz" >&5
 $as_echo_n "checking for gzread in -lz... " >&6; }
 if ${ac_cv_lib_z_gzread+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -4948,11 +4956,14 @@ else
   as_fn_error $? "zlib not installed" "$LINENO" 5
 fi
 
+		fi
 	fi
 
 
 	if test "$build_libopenssl" == no
 	then
+		if test "$include_libopenssl" == yes
+		then
 
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for CRYPTO_new_ex_data in -lcrypto" >&5
 $as_echo_n "checking for CRYPTO_new_ex_data in -lcrypto... " >&6; }
@@ -5086,6 +5097,7 @@ fi
   as_fn_error $? "library 'ssl' is required for OpenSSL" "$LINENO" 5
 fi
 
+		fi
 	fi
 
 

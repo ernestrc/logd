@@ -24,7 +24,10 @@ AC_DEFUN([CHECK_BUILD],[
 AC_DEFUN([CHECK_LIB],[
 	if test "$build_$1" == no
 	then
-		$2
+		if test "$include_$1" == yes
+		then
+			$2
+		fi
 	fi
 ])
 AC_DEFUN([SET_DEFLAG_DEFINE],[test -z "$$1" && $1="$2"; AC_DEFINE($1, $2) AC_SUBST($1, $2)])
