@@ -115,7 +115,7 @@ luvi.path = {
   joinparts = joinParts,
 }
 
-return {
+package.loaded['luvipath'] = {
   isWindows = isWindows,
   getPrefix = getPrefix,
   splitPath = splitPath,

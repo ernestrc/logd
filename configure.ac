@@ -29,7 +29,6 @@ AC_DEFUN([CHECK_LIB],[
 ])
 AC_DEFUN([SET_DEFLAG_DEFINE],[test -z "$$1" && $1="$2"; AC_DEFINE($1, $2) AC_SUBST($1, $2)])
 
-AC_ARG_ENABLE(static, [AS_HELP_STRING([--enable-static-musl], [statically link executable with system musl libc])], [enable_static=yes], [enable_static=no])
 AC_ARG_ENABLE(develop, [AS_HELP_STRING([--enable-develop], [enable development build. This sets clang as the compiler and sets a bunch of testing and debugging compiler flags.])], [enable_develop=yes], [enable_develop=no])
 AC_ARG_ENABLE(build-all, [AS_HELP_STRING([--enable-build-all], [build all local dependencies])], [build_all=yes], [build_all=no])
 
@@ -47,6 +46,11 @@ if test x"$PKGCFG" != x"yes" ; then
     AC_MSG_ERROR([Please install pkg-config before building logd.])
 fi
 
+AC_CHECK_PROG(XXDPROG,xxd,yes)
+if test x"$XXDPROG" != x"yes" ; then
+    AC_MSG_ERROR([Please install xxd before building logd.])
+fi
+
 AC_CHECK_PROG(GITPRG,git,yes)
 if test x"$GITPRG" != x"yes" ; then
     AC_MSG_ERROR([Please install git before building logd.])
@@ -58,12 +62,6 @@ if test x"$PATCHPGR" != x"yes" ; then
 fi
 
 version=`git describe --tags --long 2>/dev/null || echo "untagged-$(git rev-parse --short HEAD)"`
-
-if test "$enable_static" == yes
-then
-	build_all=yes
-	AC_MSG_WARN([--enable-static IS EXPERIMENTAL. USE THIS BUILD AT YOUR OWN RISK.])
-fi
 
 if test "$build_all" == yes
 then
@@ -143,15 +141,8 @@ else
 	SET_DEFLAG_DEFINE(LOGD_BUF_MAX_CAP, 8192000)
 	SET_DEFLAG_DEFINE(LOGD_PRINT_MAX_KEYS, 100)
 	AC_DEFINE(LOGD_INLINE)
-	if test "$enable_static" == yes
-	then
-		SET_DEFLAG(CC, [musl-gcc])
-		SET_DEFLAG(CFLAGS,[$libs_cflags -O3 -flto])
-		SET_DEFLAG(LDFLAGS,[-static $libs_ldflags])
-	else
-		SET_DEFLAG(CFLAGS,[$libs_cflags -O3 -flto])
-		SET_DEFLAG(LDFLAGS,[$libs_ldflags])
-	fi
+	SET_DEFLAG(CFLAGS,[$libs_cflags -O3 -flto])
+	SET_DEFLAG(LDFLAGS,[$libs_ldflags])
 fi
 
 AC_CHECK_LIB(lua, lua_getglobal, [AC_MSG_ERROR([Please uninstall lua before compiling and make sure luajit is installed.])])
@@ -189,11 +180,6 @@ AC_CHECK_LIB(dl, dlopen, [], [AC_MSG_ERROR([dl not available.])])
 AC_CHECK_LIB(m, acos, [], [AC_MSG_ERROR([math not available])])
 AC_CHECK_LIB(pthread, pthread_create, [], [AC_MSG_ERROR([pthread not available])])
 
-if test "$enable_static" == yes
-then
-	AC_CHECK_HEADERS([linux/mman.h], [], AC_MSG_ERROR([musl linux headers not found. Please install to continue.]))
-fi
-
 AC_CONFIG_SRCDIR(src/logd_module.c)
 
 AC_SUBST(LUAJITBIN, ["$luajit"])
@@ -210,7 +196,6 @@ AC_SUBST([EXTRA_LDFLAGS], ["$EXTRA_LDFLAGS"])
 AC_SUBST([ROOT_DIR], ["$root_dir"])
 
 AC_MSG_NOTICE([using enable_develop=$enable_develop])
-AC_MSG_NOTICE([using enable_static=$enable_static])
 AC_MSG_NOTICE([using ROOT_DIR=$root_dir])
 AC_MSG_NOTICE([using CC=$CC])
 AC_MSG_NOTICE([using CFLAGS=$CFLAGS])

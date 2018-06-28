@@ -378,7 +378,7 @@ end
 -- Legacy export for makeBundle
 luvi.makeBundle = makeBundle
 
-return {
+package.loaded['luvibundle'] = {
   folderBundle = folderBundle,
   chrootBundle = chrootBundle,
   zipBundle = zipBundle,

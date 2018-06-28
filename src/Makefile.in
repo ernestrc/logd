@@ -3,8 +3,6 @@ CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
 LDFLAGS=@LDFLAGS@ @EXTRA_LDFLAGS@
 LIBS=@LIBS@
 BUILD_LIBS= @BUILD_LIBS@
-LUAPATH=@LUAPATH@
-LUAJIT=@LUAJITBIN@
 DEVELOP_BUILD=@DEVELOP_BUILD@
 ROOT_DIR=@ROOT_DIR@
 
@@ -18,14 +16,14 @@ EXEC_OBJ = logd.o
 SRCS = $(wildcard *.c)
 LUA_SRCS = $(wildcard *.lua)
 OBJS = $(filter-out $(patsubst %.c,%.o,$(EXEC_SRC)), $(patsubst %.c,%.o,$(SRCS)))
-JITTED = $(patsubst %.lua,%.jit.o,$(LUA_SRCS))
+LUAMOD = $(patsubst %.lua,%.lua.h,$(LUA_SRCS))
 EXEC = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(EXEC_SRC)))
 STATIC_LIBS = $(LIBDEPS)/libslab.a $(LIBDEPS)/liblssl.a $(LIBDEPS)/libluv.a $(LIBDEPS)/liblpeg.a $(LIBDEPS)/liblzlib.a $(BUILD_LIBS)
 CMOD = $(LIBDIR)/logd.so
 CMOD_DEPS=log.c util.c
 PARSER_SO = $(LIBDIR)/logd_parser.so
 PARSER_DEPS=log.c util.c
-LIBJITTED = $(LIBDIR)/liblogdjit.a
+LIBLUAHEX = $(LIBDIR)/liblogdjit.a
 LIB = $(LIBDIR)/liblogd.a
 
 listobj = $(shell [[ -f $(1) ]] && objdump -f $(1) | grep 'file format' | awk -F':' '{print "$(2)/"$$1}' | xargs echo)
@@ -37,35 +35,32 @@ EXTOBJS = $(addprefix $(LIBDIR)/objs/, $(foreach lib,$(STATIC_LIBS),$(call listo
 default: src
 
 ifeq ($(DEVELOP_BUILD),yes)
-src: prepare $(LIB) $(LIBJITTED) $(EXEC) $(CMOD) $(PARSER_SO)
+src: prepare $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(PARSER_SO)
 else
-src: prepare $(LIB) $(LIBJITTED) $(EXEC)
+src: prepare $(LIB) $(LUAMOD) $(EXEC)
 endif
+
+lua.c: $(LUAMOD)
 
 prepare:
 	@ mkdir -p $(INCDIR)/logd
 	@ mkdir -p $(addprefix $(LIBDIR)/objs/,$(patsubst $(LIBDEPS)/%.a,%,$(STATIC_LIBS)))
 	@ for lib in $(patsubst $(LIBDEPS)/%.a,%,$(STATIC_LIBS)); do cd $(LIBDIR)/objs/$$lib && cp $(LIBDEPS)/$$lib.a . && ar x $$lib.a; done
 
-%.jit.o: %.lua
-	@ echo "  JIT	$@"
-	@ $(LUAPATH) $(LUAJIT) -b $< `basename $< .lua`.jit.o
+%.lua.h: %.lua
+	@ echo "  XXD	$@"
+	@ xxd -i $< > $@
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
-
-$(LIBJITTED): $(JITTED)
-	@ echo "  AR	$@"
-	@ $(AR) rcs $(LIBJITTED) $(JITTED)
-	@ ranlib $(LIBJITTED)
 
 $(LIB): $(OBJS) $(EXTOBJS)
 	@ echo "  AR	$@"
 	@ $(AR) rcs $(LIB) $(OBJS) $(EXTOBJS)
 	@ ranlib $(LIB)
 
-$(BINDIR)/%: %.c $(LIBJITTED) $(LIB)
-	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< -L$(LIBDIR) -Wl,--whole-archive -llogdjit -Wl,--no-whole-archive -Wl,-E -llogd $(LIBS)
+$(BINDIR)/%: %.c $(LIB)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< $(LIB) $(LIBS)
 
 $(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
 	$(CC) -o $(PARSER_SO) $(CFLAGS) -shared -fPIC parser.c $(PARSER_DEPS)
@@ -82,8 +77,7 @@ clean:
 	@- rm -rf $(LIBDIR)/objs
 	@- rm -f $(EXEC)
 	@- rm -f $(LIB)
-	@- rm -f $(LIBJITTED)
-	@- rm -f $(JITTED)
+	@- rm -f $(LUAMOD)
 	@- rm -f $(SO)
 	@- rm -f $(OBJS)
 	@ rm -f *.profraw
