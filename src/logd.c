@@ -252,8 +252,10 @@ void on_read_skip(uv_poll_t* req, int status, int events)
 		return;
 	}
 
+	errno = 0;
 	int ret = read(infd, b->next_write, buf_writable(b));
 	if (errno == EAGAIN) {
+		DEBUG_LOG("input not ready: %d", infd);
 		return;
 	}
 	if (ret < 0) {
@@ -299,8 +301,10 @@ void on_read(uv_poll_t* req, int status, int events)
 		return;
 	}
 
+	errno = 0;
 	int ret = read(infd, b->next_write, buf_writable(b));
 	if (errno == EAGAIN) {
+		DEBUG_LOG("input not ready: %d", infd);
 		return;
 	}
 	if (ret < 0) {
