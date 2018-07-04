@@ -160,8 +160,13 @@ int lua_init(lua_t* l, uv_loop_t* loop, const char* script)
 	char* run_str = NULL;
 	int lerrno;
 
-	l->state = luaL_newstate();
 	l->loop = loop;
+	l->state = luaL_newstate();
+	if (l->state == NULL) {
+		errno = ENOMEM;
+		perror("luaL_newstate");
+		goto error;
+	}
 
 	luaL_openlibs(l->state);
 
