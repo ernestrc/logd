@@ -1,0 +1,34 @@
+sudo: required
+language: c
+
+services:
+  - docker
+
+matrix:
+  include:
+    - os: linux
+      env:
+         - MATRIX_SCRIPT="docker build . -t logd-build:ubuntu -f utils/Dockerfile.ubuntu && docker run --rm -ti -v /tmp/logd_ubuntu:/opt/logd/bin logd-build:ubuntu make && make install"
+         - MATRIX_EVAL=""
+
+    - os: linux
+      env:
+         - MATRIX_SCRIPT="docker build . -t logd-build:centos -f utils/Dockerfile.centos7 && docker run --rm -ti -v /tmp/logd_centos:/opt/logd/bin logd-build:centos make && make install"
+         - MATRIX_EVAL=""
+
+    - os: linux
+      env:
+         - MATRIX_SCRIPT="docker build . -t logd-build:debian -f utils/Dockerfile.debian && docker run --rm -ti -v /tmp/logd_debian:/opt/logd/bin logd-build:debian make && make install"
+         - MATRIX_EVAL=""
+
+    - os: linux
+      env:
+         - MATRIX_SCRIPT="docker build . -t logd-build:static -f utils/Dockerfile.static && docker run --rm -ti -v /tmp/logd_static:/opt/logd/bin logd-build:static make && make install"
+         - MATRIX_EVAL=""
+
+before_install:
+    - eval "${MATRIX_EVAL}"
+    - echo "${MATRIX_SCRIPT}" > script.sh
+
+script:
+    - source script.sh
