@@ -26,7 +26,7 @@ PARSER_DEPS=log.c util.c
 LIBLUAHEX = $(LIBDIR)/liblogdjit.a
 LIB = $(LIBDIR)/liblogd.a
 
-listobj = $(shell [[ -f $(1) ]] && nm -A $(1) | awk -F':' '{print "$(2)/"$$2}' | sort | uniq | xargs echo)
+listobj = $(shell nm -A $(1) | awk -F':' '{print "$(2)/"$$2}' | sort | uniq | xargs echo)
 EXTOBJS = $(addprefix $(LIBDIR)/objs/, $(foreach lib,$(STATIC_LIBS),$(call listobj, $(lib), $(patsubst $(LIBDEPS)/%.a,%,$(lib)))))
 
 .PHONY: clean install

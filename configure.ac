@@ -186,9 +186,9 @@ AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_USE_SYSTEM_EXTENSIONS
 
-AC_CHECK_PROG(OBJDUMP_CHECK,objdump,yes)
+AC_CHECK_PROG(OBJDUMP_CHECK,nm,yes)
 if test x"$OBJDUMP_CHECK" != x"yes" ; then
-    AC_MSG_ERROR([Please install binutils before building logd.])
+    AC_MSG_ERROR([Please make sure that GNU nm is installed before building logd.])
 fi
 
 CHECK_LIB(libuv, [
