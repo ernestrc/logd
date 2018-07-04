@@ -2,6 +2,13 @@
 
 bindir=@bindir@
 
+TARGET_SYS=@TARGET_SYS@
+ifeq (Darwin,$(TARGET_SYS))
+  ifeq (,$(MACOSX_DEPLOYMENT_TARGET))
+    export MACOSX_DEPLOYMENT_TARGET=10.5
+  endif
+endif
+
 PWD=$(shell pwd)
 BIN=$(PWD)/bin
 INCLUDE=$(PWD)/include

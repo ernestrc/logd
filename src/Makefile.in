@@ -26,8 +26,7 @@ PARSER_DEPS=log.c util.c
 LIBLUAHEX = $(LIBDIR)/liblogdjit.a
 LIB = $(LIBDIR)/liblogd.a
 
-listobj = $(shell [[ -f $(1) ]] && objdump -f $(1) | grep 'file format' | awk -F':' '{print "$(2)/"$$1}' | xargs echo)
-untarlib = $(shell cd $(LIBDIR)/objs/$(1) ; cp $(LIBDEPS)/$(1).a . ; ar x $(1).a)
+listobj = $(shell [[ -f $(1) ]] && nm -A $(1) | awk -F':' '{print "$(2)/"$$2}' | sort | uniq | xargs echo)
 EXTOBJS = $(addprefix $(LIBDIR)/objs/, $(foreach lib,$(STATIC_LIBS),$(call listobj, $(lib), $(patsubst $(LIBDEPS)/%.a,%,$(lib)))))
 
 .PHONY: clean install
@@ -35,17 +34,12 @@ EXTOBJS = $(addprefix $(LIBDIR)/objs/, $(foreach lib,$(STATIC_LIBS),$(call listo
 default: src
 
 ifeq ($(DEVELOP_BUILD),yes)
-src: prepare $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(PARSER_SO)
+src: $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(PARSER_SO)
 else
-src: prepare $(LIB) $(LUAMOD) $(EXEC)
+src: $(LIB) $(LUAMOD) $(EXEC)
 endif
 
 lua.c: $(LUAMOD)
-
-prepare:
-	@ mkdir -p $(INCDIR)/logd
-	@ mkdir -p $(addprefix $(LIBDIR)/objs/,$(patsubst $(LIBDEPS)/%.a,%,$(STATIC_LIBS)))
-	@ for lib in $(patsubst $(LIBDEPS)/%.a,%,$(STATIC_LIBS)); do cd $(LIBDIR)/objs/$$lib && cp $(LIBDEPS)/$$lib.a . && ar x $$lib.a; done
 
 %.lua.h: %.lua
 	@ echo "  XXD	$@"
@@ -54,7 +48,10 @@ prepare:
 %.o: %.c
 	$(CC) $(CFLAGS) -c $<
 
-$(LIB): $(OBJS) $(EXTOBJS)
+$(LIB): $(OBJS)
+	@ mkdir -p $(INCDIR)/logd
+	@ mkdir -p $(addprefix $(LIBDIR)/objs/,$(patsubst $(LIBDEPS)/%.a,%,$(STATIC_LIBS)))
+	@ for lib in $(patsubst $(LIBDEPS)/%.a,%,$(STATIC_LIBS)); do cd $(LIBDIR)/objs/$$lib && cp $(LIBDEPS)/$$lib.a . && ar x $$lib.a; done
 	@ echo "  AR	$@"
 	@ $(AR) rcs $(LIB) $(OBJS) $(EXTOBJS)
 	@ ranlib $(LIB)
@@ -63,10 +60,10 @@ $(BINDIR)/%: %.c $(LIB)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< $(LIB) $(LIBS)
 
 $(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
-	$(CC) -o $(PARSER_SO) $(CFLAGS) -shared -fPIC parser.c $(PARSER_DEPS)
+	$(CC) -o $(PARSER_SO) $(CFLAGS) -shared -fPIC parser.c $(PARSER_DEPS) $(LIBS)
 
 $(CMOD): logd_module.h logd_module.c $(CMOD_DEPS)
-	$(CC) -o $(CMOD) $(CFLAGS) -shared -fPIC logd_module.c $(CMOD_DEPS)
+	$(CC) -o $(CMOD) $(CFLAGS) -shared -fPIC logd_module.c $(CMOD_DEPS) $(LIBS)
 
 $(INCDIR)/logd/%.h: %.h
 	@ cd ../include/logd && \

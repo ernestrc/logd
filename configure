@@ -625,6 +625,7 @@ ac_unique_file="src/logd_module.c"
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
 LOGD_VERSION
+TARGET_SYS
 ROOT_DIR
 EXTRA_LDFLAGS
 EXTRA_CFLAGS
@@ -635,6 +636,9 @@ BUILD_ZLIB
 BUILD_LUAJIT
 BUILD_LIBUV
 LUAJITBIN
+LIBTOOLIZE
+AUTOMAKEPROG
+AUTOCONFPROG
 OBJDUMP_CHECK
 EGREP
 GREP
@@ -700,6 +704,7 @@ SHELL'
 ac_subst_files=''
 ac_user_opts='
 enable_option_checking
+enable_lto
 enable_develop
 enable_build_all
 enable_build_libuv
@@ -1328,6 +1333,8 @@ Optional Features:
   --disable-option-checking  ignore unrecognized --enable/--with options
   --disable-FEATURE       do not include FEATURE (same as --enable-FEATURE=no)
   --enable-FEATURE[=ARG]  include FEATURE [ARG=yes]
+  --enable-lto            enable link time optimizations (-flto). If custom
+                          CFLAGS are passed, this option has no effect.
   --enable-develop        enable development build. This sets clang as the
                           compiler and sets a bunch of testing and debugging
                           compiler flags.
@@ -2074,13 +2081,20 @@ build_libs=""
 system_libs="-lm -ldl"
 libs_ldflags="-L$root_dir/deps/lib"
 libs_cflags="-I$root_dir/deps/include"
-include_luajit=yes
+include_libluajit=yes
 include_libuv=yes
 
 
 
 
 
+
+# Check whether --enable-lto was given.
+if test "${enable_lto+set}" = set; then :
+  enableval=$enable_lto; enable_lto=yes
+else
+  enable_lto=no
+fi
 
 # Check whether --enable-develop was given.
 if test "${enable_develop+set}" = set; then :
@@ -2314,6 +2328,9 @@ fi
 
 version=`git describe --tags --long 2>/dev/null || echo "untagged-$(git rev-parse --short HEAD)"`
 
+test -z "$TARGET_SYS" && TARGET_SYS="$(uname -s)";
+
+
 if test "$build_all" == yes
 then
 	build_libz=yes
@@ -2350,14 +2367,22 @@ then
 	build_libs="$build_libs $root_dir/deps/lib/liblpeg.a"
 fi
 
+extra_luajit_ldflags=
+if test "$TARGET_SYS" == Darwin
+then
+	extra_luajit_ldflags="-pagezero_size 10000 -image_base 100000000"
+fi
+
 
 	if test "$build_libz" == yes
 	then
 		build_libs="$build_libs $root_dir/deps/lib/libz.a"
+		libs_ldflags="$libs_ldflags "
 	else
 		if test "$include_libz" == yes
 		then
-			system_libs="$(pkg-config zlib --libs) $system_libs"
+			system_libs="$(pkg-config zlib --libs-only-l) $system_libs"
+			libs_ldflags="$(pkg-config zlib --libs-only-L) $(pkg-config zlib --libs-only-other) $libs_ldflags"
 		fi
 	fi
 
@@ -2365,10 +2390,12 @@ fi
 	if test "$build_libuv" == yes
 	then
 		build_libs="$build_libs $root_dir/deps/lib/libuv.a"
+		libs_ldflags="$libs_ldflags "
 	else
 		if test "$include_libuv" == yes
 		then
-			system_libs="$(pkg-config libuv --libs) $system_libs"
+			system_libs="$(pkg-config libuv --libs-only-l) $system_libs"
+			libs_ldflags="$(pkg-config libuv --libs-only-L) $(pkg-config libuv --libs-only-other) $libs_ldflags"
 		fi
 	fi
 
@@ -2376,10 +2403,12 @@ fi
 	if test "$build_libluajit" == yes
 	then
 		build_libs="$build_libs $root_dir/deps/lib/libluajit-5.1.a"
+		libs_ldflags="$libs_ldflags $extra_luajit_ldflags"
 	else
 		if test "$include_libluajit" == yes
 		then
-			system_libs="$(pkg-config luajit --libs) $system_libs"
+			system_libs="$(pkg-config luajit --libs-only-l) $system_libs"
+			libs_ldflags="$(pkg-config luajit --libs-only-L) $(pkg-config luajit --libs-only-other) $libs_ldflags"
 		fi
 	fi
 
@@ -2391,18 +2420,24 @@ then
 else
 	if test "$include_libopenssl" == yes
 	then
-		system_libs="$(pkg-config openssl --libs) $system_libs"
+		system_libs="$(pkg-config openssl --libs-only-l) $system_libs"
 	fi
 fi
 
 # add -I/usr/local/include/luajit
 if test "$build_libluajit" == no
 then
-	libs_cflags="$libs_cflags $(pkg-config luajit --cflags-only-I)"
+	libs_cflags="$libs_cflags $(pkg-config luajit --cflags)"
 	luajit=/usr/bin/luajit
 else
 	libs_cflags="$libs_cflags -I$root_dir/deps/include/luajit-2.0"
 	luajit="$root_dir/deps/luajit/src/luajit"
+fi
+
+lto=
+if test "$enable_lto" == yes
+then
+	lto=-flto
 fi
 
 if test "$enable_develop" == yes
@@ -2422,7 +2457,6 @@ then
 
 	test -z "$CC" && CC="clang";
 	test -z "$CFLAGS" && CFLAGS="$libs_cflags -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping";
-	test -z "$LDFLAGS" && LDFLAGS="$libs_ldflags";
 	test -z "$FUZZFLAGS" && FUZZFLAGS="-max_total_time=60"; $as_echo "#define FUZZFLAGS -max_total_time=60" >>confdefs.h
  FUZZFLAGS=-max_total_time=60
  # fuzzer flags
@@ -2443,9 +2477,10 @@ else
 
 	$as_echo "#define LOGD_INLINE 1" >>confdefs.h
 
-	test -z "$CFLAGS" && CFLAGS="$libs_cflags -O3 -flto";
-	test -z "$LDFLAGS" && LDFLAGS="$libs_ldflags";
+	test -z "$CFLAGS" && CFLAGS="$libs_cflags -O3 $lto";
 fi
+
+test -z "$LDFLAGS" && LDFLAGS="$libs_ldflags";
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -4799,7 +4834,8 @@ fi
 	then
 		if test "$include_libuv" == yes
 		then
-			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for uv_loop_close in -luv" >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for uv_loop_close in -luv" >&5
 $as_echo_n "checking for uv_loop_close in -luv... " >&6; }
 if ${ac_cv_lib_uv_uv_loop_close+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -4846,7 +4882,133 @@ else
   as_fn_error $? "libuv not installed" "$LINENO" 5
 fi
 
+
 		fi
+	else
+
+		# Extract the first word of "autoconf", so it can be a program name with args.
+set dummy autoconf; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_AUTOCONFPROG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$AUTOCONFPROG"; then
+  ac_cv_prog_AUTOCONFPROG="$AUTOCONFPROG" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_AUTOCONFPROG="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+AUTOCONFPROG=$ac_cv_prog_AUTOCONFPROG
+if test -n "$AUTOCONFPROG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $AUTOCONFPROG" >&5
+$as_echo "$AUTOCONFPROG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+		if test x"$AUTOCONFPROG" != x"yes" ; then
+			as_fn_error $? "Please install autoconf before building libuv." "$LINENO" 5
+		fi
+
+		# Extract the first word of "automake", so it can be a program name with args.
+set dummy automake; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_AUTOMAKEPROG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$AUTOMAKEPROG"; then
+  ac_cv_prog_AUTOMAKEPROG="$AUTOMAKEPROG" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_AUTOMAKEPROG="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+AUTOMAKEPROG=$ac_cv_prog_AUTOMAKEPROG
+if test -n "$AUTOMAKEPROG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $AUTOMAKEPROG" >&5
+$as_echo "$AUTOMAKEPROG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+		if test x"$AUTOMAKEPROG" != x"yes" ; then
+			as_fn_error $? "Please install automake before building libuv." "$LINENO" 5
+		fi
+
+		# Extract the first word of "libtoolize", so it can be a program name with args.
+set dummy libtoolize; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_LIBTOOLIZE+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$LIBTOOLIZE"; then
+  ac_cv_prog_LIBTOOLIZE="$LIBTOOLIZE" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_LIBTOOLIZE="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+LIBTOOLIZE=$ac_cv_prog_LIBTOOLIZE
+if test -n "$LIBTOOLIZE"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LIBTOOLIZE" >&5
+$as_echo "$LIBTOOLIZE" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+		if test x"$LIBTOOLIZE" != x"yes" ; then
+			as_fn_error $? "Please install libtoolize before building libuv." "$LINENO" 5
+		fi
+
 	fi
 
 
@@ -4902,6 +5064,8 @@ else
 fi
 
 		fi
+	else
+		echo "nothing to check for luajit"
 	fi
 
 
@@ -4957,6 +5121,8 @@ else
 fi
 
 		fi
+	else
+		echo "nothing to check for libz"
 	fi
 
 
@@ -5011,6 +5177,20 @@ _ACEOF
 else
   as_fn_error $? "library 'crypto' is required for OpenSSL" "$LINENO" 5
 fi
+
+	for ac_header in openssl/opensslconf.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "openssl/opensslconf.h" "ac_cv_header_openssl_opensslconf_h" "$ac_includes_default"
+if test "x$ac_cv_header_openssl_opensslconf_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_OPENSSL_OPENSSLCONF_H 1
+_ACEOF
+
+else
+  as_fn_error $? "openssl headers not found. Please make sure OpenSSL is installed and available in a standard location or pass your own CFLAGS to this script. For example: CFLAGS='$CFLAGS -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib'" "$LINENO" 5
+fi
+
+done
 
 	FOUND_SSL_LIB="no"
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for OPENSSL_init_ssl in -lssl" >&5
@@ -5098,6 +5278,8 @@ fi
 fi
 
 		fi
+	else
+		echo "nothing to check for openssl"
 	fi
 
 
@@ -5284,9 +5466,13 @@ ROOT_DIR="$root_dir"
 
 bindir="$bindir"
 
+TARGET_SYS="$TARGET_SYS"
+
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: using enable_develop=$enable_develop" >&5
 $as_echo "$as_me: using enable_develop=$enable_develop" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using enable_lto=$enable_lto" >&5
+$as_echo "$as_me: using enable_lto=$enable_lto" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using ROOT_DIR=$root_dir" >&5
 $as_echo "$as_me: using ROOT_DIR=$root_dir" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using CC=$CC" >&5
@@ -5309,6 +5495,10 @@ $as_echo "$as_me: using include_libz=$include_libz" >&6;}
 $as_echo "$as_me: using include_libopenssl=$include_libopenssl" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using include_lpeg=$include_lpeg" >&5
 $as_echo "$as_me: using include_lpeg=$include_lpeg" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using include_libuv=$include_libuv" >&5
+$as_echo "$as_me: using include_libuv=$include_libuv" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using include_libluajit=$include_libluajit" >&5
+$as_echo "$as_me: using include_libluajit=$include_libluajit" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using BUILD_LIBS=$BUILD_LIBS" >&5
 $as_echo "$as_me: using BUILD_LIBS=$BUILD_LIBS" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using LIBS=$LIBS" >&5

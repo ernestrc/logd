@@ -6,7 +6,7 @@ build_libs=""
 system_libs="-lm -ldl"
 libs_ldflags="-L$root_dir/deps/lib"
 libs_cflags="-I$root_dir/deps/include"
-include_luajit=yes
+include_libluajit=yes
 include_libuv=yes
 
 AC_DEFUN([SET_DEFLAG],[test -z "$$1" && $1="$2";])
@@ -14,10 +14,12 @@ AC_DEFUN([CHECK_BUILD],[
 	if test "$build_$2" == yes
 	then
 		build_libs="$build_libs $root_dir/deps/lib/$2$3.a"
+		libs_ldflags="$libs_ldflags $4"
 	else 
 		if test "$include_$2" == yes
 		then
-			system_libs="$(pkg-config $1 --libs) $system_libs"
+			system_libs="$(pkg-config $1 --libs-only-l) $system_libs"
+			libs_ldflags="$(pkg-config $1 --libs-only-L) $(pkg-config $1 --libs-only-other) $libs_ldflags"
 		fi
 	fi
 ])
@@ -28,10 +30,13 @@ AC_DEFUN([CHECK_LIB],[
 		then
 			$2
 		fi
+	else
+		$3
 	fi
 ])
 AC_DEFUN([SET_DEFLAG_DEFINE],[test -z "$$1" && $1="$2"; AC_DEFINE($1, $2) AC_SUBST($1, $2)])
 
+AC_ARG_ENABLE(lto, [AS_HELP_STRING([--enable-lto], [enable link time optimizations (-flto). If custom CFLAGS are passed, this option has no effect.])], [enable_lto=yes], [enable_lto=no])
 AC_ARG_ENABLE(develop, [AS_HELP_STRING([--enable-develop], [enable development build. This sets clang as the compiler and sets a bunch of testing and debugging compiler flags.])], [enable_develop=yes], [enable_develop=no])
 AC_ARG_ENABLE(build-all, [AS_HELP_STRING([--enable-build-all], [build all local dependencies])], [build_all=yes], [build_all=no])
 
@@ -66,6 +71,9 @@ fi
 
 version=`git describe --tags --long 2>/dev/null || echo "untagged-$(git rev-parse --short HEAD)"`
 
+SET_DEFLAG(TARGET_SYS, [$(uname -s)])
+
+
 if test "$build_all" == yes
 then
 	build_libz=yes
@@ -99,9 +107,15 @@ then
 	build_libs="$build_libs $root_dir/deps/lib/liblpeg.a"
 fi
 
+extra_luajit_ldflags=
+if test "$TARGET_SYS" == Darwin
+then
+	extra_luajit_ldflags="-pagezero_size 10000 -image_base 100000000"
+fi
+
 CHECK_BUILD(zlib, libz)
 CHECK_BUILD(libuv, libuv)
-CHECK_BUILD(luajit, libluajit, -5.1)
+CHECK_BUILD(luajit, libluajit, -5.1, $extra_luajit_ldflags)
 
 # openssl builds two separate .a files
 if test "$build_libopenssl" == yes
@@ -110,18 +124,24 @@ then
 else
 	if test "$include_libopenssl" == yes
 	then
-		system_libs="$(pkg-config openssl --libs) $system_libs"
+		system_libs="$(pkg-config openssl --libs-only-l) $system_libs"
 	fi
 fi
 
 # add -I/usr/local/include/luajit
 if test "$build_libluajit" == no
 then
-	libs_cflags="$libs_cflags $(pkg-config luajit --cflags-only-I)"
+	libs_cflags="$libs_cflags $(pkg-config luajit --cflags)"
 	luajit=/usr/bin/luajit
 else
 	libs_cflags="$libs_cflags -I$root_dir/deps/include/luajit-2.0"
 	luajit="$root_dir/deps/luajit/src/luajit"
+fi
+
+lto=
+if test "$enable_lto" == yes
+then
+	lto=-flto
 fi
 
 if test "$enable_develop" == yes
@@ -133,7 +153,6 @@ then
 
 	SET_DEFLAG(CC, [clang])
 	SET_DEFLAG(CFLAGS,[$libs_cflags -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping])
-	SET_DEFLAG(LDFLAGS,[$libs_ldflags])
 	SET_DEFLAG_DEFINE(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
 	AC_DEFINE(LOGD_DEBUG)
 else
@@ -142,9 +161,10 @@ else
 	SET_DEFLAG_DEFINE(LOGD_BUF_MAX_CAP, 8192000)
 	SET_DEFLAG_DEFINE(LOGD_PRINT_MAX_KEYS, 100)
 	AC_DEFINE(LOGD_INLINE)
-	SET_DEFLAG(CFLAGS,[$libs_cflags -O3 -flto])
-	SET_DEFLAG(LDFLAGS,[$libs_ldflags])
+	SET_DEFLAG(CFLAGS,[$libs_cflags -O3 $lto])
 fi
+
+SET_DEFLAG(LDFLAGS,[$libs_ldflags])
 
 AC_CHECK_LIB(lua, lua_getglobal, [AC_MSG_ERROR([Please uninstall lua before compiling and make sure luajit is installed.])])
 
@@ -165,16 +185,34 @@ if test x"$OBJDUMP_CHECK" != x"yes" ; then
     AC_MSG_ERROR([Please install binutils before building logd.])
 fi
 
-CHECK_LIB(libuv, [AC_CHECK_LIB(uv, uv_loop_close, [], [AC_MSG_ERROR([libuv not installed])])])
-CHECK_LIB(libluajit, [AC_CHECK_LIB(luajit-5.1, luaJIT_setmode, [], [AC_MSG_ERROR([luajit not installed])])])
-CHECK_LIB(libz, [AC_CHECK_LIB(z, gzread, [], [AC_MSG_ERROR([zlib not installed])])])
+CHECK_LIB(libuv, [
+		AC_CHECK_LIB(uv, uv_loop_close, [], [AC_MSG_ERROR([libuv not installed])])
+	],[
+		AC_CHECK_PROG(AUTOCONFPROG,autoconf,yes)
+		if test x"$AUTOCONFPROG" != x"yes" ; then
+			AC_MSG_ERROR([Please install autoconf before building libuv.])
+		fi
+
+		AC_CHECK_PROG(AUTOMAKEPROG,automake,yes)
+		if test x"$AUTOMAKEPROG" != x"yes" ; then
+			AC_MSG_ERROR([Please install automake before building libuv.])
+		fi
+
+		AC_CHECK_PROG(LIBTOOLIZE,libtoolize,yes)
+		if test x"$LIBTOOLIZE" != x"yes" ; then
+			AC_MSG_ERROR([Please install libtoolize before building libuv.])
+		fi
+])
+CHECK_LIB(libluajit, [AC_CHECK_LIB(luajit-5.1, luaJIT_setmode, [], [AC_MSG_ERROR([luajit not installed])])], [echo "nothing to check for luajit"])
+CHECK_LIB(libz, [AC_CHECK_LIB(z, gzread, [], [AC_MSG_ERROR([zlib not installed])])], [echo "nothing to check for libz"])
 CHECK_LIB(libopenssl, [
 	AC_CHECK_LIB(crypto, CRYPTO_new_ex_data, [], [AC_MSG_ERROR([library 'crypto' is required for OpenSSL])])
+	AC_CHECK_HEADERS([openssl/opensslconf.h], [], AC_MSG_ERROR([openssl headers not found. Please make sure OpenSSL is installed and available in a standard location or pass your own CFLAGS to this script. For example: CFLAGS='$CFLAGS -I/usr/local/opt/openssl/include -L/usr/local/opt/openssl/lib']))
 	FOUND_SSL_LIB="no"
 	AC_CHECK_LIB(ssl, OPENSSL_init_ssl, [FOUND_SSL_LIB="yes"])
 	AC_CHECK_LIB(ssl, SSL_library_init, [FOUND_SSL_LIB="yes"])
 	AS_IF([test "x$FOUND_SSL_LIB" = xno], [AC_MSG_ERROR([library 'ssl' is required for OpenSSL])])
-])
+], [echo "nothing to check for openssl"])
 
 AC_CHECK_HEADERS([assert.h dlfcn.h errno.h fcntl.h getopt.h libgen.h stdbool.h stdint.h stdlib.h stdio.h string.h sys/stat.h time.h unistd.h utime.h], [], AC_MSG_ERROR([system header not found]))
 AC_CHECK_LIB(dl, dlopen, [], [AC_MSG_ERROR([dl not available.])])
@@ -195,8 +233,10 @@ AC_SUBST([EXTRA_CFLAGS], ["$EXTRA_CFLAGS"])
 AC_SUBST([EXTRA_LDFLAGS], ["$EXTRA_LDFLAGS"])
 AC_SUBST([ROOT_DIR], ["$root_dir"])
 AC_SUBST(bindir, ["$bindir"])
+AC_SUBST(TARGET_SYS, ["$TARGET_SYS"])
 
 AC_MSG_NOTICE([using enable_develop=$enable_develop])
+AC_MSG_NOTICE([using enable_lto=$enable_lto])
 AC_MSG_NOTICE([using ROOT_DIR=$root_dir])
 AC_MSG_NOTICE([using CC=$CC])
 AC_MSG_NOTICE([using CFLAGS=$CFLAGS])
@@ -208,6 +248,8 @@ AC_MSG_NOTICE([using build_libopenssl=$build_libopenssl])
 AC_MSG_NOTICE([using include_libz=$include_libz])
 AC_MSG_NOTICE([using include_libopenssl=$include_libopenssl])
 AC_MSG_NOTICE([using include_lpeg=$include_lpeg])
+AC_MSG_NOTICE([using include_libuv=$include_libuv])
+AC_MSG_NOTICE([using include_libluajit=$include_libluajit])
 AC_MSG_NOTICE([using BUILD_LIBS=$BUILD_LIBS])
 AC_MSG_NOTICE([using LIBS=$LIBS])
 

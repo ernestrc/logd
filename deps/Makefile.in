@@ -44,9 +44,6 @@ LUAJIT_OPTS=CC='$(CC)' CFLAGS='$(CFLAGS) -fomit-frame-pointer' LDFLAGS='$(LDFLAG
 
 all: $(MANDIR) $(SHAREDIR) $(BINDIR) $(INCDIR) $(LIBDIR) $(ALL)
 
-$(ROOT_DIR)/deps/%/:
-	@ mkdir -p $@
-
 $(LIBUV):
 	@ echo "  COMPILING	libuv"
 	@ cd libuv && ./autogen.sh && ./configure $(CFG_FLAGS) && $(MAKE) && $(MAKE) install
@@ -77,7 +74,7 @@ $(LIBZ):
 ifeq ($(DEVELOP_BUILD),yes)
 $(LIBSLAB):
 	@ echo "  COMPILING	libslab"
-	@ cd slab && $(MAKE)
+	@ cd slab && $(MAKE) CC='$(CC)' CFLAGS='$(CFLAGS)'
 	@ cp slab/lib/libslab.a $(LIBSLAB)
 	@ mkdir -p $(INCDIR)slab && cp slab/src/*.h $(INCDIR)slab
 else
@@ -143,6 +140,9 @@ $(LZLIB): $(LIBZDEPS)
 $(LUA_COMPAT):
 	@ echo "  LN lua-compat"
 	@ ln -s $(PREFIX)/luv/deps/lua-compat-5.3/c-api $(LUA_COMPAT)
+
+$(ROOT_DIR)/deps/%/:
+	@ mkdir -p $@
 
 clean:
 	@ rm -rf $(LIBDIR) $(BINDIR) $(INCDIR) $(MANDIR) $(SHAREDIR)
