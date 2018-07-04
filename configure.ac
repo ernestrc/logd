@@ -82,6 +82,12 @@ then
 	build_libopenssl=yes
 fi
 
+# tests require a luajit interpreter with instrumentation
+if test "$enable_develop" == yes
+then
+	build_libluajit=yes
+fi
+
 # add zlib lua module
 if test "$include_libz" == yes
 then
