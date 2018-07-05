@@ -270,7 +270,7 @@ static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
 	ctx->success = 0;
 	ctx->silent = 0;
 
-	if (rcmalloc_init(100000)) {
+	if (rcmalloc_init(10000)) {
 		perror("rcmalloc_init()");
 	}
 

@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 function assert_file_content {
 	local __OUT=$(tr -d '\0' < $2)

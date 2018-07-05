@@ -2462,7 +2462,8 @@ then
 
 
 	test -z "$CC" && CC="clang";
-	test -z "$CFLAGS" && CFLAGS="$libs_cflags -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping";
+	test -z "$EXTRA_CFLAGS" && EXTRA_CFLAGS="-fsanitize=undefined -Wall";
+	test -z "$CFLAGS" && CFLAGS="$libs_cflags -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping";
 	test -z "$FUZZFLAGS" && FUZZFLAGS="-max_total_time=60"; $as_echo "#define FUZZFLAGS -max_total_time=60" >>confdefs.h
  FUZZFLAGS=-max_total_time=60
  # fuzzer flags
@@ -5466,7 +5467,11 @@ BUILD_LIBS="$BUILD_LIBS"
 
 EXTRA_CFLAGS="$EXTRA_CFLAGS"
 
+CFLAGS="$CFLAGS"
+
 EXTRA_LDFLAGS="$EXTRA_LDFLAGS"
+
+LDFLAGS="$LDFLAGS"
 
 ROOT_DIR="$root_dir"
 
