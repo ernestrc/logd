@@ -10,24 +10,29 @@ matrix:
       addons:
         apt:
           sources:
+            - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-6.0
           packages:
             - clang-6.0 git make gcc libtool patch vim-common pkg-config autoconf
       env:
         - MATRIX_SCRIPT="./configure --enable-build-all CC=clang-6.0 && make && make test"
 
+    # check that we can build on Ubuntu
     - os: linux
       env:
          - MATRIX_SCRIPT="docker build . -t logd-build:ubuntu -f utils/Dockerfile.ubuntu && docker run --rm -ti -v /tmp/logd_ubuntu:/opt/logd/bin logd-build:ubuntu sh -c 'make && make install'"
 
+    # check that we can build on Centos 7
     - os: linux
       env:
          - MATRIX_SCRIPT="docker build . -t logd-build:centos -f utils/Dockerfile.centos7 && docker run --rm -ti -v /tmp/logd_centos:/opt/logd/bin logd-build:centos sh -c 'make && make install'"
 
+    # check that we can build on Debian
     - os: linux
       env:
          - MATRIX_SCRIPT="docker build . -t logd-build:debian -f utils/Dockerfile.debian && docker run --rm -ti -v /tmp/logd_debian:/opt/logd/bin logd-build:debian sh -c 'make && make install'"
 
+    # check that we can build with musl-libc and link statically
     - os: linux
       env:
          - MATRIX_SCRIPT="docker build . -t logd-build:static -f utils/Dockerfile.static && docker run --rm -ti -v /tmp/logd_static:/opt/logd/bin logd-build:static sh -c 'make && make install'"
