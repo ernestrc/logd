@@ -158,7 +158,8 @@ then
 	SET_DEFLAG_DEFINE(LOGD_PRINT_MAX_KEYS, 50)
 
 	SET_DEFLAG(CC, [clang])
-	SET_DEFLAG(CFLAGS,[$libs_cflags -fsanitize=undefined -Wall -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping])
+	SET_DEFLAG(EXTRA_CFLAGS,[-fsanitize=undefined -Wall])
+	SET_DEFLAG(CFLAGS,[$libs_cflags -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping])
 	SET_DEFLAG_DEFINE(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
 	AC_DEFINE(LOGD_DEBUG)
 else
@@ -236,7 +237,9 @@ AC_SUBST([DEVELOP_BUILD], ["$enable_develop"])
 AC_SUBST([LIBS], ["$LIBS"])
 AC_SUBST([BUILD_LIBS], ["$BUILD_LIBS"])
 AC_SUBST([EXTRA_CFLAGS], ["$EXTRA_CFLAGS"])
+AC_SUBST([CFLAGS], ["$CFLAGS"])
 AC_SUBST([EXTRA_LDFLAGS], ["$EXTRA_LDFLAGS"])
+AC_SUBST([LDFLAGS], ["$LDFLAGS"])
 AC_SUBST([ROOT_DIR], ["$root_dir"])
 AC_SUBST(bindir, ["$bindir"])
 AC_SUBST(TARGET_SYS, ["$TARGET_SYS"])

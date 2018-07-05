@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 IN="$DIR/malicious.in"
 SCRIPT="$DIR/malicious.lua"
