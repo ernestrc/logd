@@ -31,6 +31,13 @@ matrix:
       env:
         - MATRIX_SCRIPT="docker build . -t logd-build:static -f utils/Dockerfile.static && docker run --rm -ti -v /tmp/logd_static:/opt/logd/bin logd-build:static sh -c 'make && make install'"
 
+    # check that we can build on OSX 10.11
+    - os: osx
+      osx_image: xcode8
+      env:
+        - MATRIX_EVAL="LIBTOOLIZE=glibtoolize && LIBTOOL=glibtool"
+        - MATRIX_SCRIPT="brew install openssl luajit pkg-config autoconf automake libtool && ./configure --enable-build-all "
+
 before_install:
     - eval "${MATRIX_EVAL}"
     - echo "${MATRIX_SCRIPT}" > script.sh
