@@ -13,7 +13,7 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-6.0
           packages:
-            - clang-6.0 git make gcc libtool patch vim-common pkg-config autoconf
+            - clang-6.0 git make gcc libtool patch vim-common pkg-config autoconf libatomic-ops-dev
       env:
         - MATRIX_EVAL="CC=clang-6.0"
         - MATRIX_SCRIPT="./configure --enable-build-all --enable-develop CC=clang-6.0 && make && make test"
