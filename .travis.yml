@@ -7,33 +7,32 @@ services:
 matrix:
   include:
     - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-6.0
+          packages:
+            - clang-6.0 git make gcc libtool patch vim-common pkg-config autoconf
       env:
-         - MATRIX_SCRIPT=docker build . -t logd-build:ubuntu -f utils/Dockerfile.ubuntu && docker run --rm -ti -v /tmp/logd_ubuntu:/opt/logd/bin logd-build:ubuntu sh -c 'make && make install'
-         - MATRIX_EVAL=
+        - MATRIX_SCRIPT="./configure --enable-build-all CC=clang-6.0 && make && make test"
 
     - os: linux
       env:
-         - MATRIX_SCRIPT=docker build . -t logd-build:centos -f utils/Dockerfile.centos7 && docker run --rm -ti -v /tmp/logd_centos:/opt/logd/bin logd-build:centos sh -c 'make && make install'
-         - MATRIX_EVAL=
+         - MATRIX_SCRIPT="docker build . -t logd-build:ubuntu -f utils/Dockerfile.ubuntu && docker run --rm -ti -v /tmp/logd_ubuntu:/opt/logd/bin logd-build:ubuntu sh -c 'make && make install'"
 
     - os: linux
       env:
-         - MATRIX_SCRIPT=docker build . -t logd-build:debian -f utils/Dockerfile.debian && docker run --rm -ti -v /tmp/logd_debian:/opt/logd/bin logd-build:debian sh -c 'make && make install'
-         - MATRIX_EVAL=
+         - MATRIX_SCRIPT="docker build . -t logd-build:centos -f utils/Dockerfile.centos7 && docker run --rm -ti -v /tmp/logd_centos:/opt/logd/bin logd-build:centos sh -c 'make && make install'"
 
     - os: linux
       env:
-         - MATRIX_SCRIPT=docker build . -t logd-build:static -f utils/Dockerfile.static && docker run --rm -ti -v /tmp/logd_static:/opt/logd/bin logd-build:static sh -c 'make && make install'
-         - MATRIX_EVAL=
+         - MATRIX_SCRIPT="docker build . -t logd-build:debian -f utils/Dockerfile.debian && docker run --rm -ti -v /tmp/logd_debian:/opt/logd/bin logd-build:debian sh -c 'make && make install'"
 
-    # build mode develop and run tests
     - os: linux
       env:
-         - MATRIX_SCRIPT=docker build . -t logd-build:develop -f utils/Dockerfile.debian && docker run --rm -ti -v /tmp/logd_develop:/opt/logd/bin logd-build:develop sh -c 'apt-get install clang -y && ./configure --enable-build-libuv --enable-develop && make && make test'
-         - MATRIX_EVAL=
+         - MATRIX_SCRIPT="docker build . -t logd-build:static -f utils/Dockerfile.static && docker run --rm -ti -v /tmp/logd_static:/opt/logd/bin logd-build:static sh -c 'make && make install'"
 
 before_install:
-    - eval "${MATRIX_EVAL}"
     - echo "${MATRIX_SCRIPT}" > script.sh
 
 script:
