@@ -28,11 +28,14 @@ LIBLUV = $(LIBDIR)libluv.a
 LIBCRYPTO = $(LIBDIR)libcrypto.a
 LIBSSL = $(LIBDIR)libssl.a
 LIBZ = $(LIBDIR)libz.a
+GRAPHQL = $(LIBDIR)libgraphqlparser.a
 LUA_COMPAT= $(INCDIR)c-api
 
 LPEG = $(LIBDIR)liblpeg.a
 LSSL = $(LIBDIR)liblssl.a
 LZLIB = $(LIBDIR)liblzlib.a
+
+PATCH_N=patch -N -p1
 
 ALL = $(BUILD_LIBS) $(LIBSLAB) $(LIBLUV) $(LUA_COMPAT)
 
@@ -93,7 +96,7 @@ endif
 $(LIBLUV): $(LIBLUVDEPS)
 	@ echo "  COMPILING	luv"
 	@ cp luv.patch luv/luv.patch
-	@- cd luv && patch -N -p1 < luv.patch
+	@- cd luv && $(PATCH_N) < luv.patch
 	$(CC) $(CFLAGS) -c luv/src/luv.c -o luv/src/luv.o && $(AR) rcs $(LIBLUV) luv/src/luv.o
 	@ mkdir -p $(INCDIR)luv && cp luv/src/*.h  $(INCDIR)luv
 
@@ -103,7 +106,7 @@ endif
 $(LPEG): $(LPEGDEPS)
 	@ echo "  COMPILING	lpeg"
 	@ cp lpeg.patch lpeg/lpeg.patch
-	@- cd lpeg && patch -N -p1 < lpeg.patch
+	@- cd lpeg && $(PATCH_N) < lpeg.patch
 	@ cd lpeg && $(MAKE)
 	@ cd lpeg && $(AR) rcs $(LPEG) *.o && ranlib $(LPEG)
 
@@ -120,7 +123,7 @@ endif
 $(LSSL): $(LSSLDEPS)
 	@ echo "  COMPILING	lua-openssl"
 	@ cp lssl.patch lua-openssl/lssl.patch
-	@- cd lua-openssl && patch -N -p1 < lssl.patch
+	@- cd lua-openssl && $(PATCH_N) < lssl.patch
 	@ cd lua-openssl && $(MAKE) libopenssl.a TARGET_FLAGS='$(LSSL_TARGET_FLAGS)'
 	@ cp lua-openssl/libopenssl.a $(LSSL)
 
@@ -135,6 +138,15 @@ $(LZLIB): $(LIBZDEPS)
 	@ echo "  COMPILING	lua-zlib"
 	cd lua-zlib && $(CC) $(CFLAGS) -c -o lua_zlib.o lua_zlib.c
 	@ cd lua-zlib/ && $(AR) rcs $(LZLIB) *.o && ranlib $(LZLIB)
+
+# TODO should not use cmake and compile using own cflags
+$(GRAPHQL): $(INCDIR)
+	@ echo "  COMPILING graphql"
+	@ cp graphql.patch graphql/graphql.patch
+	@- cd graphql && $(PATCH_N) < graphql.patch
+	@ cd graphql && \
+		cmake . -DCMAKE_INSTALL_PREFIX=$(PREFIX) && \
+		$(MAKE) && $(MAKE) install
 
 $(LUA_COMPAT):
 	@ echo "  LN lua-compat"

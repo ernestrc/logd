@@ -6,6 +6,7 @@
 #undef LOGD_BUF_MAX_CAP
 #undef LOGD_DEBUG
 
+#undef LOGD_WITH_GRAPHQL
 #undef LOGD_WITH_ZLIB
 #undef LOGD_WITH_OPENSSL
 #undef LOGD_WITH_LPEG

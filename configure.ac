@@ -8,6 +8,8 @@ libs_ldflags="-L$root_dir/deps/lib"
 libs_cflags="-I$root_dir/deps/include"
 include_libluajit=yes
 include_libuv=yes
+# subject to --enable-graphql
+build_graphql=no
 
 AC_DEFUN([SET_DEFLAG],[test -z "$$1" && $1="$2";])
 AC_DEFUN([CHECK_BUILD],[
@@ -48,6 +50,7 @@ AC_ARG_ENABLE(build-openssl, [AS_HELP_STRING([--enable-build-openssl], [build lo
 AC_ARG_ENABLE(zlib, [AS_HELP_STRING([--disable-zlib], [do not include zlib as system or local dependency. This overrides --enable-build-zlib])], [include_libz=no], [include_libz=yes])
 AC_ARG_ENABLE(openssl, [AS_HELP_STRING([--disable-openssl], [do not include openssl as system or local dependency. This overrides --enable-build-openssl])], [include_libopenssl=no], [include_libopenssl=yes])
 AC_ARG_ENABLE(lpeg, [AS_HELP_STRING([--disable-lpeg], [do not include lpeg module.])], [include_lpeg=no], [include_lpeg=yes])
+AC_ARG_ENABLE(graphql, [AS_HELP_STRING([--enable-graphql], [include graphql server])], [include_graphql=yes], [include_graphql=no])
 
 AC_CHECK_PROG(PKGCFG,pkg-config,yes)
 if test x"$PKGCFG" != x"yes" ; then
@@ -86,6 +89,22 @@ fi
 if test "$enable_develop" == yes
 then
 	build_libluajit=yes
+fi
+
+# add libgraphql
+if test "$include_graphql" == yes
+then
+	AC_DEFINE(LOGD_WITH_GRAPHQL)
+	AC_CHECK_PROG(BISON,bison,yes)
+	if test x"$BISON" != x"yes" ; then
+		AC_MSG_ERROR([Please install bison before building logd with graphql support.])
+	fi
+	AC_CHECK_PROG(FLEX,flex,yes)
+	if test x"$FLEX" != x"yes" ; then
+		AC_MSG_ERROR([Please install flex before building logd with graphql support.])
+	fi
+	build_graphql=yes
+	build_libs="$build_libs $root_dir/deps/lib/libgraphqlparser.a"
 fi
 
 # add zlib lua module
@@ -230,6 +249,7 @@ AC_CONFIG_SRCDIR(src/logd_module.c)
 
 AC_SUBST(LUAJITBIN, ["$luajit"])
 AC_SUBST([BUILD_LIBUV], ["$build_libuv"])
+AC_SUBST([BUILD_GRAPHQL], ["$build_graphql"])
 AC_SUBST([BUILD_LUAJIT], ["$build_libluajit"])
 AC_SUBST([BUILD_ZLIB], ["$build_libz"])
 AC_SUBST([BUILD_OPENSSL], ["$build_libopenssl"])
@@ -252,6 +272,7 @@ AC_MSG_NOTICE([using CFLAGS=$CFLAGS])
 AC_MSG_NOTICE([using LDFLAGS=$LDFLAGS])
 AC_MSG_NOTICE([using build_libz=$build_libz])
 AC_MSG_NOTICE([using build_libuv=$build_libuv])
+AC_MSG_NOTICE([using build_graphql=$build_graphql])
 AC_MSG_NOTICE([using build_libluajit=$build_libluajit])
 AC_MSG_NOTICE([using build_libopenssl=$build_libopenssl])
 AC_MSG_NOTICE([using include_libz=$include_libz])

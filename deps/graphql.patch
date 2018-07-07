@@ -1,0 +1,32 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c4c8b3e..252df88 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -31,7 +31,7 @@ FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/c)
+ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+ 
+-ADD_LIBRARY(graphqlparser SHARED
++set(GRAPHQL_SRC
+   JsonVisitor.cpp
+   ${CMAKE_CURRENT_BINARY_DIR}/Ast.h
+   ${CMAKE_CURRENT_BINARY_DIR}/Ast.cpp
+@@ -52,6 +52,8 @@ ADD_LIBRARY(graphqlparser SHARED
+   lexer.h
+   GraphQLParser.cpp)
+ 
++ADD_LIBRARY(graphqlparser STATIC ${GRAPHQL_SRC})
++
+ # Enable this and remove CMAKE_CXX_FLAGS fiddle above when we are able
+ # to upgrade to CMake 2.8.12. Blocker seems to be Travis CI being on
+ # Ubuntu Precise; Trusty has 2.8.12.
+@@ -105,7 +107,8 @@ INSTALL(FILES
+   syntaxdefs.h
+   DESTINATION include/graphqlparser)
+ INSTALL(TARGETS graphqlparser
+-  LIBRARY DESTINATION lib)
++  LIBRARY DESTINATION lib
++  ARCHIVE DESTINATION lib)
+ 
+ if (UNIX)
+   # generate pkgconfig file
