@@ -29,6 +29,7 @@ static int pret;
 
 static collector_t* c1;
 static collector_t* c2;
+static lua_t* lua_state;
 static uv_signal_t sigusr1, sigint;
 static uv_loop_t* loop;
 
@@ -234,14 +235,12 @@ int main(int argc, char* argv[])
 	if ((pret = signals_init(loop)) != 0)
 		goto exit;
 
-	if ((c1 = collector_create(
-		   loop, args.dlparser, args.input_file, args.lua_script)) == NULL) {
+	if ((c1 = collector_create(loop, args.dlparser, args.input_file)) == NULL) {
 		perror("collector_create");
 		goto exit;
 	}
 
-	if ((c2 = collector_create(
-		   loop, args.dlparser, args.input_file, args.lua_script)) == NULL) {
+	if ((c2 = collector_create(loop, args.dlparser, args.input_file)) == NULL) {
 		perror("collector_create");
 		goto exit;
 	}
@@ -249,8 +248,16 @@ int main(int argc, char* argv[])
 	do {
 		// TODO how do we cleanup/free resources if timers are still
 		// running on lua state of exited collector??
-		collector_load_lua(c1);
-		collector_load_lua(c2);
+		DEBUG_LOG("creating new lua state prev is %p", lua_state);
+
+		lua_free(lua_state);
+		if ((lua_state = lua_create(loop, args.lua_script)) == NULL) {
+			perror("lua_create");
+			return 1;
+		}
+
+		c1->lua_state = lua_state;
+		c2->lua_state = lua_state;
 	} while (uv_run(loop, UV_RUN_DEFAULT));
 
 	DEBUG_ASSERT(uv_loop_alive(loop) == 0);

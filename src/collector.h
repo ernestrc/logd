@@ -18,20 +18,17 @@ typedef struct collector_s {
 	const char* dlparser_path;
 	void* dlparser_handle;
 	const char* input_file;
-	const char* lua_script;
 	void (*free_parser)(void*);
 	void* (*create_parser)();
 	void (*reset_parser)(void*);
 	bool exit;
 } collector_t;
 
-collector_t* collector_create(uv_loop_t* loop, const char* dlparser_path,
-  const char* input_file, const char* lua_script);
+collector_t* collector_create(
+  uv_loop_t* loop, const char* dlparser_path, const char* input_file);
 
 int collector_init(collector_t* c, uv_loop_t* loop, const char* dlparser_path,
-  const char* input_file, const char* lua_script);
-
-int collector_load_lua(collector_t* c);
+  const char* input_file);
 
 void collector_deinit(collector_t* c);
 

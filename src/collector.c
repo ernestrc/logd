@@ -305,15 +305,15 @@ err:
 	return 1;
 }
 
-collector_t* collector_create(uv_loop_t* loop, const char* dlparser_path,
-  const char* input_file, const char* lua_script)
+collector_t* collector_create(
+  uv_loop_t* loop, const char* dlparser_path, const char* input_file)
 {
 	collector_t* c = NULL;
 
 	if ((c = calloc(1, sizeof(collector_t))) == NULL)
 		goto error;
 
-	if (collector_init(c, loop, dlparser_path, input_file, lua_script))
+	if (collector_init(c, loop, dlparser_path, input_file))
 		goto error;
 
 	return c;
@@ -326,7 +326,7 @@ error:
 }
 
 int collector_init(collector_t* c, uv_loop_t* loop, const char* dlparser_path,
-  const char* input_file, const char* lua_script)
+  const char* input_file)
 {
 	int ret = 0;
 
@@ -334,7 +334,6 @@ int collector_init(collector_t* c, uv_loop_t* loop, const char* dlparser_path,
 
 	c->loop = loop;
 	c->input_file = input_file;
-	c->lua_script = lua_script;
 	c->dlparser_path = dlparser_path;
 
 	if ((c->buf = buf_create(LOGD_BUF_INIT_CAP)) == NULL) {
@@ -364,30 +363,11 @@ int collector_init(collector_t* c, uv_loop_t* loop, const char* dlparser_path,
 		goto exit;
 	}
 
-	//	if ((ret = collector_load_lua(c))) {
-	//		perror("collector_load_lua");
-	//		goto exit;
-	//	}
-
 exit:
 	if (ret)
 		collector_deinit(c);
 
 	return ret;
-}
-
-int collector_load_lua(collector_t* c)
-{
-	DEBUG_LOG(
-	  "collector %p: creating new lua state prev is %p", c, c->lua_state);
-
-	lua_free(c->lua_state);
-	if ((c->lua_state = lua_create(c->loop, c->lua_script)) == NULL) {
-		perror("lua_create");
-		return 1;
-	}
-
-	return 0;
 }
 
 void collector_deinit(collector_t* c)
@@ -410,11 +390,6 @@ void collector_deinit(collector_t* c)
 		uv_poll_stop(c->uv_poll_in_req);
 		free(c->uv_poll_in_req);
 		c->uv_poll_in_req = NULL;
-	}
-
-	if (c->lua_state) {
-		lua_free(c->lua_state);
-		c->lua_state = NULL;
 	}
 
 	if (c->buf) {
