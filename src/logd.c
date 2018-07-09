@@ -12,6 +12,8 @@
 
 #define OPT_DEFAULT_DEBUG false
 
+static char* LOGD_MARKER = "__LOGD_MARKER";
+
 void on_read_skip(uv_poll_t* req, int status, int events);
 void on_read(uv_poll_t* req, int status, int events);
 
@@ -25,7 +27,8 @@ static struct args_s {
 
 static int pret;
 
-static collector_t* c;
+static collector_t* c1;
+static collector_t* c2;
 static uv_signal_t sigusr1, sigint;
 static uv_loop_t* loop;
 
@@ -37,7 +40,38 @@ void free_all()
 		uv_loop_close(loop);
 		free(loop);
 	}
-	collector_free(c);
+	collector_free(c1);
+	collector_free(c2);
+}
+
+void on_close_lua_handle(uv_handle_t* handle)
+{
+	DEBUG_LOG("closed uv handle %p", handle);
+}
+
+void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
+{
+	if (handle->data == LOGD_MARKER || handle->data == c1 ||
+	  handle->data == c2 || uv_is_closing(handle)) {
+		DEBUG_LOG("skipping uv handle %p", handle);
+		return;
+	}
+
+	DEBUG_LOG("closing uv handle %p", handle);
+	uv_close(handle, on_close_lua_handle);
+}
+
+void close_lua_handles() { uv_walk(loop, uv_walk_close_lua_handles, NULL); }
+
+void close_all_handles()
+{
+	uv_signal_stop(&sigusr1);
+	uv_signal_stop(&sigint);
+	close_lua_handles();
+	collector_free(c1);
+	collector_free(c2);
+	c1 = NULL;
+	c2 = NULL;
 }
 
 int args_init(int argc, char* argv[])
@@ -103,18 +137,14 @@ int args_init(int argc, char* argv[])
 void reload_sig_h(uv_signal_t* handle, int signum)
 {
 	DEBUG_LOG("Received signal %d. Reloading ...", signum);
-	// TODO use global function
-	collector_close_lua_handles(c);
+	close_lua_handles();
 	uv_stop(loop);
 }
 
 void shutdown_sig_h(uv_signal_t* handle, int signum)
 {
 	DEBUG_LOG("Received signal %d. Shutdown ...", signum);
-	// TODO use global function
-	collector_close_all_handles(c);
-	// TODO uv_signal_stop(&sigusr1);
-	// TODO uv_signal_stop(&sigint);
+	close_all_handles();
 	pret = signum + 128;
 }
 
@@ -134,8 +164,8 @@ int signals_init(uv_loop_t* loop)
 	if ((ret = uv_signal_start(&sigint, shutdown_sig_h, SIGINT)) < 0)
 		goto error;
 
-	STAMP_HANDLE((uv_handle_t*)&sigusr1, c);
-	STAMP_HANDLE((uv_handle_t*)&sigint, c);
+	sigusr1.data = LOGD_MARKER;
+	sigint.data = LOGD_MARKER;
 
 	return 0;
 error:
@@ -204,13 +234,23 @@ int main(int argc, char* argv[])
 	if ((pret = signals_init(loop)) != 0)
 		goto exit;
 
-	if ((c = collector_create(loop, args.dlparser, args.input_file, args.lua_script)) == NULL) {
+	if ((c1 = collector_create(
+		   loop, args.dlparser, args.input_file, args.lua_script)) == NULL) {
+		perror("collector_create");
+		goto exit;
+	}
+
+	if ((c2 = collector_create(
+		   loop, args.dlparser, args.input_file, args.lua_script)) == NULL) {
 		perror("collector_create");
 		goto exit;
 	}
 
 	do {
-		collector_load_lua(c);
+		// TODO how do we cleanup/free resources if timers are still
+		// running on lua state of exited collector??
+		collector_load_lua(c1);
+		collector_load_lua(c2);
 	} while (uv_run(loop, UV_RUN_DEFAULT));
 
 	DEBUG_ASSERT(uv_loop_alive(loop) == 0);

@@ -7,8 +7,6 @@
 #include "./lua.h"
 #include "./parser.h"
 
-#define STAMP_HANDLE(handle, collector) (handle)->data = collector;
-
 typedef struct collector_s {
 	uv_file infd;
 	buf_t* buf;
@@ -24,6 +22,7 @@ typedef struct collector_s {
 	void (*free_parser)(void*);
 	void* (*create_parser)();
 	void (*reset_parser)(void*);
+	bool exit;
 } collector_t;
 
 collector_t* collector_create(uv_loop_t* loop, const char* dlparser_path,
@@ -33,10 +32,6 @@ int collector_init(collector_t* c, uv_loop_t* loop, const char* dlparser_path,
   const char* input_file, const char* lua_script);
 
 int collector_load_lua(collector_t* c);
-
-void collector_close_lua_handles(collector_t* c);
-
-void collector_close_all_handles(collector_t* c);
 
 void collector_deinit(collector_t* c);
 

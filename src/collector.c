@@ -11,30 +11,7 @@
 
 static void on_read(uv_poll_t* req, int status, int events);
 
-static void on_close_lua_handle(uv_handle_t* handle)
-{
-	DEBUG_LOG("closed uv handle %p", handle);
-}
-
-static void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
-{
-	collector_t* c = (collector_t*)arg;
-
-	if (handle->data == c || uv_is_closing(handle)) {
-		DEBUG_LOG("skipping uv handle %p", handle);
-		return;
-	}
-
-	DEBUG_LOG("closing uv handle %p", handle);
-	uv_close(handle, on_close_lua_handle);
-}
-
-void collector_close_lua_handles(collector_t* c)
-{
-	uv_walk(c->loop, uv_walk_close_lua_handles, c);
-}
-
-static void close_collector_handles(collector_t* c)
+static void input_deinit(collector_t* c)
 {
 	uv_fs_t req_in_close;
 	uv_fs_close(c->loop, &req_in_close, c->infd, NULL);
@@ -42,25 +19,19 @@ static void close_collector_handles(collector_t* c)
 	uv_poll_stop(c->uv_poll_in_req);
 }
 
-void collector_close_all_handles(collector_t* c)
-{
-	collector_close_lua_handles(c);
-	close_collector_handles(c);
-}
-
 static void on_uv_err(collector_t* c, int ret)
 {
 	errno = -ret;
 	perror("uv");
-	collector_close_all_handles(c);
-	// TODO mark collector as done for logd.c
+	// TODO expose error to lua state
+	c->exit = true;
 }
 
 static void on_err(collector_t* c)
 {
 	perror("input read");
-	collector_close_all_handles(c);
-	// TODO mark collector as done for logd.c
+	// TODO expose error to lua state
+	c->exit = true;
 }
 
 void on_eof(collector_t* c)
@@ -68,8 +39,8 @@ void on_eof(collector_t* c)
 	if (lua_on_eof_defined(c->lua_state)) {
 		lua_call_on_eof(c->lua_state);
 	}
-	close_collector_handles(c);
-	// TODO mark collector as done for logd.c
+	input_deinit(c);
+	c->exit = true;
 }
 
 static void on_read_eof(collector_t* c)
@@ -273,7 +244,7 @@ static int input_init(collector_t* c)
 		goto exit;
 	}
 
-	STAMP_HANDLE((uv_handle_t*)c->uv_poll_in_req, c);
+	c->uv_poll_in_req->data = c;
 
 exit:
 	if (ret) {
@@ -393,10 +364,10 @@ int collector_init(collector_t* c, uv_loop_t* loop, const char* dlparser_path,
 		goto exit;
 	}
 
-//	if ((ret = collector_load_lua(c))) {
-//		perror("collector_load_lua");
-//		goto exit;
-//	}
+	//	if ((ret = collector_load_lua(c))) {
+	//		perror("collector_load_lua");
+	//		goto exit;
+	//	}
 
 exit:
 	if (ret)
@@ -407,7 +378,8 @@ exit:
 
 int collector_load_lua(collector_t* c)
 {
-	DEBUG_LOG("collector %p: creating new lua state prev is %p", c, c->lua_state);
+	DEBUG_LOG(
+	  "collector %p: creating new lua state prev is %p", c, c->lua_state);
 
 	lua_free(c->lua_state);
 	if ((c->lua_state = lua_create(c->loop, c->lua_script)) == NULL) {
