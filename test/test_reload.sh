@@ -3,6 +3,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 IN="$DIR/reload.in"
 SCRIPT="$DIR/reload.lua"
 OUT="$DIR/reload.out"
+ERR="$DIR/reload.err"
 LOGD_EXEC="$DIR/../bin/logd"
 PID=
 WRITER_PID=0
@@ -13,6 +14,7 @@ function finish {
 	CODE=$?
 	rm -f $SCRIPT
 	rm -f $OUT
+	rm -f $ERR
 	rm -f $IN
 	kill $PID
 	if [ $WRITER_PID -ne 0 ]; then
@@ -52,7 +54,7 @@ while sleep 1; do :; done >$IN &
 WRITER_PID=$!
 
 makescript
-$LOGD_EXEC $SCRIPT -f $IN 2> /dev/null 1> $OUT & 
+$LOGD_EXEC $SCRIPT -f $IN 2> $ERR 1> $OUT & 
 PID=$!
 sleep 1
 assert_file_content "load" $OUT

@@ -3,6 +3,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 
 #include <slab/buf.h>
 
@@ -30,11 +31,10 @@ static void* dlparser_handle;
 static lua_t* lstate;
 static buf_t* b;
 
-static uv_signal_t sigusr1, sigint;
+static uv_signal_t sigusr1, sigusr2, sigint;
 static uv_loop_t* loop;
 static uv_file infd;
 static uv_poll_t uv_poll_in_req;
-static uv_fs_t uv_open_in_req;
 
 static parse_res_t (*parse_parser)(
   void*, char*, size_t) = (parse_res_t(*)(void*, char*, size_t))(&parser_parse);
@@ -65,13 +65,19 @@ void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
 
 void close_lua_uv_handles() { uv_walk(loop, uv_walk_close_lua_handles, NULL); }
 
-void close_logd_uv_handles()
+void input_close()
 {
 	uv_fs_t req_in_close;
 	uv_fs_close(loop, &req_in_close, infd, NULL);
 	uv_fs_req_cleanup(&req_in_close);
 	uv_poll_stop(&uv_poll_in_req);
+}
+
+void close_logd_uv_handles()
+{
+	input_close();
 	uv_signal_stop(&sigusr1);
+	uv_signal_stop(&sigusr2);
 	uv_signal_stop(&sigint);
 }
 
@@ -386,6 +392,7 @@ skip:
 int input_init(uv_loop_t* loop, const char* input_file)
 {
 	int ret;
+	uv_fs_t uv_open_in_req;
 
 	if ((ret = uv_fs_open(loop, &uv_open_in_req, input_file,
 		   O_NONBLOCK | O_RDONLY, 0, NULL)) < 0) {
@@ -412,11 +419,21 @@ exit:
 	return ret;
 }
 
-void reload_sig_h(uv_signal_t* handle, int signum)
+void rel_cfg_sig_h(uv_signal_t* handle, int signum)
 {
-	DEBUG_LOG("Received signal %d. Reloading ...", signum);
+	DEBUG_LOG("Received signal %d. Reloading configuration ...", signum);
 	close_lua_uv_handles();
 	uv_stop(loop);
+}
+
+void rel_log_sig_h(uv_signal_t* handle, int signum)
+{
+	DEBUG_LOG("Received signal %d. Re-opening log files ...", signum);
+	input_close();
+	if ((pret = input_init(loop, args.input_file)) != 0) {
+		perror("input_init");
+		close_all_handles();
+	}
 }
 
 void shutdown_sig_h(uv_signal_t* handle, int signum)
@@ -433,16 +450,23 @@ int signals_init(uv_loop_t* loop)
 	if ((ret = uv_signal_init(loop, &sigusr1)) < 0)
 		goto error;
 
+	if ((ret = uv_signal_init(loop, &sigusr2)) < 0)
+		goto error;
+
 	if ((ret = uv_signal_init(loop, &sigint)) < 0)
 		goto error;
 
-	if ((ret = uv_signal_start(&sigusr1, reload_sig_h, SIGUSR1)) < 0)
+	if ((ret = uv_signal_start(&sigusr1, rel_cfg_sig_h, SIGUSR1)) < 0)
+		goto error;
+
+	if ((ret = uv_signal_start(&sigusr2, rel_log_sig_h, SIGUSR2)) < 0)
 		goto error;
 
 	if ((ret = uv_signal_start(&sigint, shutdown_sig_h, SIGINT)) < 0)
 		goto error;
 
 	STAMP_HANDLE((uv_handle_t*)&sigusr1);
+	STAMP_HANDLE((uv_handle_t*)&sigusr2);
 	STAMP_HANDLE((uv_handle_t*)&sigint);
 
 	return 0;
