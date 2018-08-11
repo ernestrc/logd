@@ -6,8 +6,6 @@
 #include "log.h"
 #include "util.h"
 
-#define BASE_PROP 3
-
 log_t* log_create()
 {
 	log_t* l;
