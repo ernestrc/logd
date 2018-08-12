@@ -51,7 +51,7 @@ unit_test: $(TARGET_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" $$f --silent; done
 
 int_test: $(INT_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LOGD_SLAB_CAP=$(LOGD_SLAB_CAP) LOGD_BUF_MAX_CAP=$(LOGD_BUF_MAX_CAP) ./$$f 2>&1; done
+	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LOGD_SLAB_CAP=$(LOGD_SLAB_CAP) LOGD_BUF_MAX_CAP=$(LOGD_BUF_MAX_CAP) ./$$f 2>/dev/null; done
 
 lua_test: $(LUA_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LUA_PATH="$(LUA_PATH)" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
