@@ -1,0 +1,3 @@
+local module = {}
+module.version = 'logd-@LOGD_VERSION@'
+package.loaded['config'] = module

@@ -54,3 +54,5 @@ config.status
 src/init.lua.h
 src/luvibundle.lua.h
 src/luvipath.lua.h
+src/config.lua
+src/config.lua.h

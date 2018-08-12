@@ -267,6 +267,7 @@ AC_SUBST(LOGD_VERSION, ["$version"])
 
 AC_CONFIG_FILES([Makefile
 				 src/Makefile
+				 src/config.lua
 				 deps/Makefile
                  test/Makefile])
 

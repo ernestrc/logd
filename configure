@@ -5522,7 +5522,7 @@ _ACEOF
 LOGD_VERSION="$version"
 
 
-ac_config_files="$ac_config_files Makefile src/Makefile deps/Makefile test/Makefile"
+ac_config_files="$ac_config_files Makefile src/Makefile src/config.lua deps/Makefile test/Makefile"
 
 
 ac_config_headers="$ac_config_headers src/config.h"
@@ -6220,6 +6220,7 @@ do
   case $ac_config_target in
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
+    "src/config.lua") CONFIG_FILES="$CONFIG_FILES src/config.lua" ;;
     "deps/Makefile") CONFIG_FILES="$CONFIG_FILES deps/Makefile" ;;
     "test/Makefile") CONFIG_FILES="$CONFIG_FILES test/Makefile" ;;
     "src/config.h") CONFIG_HEADERS="$CONFIG_HEADERS src/config.h" ;;
