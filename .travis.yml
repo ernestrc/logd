@@ -36,14 +36,14 @@ matrix:
       osx_image: xcode8
       env:
         - MATRIX_EVAL="LIBTOOLIZE=glibtoolize && LIBTOOL=glibtool"
-        - MATRIX_SCRIPT="brew install pkg-config autoconf automake libtool && ./configure --enable-build-all && make && make install"
+        - MATRIX_SCRIPT="brew update && brew install pkg-config autoconf automake libtool && ./configure --enable-build-all && make && make install"
 
     # check that we can build on OSX 10.12
     - os: osx
       osx_image: xcode9
       env:
         - MATRIX_EVAL="LIBTOOLIZE=glibtoolize && LIBTOOL=glibtool"
-        - MATRIX_SCRIPT="brew install pkg-config autoconf automake libtool && ./configure --enable-build-all && make && make install"
+        - MATRIX_SCRIPT="brew update && brew install pkg-config autoconf automake libtool && ./configure --enable-build-all && make && make install"
 
 before_install:
     - eval "${MATRIX_EVAL}"
