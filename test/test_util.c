@@ -50,12 +50,26 @@ int test_snprintl()
 	return 0;
 }
 
+int test_exp_backoff()
+{
+	ASSERT_EQ(next_attempt_backoff(10, 1, 2), 10);
+	ASSERT_EQ(next_attempt_backoff(10, 2, 2), 100);
+	ASSERT_EQ(next_attempt_backoff(10, 3, 2), 1000);
+
+	ASSERT_EQ(next_attempt_backoff(10, 1, 1), 10);
+	ASSERT_EQ(next_attempt_backoff(10, 2, 1), 20);
+	ASSERT_EQ(next_attempt_backoff(10, 3, 1), 30);
+
+	return 0;
+}
+
 int main(int argc, char* argv[])
 {
 	test_ctx_t ctx;
 	TEST_INIT(ctx, argc, argv);
 
 	TEST_RUN(ctx, test_snprintl);
+	TEST_RUN(ctx, test_exp_backoff);
 
 	TEST_RELEASE(ctx);
 }

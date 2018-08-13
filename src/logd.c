@@ -2,8 +2,8 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <slab/buf.h>
 
@@ -13,12 +13,16 @@
 #include "./util.h"
 
 #define OPT_DEFAULT_DEBUG false
+#define LINEAL_BACKOFF "lineal"
+#define EXP_BACKOFF "exponential"
 
 void on_read_skip(uv_poll_t* req, int status, int events);
 void on_read(uv_poll_t* req, int status, int events);
 
 static struct args_s {
-	bool debug;
+	int reopen_delay;
+	const char* reopen_backoff;
+	int reopen_retries;
 	const char* input_file;
 	int help;
 	const char* dlparser;
@@ -30,6 +34,8 @@ static void* parser;
 static void* dlparser_handle;
 static lua_t* lstate;
 static buf_t* b;
+static int curr_reopen_retries;
+static int backoff;
 
 static uv_signal_t sigusr1, sigusr2, sigint;
 static uv_loop_t* loop;
@@ -42,10 +48,16 @@ static void (*free_parser)(void*) = (void (*)(void*))(&parser_free);
 static void* (*create_parser)() = (void* (*)())(&parser_create);
 static void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
 
-void print_version() { printf("logd %s\n", LOGD_VERSION); }
+void input_try_reopen();
+bool try_deferr_input_reopen();
 
 #define LOGD_HANDLE ((void*)"__LOGD_HANDLE")
 #define STAMP_HANDLE(handle) (handle)->data = LOGD_HANDLE;
+#define RESET_REOPEN_RETRIES()                                                 \
+	DEBUG_LOG("reset reopen retries from %d to 0", curr_reopen_retries);       \
+	curr_reopen_retries = 0;
+
+void print_version() { printf("logd %s\n", LOGD_VERSION); }
 
 void on_close_lua_handle(uv_handle_t* handle)
 {
@@ -68,6 +80,9 @@ void close_lua_uv_handles() { uv_walk(loop, uv_walk_close_lua_handles, NULL); }
 void input_close()
 {
 	uv_fs_t req_in_close;
+
+	DEBUG_LOG("closing input, fd: %d", infd);
+
 	uv_fs_close(loop, &req_in_close, infd, NULL);
 	uv_fs_req_cleanup(&req_in_close);
 	uv_poll_stop(&uv_poll_in_req);
@@ -84,14 +99,6 @@ void close_logd_uv_handles()
 void close_all_handles()
 {
 	close_lua_uv_handles();
-	close_logd_uv_handles();
-}
-
-void on_eof()
-{
-	if (lua_on_eof_defined(lstate)) {
-		lua_call_on_eof(lstate);
-	}
 	close_logd_uv_handles();
 }
 
@@ -115,8 +122,14 @@ char* args_init(int argc, char* argv[])
 	args.input_file = "/dev/stdin";
 	args.help = 0;
 	args.dlparser = NULL;
+	args.reopen_backoff = LINEAL_BACKOFF;
+	args.reopen_retries = 0;
+	args.reopen_delay = 100; /* milliseconds */
 
-	static struct option long_options[] = {{"debug", no_argument, 0, 'd'},
+	static struct option long_options[] = {
+	  {"reopen-backoff", required_argument, 0, 'b'},
+	  {"reopen-retries", required_argument, 0, 'r'},
+	  {"reopen-delay", required_argument, 0, 'd'},
 	  {"file", required_argument, 0, 'f'}, {"help", no_argument, 0, 'h'},
 	  {"parser", required_argument, 0, 'p'}, {"version", no_argument, 0, 'v'},
 	  {0, 0, 0, 0}};
@@ -124,7 +137,7 @@ char* args_init(int argc, char* argv[])
 	int option_index = 0;
 	int c = 0;
 	while ((c = getopt_long(
-			  argc, argv, "vp:df:o:h", long_options, &option_index)) != -1) {
+			  argc, argv, "vp:f:hb:d:r:", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'v':
 			print_version();
@@ -138,6 +151,31 @@ char* args_init(int argc, char* argv[])
 			break;
 		case 'h':
 			args.help = 1;
+			break;
+		case 'r':
+			if ((args.reopen_retries = parse_non_negative_int(optarg)) == -1) {
+				perror("parse --reopen-retries");
+				return NULL;
+			}
+			break;
+		case 'b':
+			args.reopen_backoff = optarg;
+			if (strncmp(LINEAL_BACKOFF, optarg, strlen(LINEAL_BACKOFF)) != 0 &&
+			  strncmp(EXP_BACKOFF, optarg, strlen(EXP_BACKOFF)) != 0) {
+				errno = EINVAL;
+				perror("--reopen-backoff");
+				return NULL;
+			}
+			backoff =
+			  strncmp(LINEAL_BACKOFF, optarg, strlen(LINEAL_BACKOFF)) == 0 ? 1 :
+																			 2;
+			break;
+		case 'd':
+			if ((args.reopen_delay = parse_non_negative_int(optarg)) == -1 ||
+			  args.reopen_delay == 0) {
+				perror("parse --reopen-delay");
+				return NULL;
+			}
 			break;
 		default:
 			abort();
@@ -168,7 +206,6 @@ char* args_init(int argc, char* argv[])
 int parser_dlload(const char* dlpath)
 {
 	const char* error;
-	DEBUG_LOG("EOF while reading input file %d", infd);
 
 	if ((dlparser_handle = dlopen(dlpath, RTLD_LAZY)) == NULL) {
 		fprintf(stderr, "dlopen: %s\n", dlerror());
@@ -203,6 +240,26 @@ int parser_dlload(const char* dlpath)
 err:
 	errno = EINVAL;
 	return 1;
+}
+
+void on_eof()
+{
+	if (lua_on_eof_defined(lstate)) {
+		lua_call_on_eof(lstate);
+	}
+	if (args.reopen_retries != 0) {
+		if (curr_reopen_retries != 0) {
+			DEBUG_LOG("reopen already scheduled, current retries: %d",
+			  curr_reopen_retries);
+			input_close();
+			if (!try_deferr_input_reopen())
+				close_logd_uv_handles();
+		} else {
+			input_try_reopen();
+		}
+	} else {
+		close_logd_uv_handles();
+	}
 }
 
 void on_poll_err(int ret)
@@ -274,6 +331,8 @@ void on_read_skip(uv_poll_t* req, int status, int events)
 		return;
 	}
 
+	RESET_REOPEN_RETRIES();
+
 	buf_extend(b, ret);
 	res = parse_parser(parser, b->next_read, buf_readable(b));
 	if (res.type == PARSE_PARTIAL) {
@@ -322,6 +381,8 @@ void on_read(uv_poll_t* req, int status, int events)
 		on_read_eof();
 		return;
 	}
+
+	RESET_REOPEN_RETRIES();
 
 	buf_extend(b, ret);
 parse:
@@ -404,7 +465,7 @@ int input_init(uv_loop_t* loop, const char* input_file)
 	infd = uv_open_in_req.result;
 	uv_fs_req_cleanup(&uv_open_in_req);
 
-	DEBUG_LOG("input file open with fd %d", infd);
+	DEBUG_LOG("input file open, fd: %d", infd);
 
 	if ((ret = uv_poll_init(loop, &uv_poll_in_req, infd)) < 0 ||
 	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
@@ -419,6 +480,47 @@ exit:
 	return ret;
 }
 
+void deferred_input_reopen()
+{
+	uv_timer_t timer;
+	int timeout =
+	  next_attempt_backoff(args.reopen_delay, curr_reopen_retries, backoff);
+
+	DEBUG_LOG("reopening pipe in %d milliseconds..", timeout);
+
+	uv_timer_init(loop, &timer);
+	uv_timer_start(&timer, input_try_reopen, timeout, 0);
+}
+
+bool try_deferr_input_reopen()
+{
+	if (curr_reopen_retries <= args.reopen_retries) {
+		deferred_input_reopen();
+		return true;
+	}
+
+	return false;
+}
+
+void input_try_reopen()
+{
+	int ret;
+
+	input_close();
+
+	DEBUG_LOG(
+	  "trying to reopen file, current retries: %d", curr_reopen_retries);
+	curr_reopen_retries += 1;
+
+	if ((ret = input_init(loop, args.input_file)) != 0) {
+		perror("input_init");
+		if (!try_deferr_input_reopen()) {
+			pret = ret;
+			close_all_handles();
+		}
+	}
+}
+
 void rel_cfg_sig_h(uv_signal_t* handle, int signum)
 {
 	DEBUG_LOG("Received signal %d. Reloading configuration ...", signum);
@@ -428,12 +530,8 @@ void rel_cfg_sig_h(uv_signal_t* handle, int signum)
 
 void rel_log_sig_h(uv_signal_t* handle, int signum)
 {
-	DEBUG_LOG("Received signal %d. Re-opening log files ...", signum);
-	input_close();
-	if ((pret = input_init(loop, args.input_file)) != 0) {
-		perror("input_init");
-		close_all_handles();
-	}
+	DEBUG_LOG("Received signal %d. Re-opening input files ...", signum);
+	input_try_reopen();
 }
 
 void shutdown_sig_h(uv_signal_t* handle, int signum)
@@ -506,13 +604,23 @@ void print_usage(const char* exe)
 	printf("usage: %s <script> [options]\n", exe);
 	printf("\noptions:\n");
 	printf(
-	  "\t-f, --file=<path>		Pipe/Unix Socket to read data from [default: "
+	  "  -f, --file=<path>		Pipe/Unix Socket to read data from [default: "
 	  "/dev/stdin]\n");
-	printf("\t-p, --parser=<parser_so>	Load shared object "
+	printf("  -p, --parser=<parser_so>	Load shared object "
 		   "parser via dlopen [default: "
 		   "builtin]\n");
-	printf("\t-h, --help			Display this message.\n");
-	printf("\t-v, --version			Display logd version information.\n");
+	printf("  -r, --reopen-retries		Reopen retries on EOF before giving up "
+		   "[default: %d]\n",
+	  args.reopen_retries);
+	printf("  -d, --reopen-delay		Retry reopen delay in milliseconds "
+		   "[default: %d]\n",
+	  args.reopen_delay);
+	printf("  -b, --reopen-backoff		Retry reopen delay backoff 'linear' or "
+		   "'exponential'"
+		   "[default: %s]\n",
+	  args.reopen_backoff);
+	printf("  -h, --help			Display this message.\n");
+	printf("  -v, --version			Display logd version information.\n");
 }
 
 int main(int argc, char* argv[])

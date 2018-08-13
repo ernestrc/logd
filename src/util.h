@@ -41,5 +41,8 @@ void fprintl(FILE* stream, log_t* l);
 int snprintl(char* buf, int blen, log_t* l);
 const char* util_get_time();
 const char* util_get_date();
+int next_attempt_backoff(
+  int start_delay, int reopen_retries, int backoff_exponent);
+int parse_non_negative_int(const char* str);
 
 #endif

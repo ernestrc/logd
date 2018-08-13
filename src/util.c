@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
+#include <errno.h>
+#include <limits.h>
 
 #include "parser.h"
 #include "util.h"
@@ -124,4 +127,44 @@ const char* util_get_time()
 	DEBUG_ASSERT(needs + 1 <= MAX_TIME_LEN);
 
 	return time_buf;
+}
+
+int next_attempt_backoff(
+  int start_delay, int curr_reopen_retry, int backoff_exponent)
+{
+	int timeout, iter;
+	DEBUG_ASSERT(curr_reopen_retry > 0);
+	DEBUG_ASSERT(backoff_exponent > 0);
+
+	if (backoff_exponent == 1) {
+		timeout = start_delay * curr_reopen_retry;
+	} else {
+		timeout = pow(start_delay, curr_reopen_retry);
+	}
+
+	return timeout;
+}
+
+int parse_non_negative_int(const char* str)
+{
+	char* endptr;
+	long val;
+
+	errno = 0;
+	val = strtol(str, &endptr, 10);
+
+	if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) ||
+	  (errno != 0 && val == 0)) {
+		perror("strtol");
+		goto error;
+	}
+
+	if (endptr == str || *endptr != '\0')
+		goto error;
+
+	return val;
+
+error:
+	errno = EINVAL;
+	return -1;
 }
