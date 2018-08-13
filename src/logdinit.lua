@@ -2,7 +2,7 @@ local luviBundle = require('luvibundle')
 local commonBundle = luviBundle.commonBundle
 
 
-package.loaded['init'] = function(script)
+package.loaded['logdinit'] = function(script)
 	local dir
 	if script:match(".-/.-") then
 		dir = string.gsub(script, "(.*/)(.*)", "%1")

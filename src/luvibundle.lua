@@ -4,7 +4,7 @@ local luvi = require('luvi')
 local luviPath = require('luvipath')
 local pathJoin = luviPath.pathJoin
 local getenv = require('os').getenv
-local version = require('config').version
+local version = require('logdconfig').version
 
 loadstring = loadstring or load
 unpack     = unpack     or table.unpack
