@@ -177,6 +177,7 @@ AC_CHECK_LIB(lua, lua_getglobal, [AC_MSG_ERROR([Please uninstall lua before comp
 
 SET_DEFLAG(LIBS,["$system_libs"])
 SET_DEFLAG(BUILD_LIBS,["$build_libs"])
+SET_DEFLAG(LIBTOOLIZE,["libtoolize"])
 
 AC_LANG(C)
 AC_PROG_AWK
@@ -205,9 +206,9 @@ CHECK_LIB(libuv, [
 			AC_MSG_ERROR([Please install automake before building libuv.])
 		fi
 
-		AC_CHECK_PROG(LIBTOOLIZE,libtoolize,yes)
-		if test x"$LIBTOOLIZE" != x"yes" ; then
-			AC_MSG_ERROR([Please install libtoolize before building libuv.])
+		AC_CHECK_PROG(LIBTOOLIZEPROG,$LIBTOOLIZE,yes)
+		if test x"$LIBTOOLIZEPROG" != x"yes" ; then
+			AC_MSG_ERROR([Please install $LIBTOOLIZE before building libuv.])
 		fi
 ])
 CHECK_LIB(libluajit, [AC_CHECK_LIB(luajit-5.1, luaJIT_setmode, [], [AC_MSG_ERROR([luajit not installed])])], [echo "nothing to check for luajit"])
