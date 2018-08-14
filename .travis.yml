@@ -36,14 +36,14 @@ matrix:
       osx_image: xcode8
       env:
         - MATRIX_EVAL="export LIBTOOLIZE=glibtoolize && export LIBTOOL=glibtool"
-        - MATRIX_SCRIPT="brew update && brew bundle --file=utils/Brewfile && ./configure --enable-develop --enable-build-all && make && make test"
+        - MATRIX_SCRIPT="brew update && brew bundle --file=utils/Brewfile && ./configure --enable-develop --enable-build-all && make"
 
     # check that we can build on OSX 10.12
     - os: osx
       osx_image: xcode9
       env:
         - MATRIX_EVAL="export LIBTOOLIZE=glibtoolize && export LIBTOOL=glibtool"
-        - MATRIX_SCRIPT="brew update && brew bundle --file=utils/Brewfile && ./configure --enable-develop --enable-build-all && make && make test"
+        - MATRIX_SCRIPT="brew update && brew bundle --file=utils/Brewfile && ./configure --enable-develop --enable-build-all && make"
 
 before_install:
     - eval "${MATRIX_EVAL}"
