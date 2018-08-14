@@ -65,11 +65,11 @@ Please refer to the Docker images in [utils](utils) to see some of the common op
 ## MacOS Build instructions
 Assuming you have Homebrew installed:
 ```
-$ brew install pkg-config autoconf automake libtool
+$ brew update && brew bundle --file=utils/Brewfile
 $ export LIBTOOL=glibtool
 $ export LIBTOOLIZE=glibtoolize
-$ ./configure --enable-build-all && make
-$ make install
+$ ./configure --enable-build-all
+$ make && make install
 ```
 
 Please refer to MacOS section in [.travis.yml](.travis.yml) to see the latest build options.
