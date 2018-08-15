@@ -11,7 +11,7 @@ INCDIR=$(ROOT_DIR)/include
 BINDIR =$(ROOT_DIR)/bin
 LIBDIR =$(ROOT_DIR)/lib
 
-EXEC_SRC = logd.c
+EXEC_SRC = logd.c logctl.c
 EXEC_OBJ = logd.o
 SRCS = $(wildcard *.c)
 LUA_SRCS = $(wildcard *.lua)

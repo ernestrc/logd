@@ -116,7 +116,7 @@ void free_all()
 	buf_free(b);
 }
 
-char* args_init(int argc, char* argv[])
+int args_init(int argc, char* argv[])
 {
 	/* set defaults for arguments */
 	args.input_file = "/dev/stdin";
@@ -155,7 +155,7 @@ char* args_init(int argc, char* argv[])
 		case 'r':
 			if ((args.reopen_retries = parse_non_negative_int(optarg)) == -1) {
 				perror("parse --reopen-retries");
-				return NULL;
+				return 1;
 			}
 			break;
 		case 'b':
@@ -164,7 +164,7 @@ char* args_init(int argc, char* argv[])
 			  strncmp(EXP_BACKOFF, optarg, strlen(EXP_BACKOFF)) != 0) {
 				errno = EINVAL;
 				perror("--reopen-backoff");
-				return NULL;
+				return 1;
 			}
 			backoff =
 			  strncmp(LINEAL_BACKOFF, optarg, strlen(LINEAL_BACKOFF)) == 0 ? 1 :
@@ -174,7 +174,7 @@ char* args_init(int argc, char* argv[])
 			if ((args.reopen_delay = parse_non_negative_int(optarg)) == -1 ||
 			  args.reopen_delay == 0) {
 				perror("parse --reopen-delay");
-				return NULL;
+				return 1;
 			}
 			break;
 		default:
@@ -188,19 +188,23 @@ char* args_init(int argc, char* argv[])
 	if ((ret = uv_fs_stat(loop, &uv_stat_in_req, args.input_file, NULL)) < 0) {
 		errno = -ret;
 		perror("uv_fs_stat");
-		return NULL;
+		return 1;
 	}
 
 	int mode = uv_stat_in_req.statbuf.st_mode;
-	if (S_ISREG(mode) || S_ISDIR(mode)) {
+	if (S_ISDIR(mode) || S_ISREG(mode)) {
 		errno = EINVAL;
-		perror("args_init: --file, -f");
-		return NULL;
+		perror("--file, -f");
+		if (S_ISDIR(mode)) {
+			return 1;
+		}
+		return LOGD_RET_VALUE_EINVAL_FILE;
 	}
 
 	uv_fs_req_cleanup(&uv_stat_in_req);
+	script = argv[optind];
 
-	return argv[optind];
+	return 0;
 }
 
 int parser_dlload(const char* dlpath)
@@ -603,9 +607,8 @@ void print_usage(const char* exe)
 {
 	printf("usage: %s <script> [options]\n", exe);
 	printf("\noptions:\n");
-	printf(
-	  "  -f, --file=<path>		Pipe/Unix Socket to read data from [default: "
-	  "/dev/stdin]\n");
+	printf("  -f, --file=<path>		Pipe/Socket to read data from [default: "
+		   "/dev/stdin]\n");
 	printf("  -p, --parser=<parser_so>	Load shared object "
 		   "parser via dlopen [default: "
 		   "builtin]\n");
@@ -615,8 +618,8 @@ void print_usage(const char* exe)
 	printf("  -d, --reopen-delay		Retry reopen delay in milliseconds "
 		   "[default: %d]\n",
 	  args.reopen_delay);
-	printf("  -b, --reopen-backoff		Retry reopen delay backoff 'linear' or "
-		   "'exponential'"
+	printf("  -b, --reopen-backoff		Retry reopen backoff 'linear' or "
+		   "'exponential' "
 		   "[default: %s]\n",
 	  args.reopen_backoff);
 	printf("  -h, --help			Display this message.\n");
@@ -626,9 +629,8 @@ void print_usage(const char* exe)
 int main(int argc, char* argv[])
 {
 
-	if ((script = args_init(argc, argv)) == NULL || args.help) {
+	if (((pret = args_init(argc, argv)) != 0) || args.help) {
 		print_usage(argv[0]);
-		pret = !args.help;
 		goto exit;
 	}
 
