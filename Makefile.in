@@ -1,7 +1,5 @@
 .PHONY: analysis full-analysis format tags purge test fuzz coverage html-coverage fuzz-coverage fuzz-html-coverage
 
-bindir=@bindir@
-
 TARGET_SYS=@TARGET_SYS@
 ifeq (Darwin,$(TARGET_SYS))
   ifeq (,$(MACOSX_DEPLOYMENT_TARGET))
@@ -75,5 +73,5 @@ purge: clean
 	@ git submodule deinit --all -f
 	@ rm -f tags
 
-install:
-	@ install -m 0755 $(BIN)/logd $(bindir)/logd
+install: build-deps
+	@ $(MAKE) $@ -C $(SRC)

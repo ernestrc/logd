@@ -5,6 +5,7 @@ LIBS=@LIBS@
 BUILD_LIBS= @BUILD_LIBS@
 DEVELOP_BUILD=@DEVELOP_BUILD@
 ROOT_DIR=@ROOT_DIR@
+INSTALL_DIR=@bindir@
 
 LIBDEPS=$(ROOT_DIR)/deps/lib
 INCDIR=$(ROOT_DIR)/include
@@ -12,12 +13,13 @@ BINDIR =$(ROOT_DIR)/bin
 LIBDIR =$(ROOT_DIR)/lib
 
 EXEC_SRC = logd.c logctl.c
-EXEC_OBJ = logd.o
+EXEC_OBJ = $(patsubst %.c,%.o,$(EXEC_SRC))
 SRCS = $(wildcard *.c)
 LUA_SRCS = $(wildcard *.lua)
-OBJS = $(filter-out $(patsubst %.c,%.o,$(EXEC_SRC)), $(patsubst %.c,%.o,$(SRCS)))
+OBJS = $(filter-out $(EXEC_OBJ), $(patsubst %.c,%.o,$(SRCS)))
 LUAMOD = $(patsubst %.lua,%.lua.h,$(LUA_SRCS))
 EXEC = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(EXEC_SRC)))
+INSTALLED_EXEC = $(addprefix $(INSTALL_DIR)/,$(patsubst %.c,%,$(EXEC_SRC)))
 STATIC_LIBS = $(LIBDEPS)/libslab.a $(LIBDEPS)/liblssl.a $(LIBDEPS)/libluv.a $(LIBDEPS)/liblpeg.a $(LIBDEPS)/liblzlib.a $(BUILD_LIBS)
 CMOD = $(LIBDIR)/logd.so
 CMOD_DEPS=log.c util.c
@@ -32,6 +34,8 @@ EXTOBJS = $(addprefix $(LIBDIR)/objs/, $(foreach lib,$(STATIC_LIBS),$(call listo
 .PHONY: clean install
 
 default: src
+
+install: $(INSTALLED_EXEC)
 
 ifeq ($(DEVELOP_BUILD),yes)
 src: $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(PARSER_SO)
@@ -58,6 +62,9 @@ $(LIB): $(OBJS)
 
 $(BINDIR)/%: %.c $(LIB)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< $(LIB) $(LIBS)
+
+$(INSTALL_DIR)/%: $(BINDIR)/%
+	@ install -m 0755 $< $@
 
 $(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
 	$(CC) -o $(PARSER_SO) $(CFLAGS) -shared -fPIC parser.c $(PARSER_DEPS) $(LIBS)
