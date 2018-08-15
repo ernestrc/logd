@@ -19,34 +19,36 @@
 void on_read_skip(uv_poll_t* req, int status, int events);
 void on_read(uv_poll_t* req, int status, int events);
 
-static struct args_s {
+struct args_s {
 	int reopen_delay;
 	const char* reopen_backoff;
 	int reopen_retries;
-	const char* input_file;
+	char* input_file;
 	int help;
 	const char* dlparser;
 } args;
 
-static int pret;
-static char* script;
-static void* parser;
-static void* dlparser_handle;
-static lua_t* lstate;
-static buf_t* b;
-static int curr_reopen_retries;
-static int backoff;
+int pret;
+char* script;
+void* parser;
+void* dlparser_handle;
+lua_t* lstate;
+buf_t* b;
+int curr_reopen_retries;
+int backoff;
+uv_process_t tail;
 
-static uv_signal_t sigusr1, sigusr2, sigint;
-static uv_loop_t* loop;
-static uv_file infd;
-static uv_poll_t uv_poll_in_req;
+uv_signal_t sigusr1, sigusr2, sigint;
+uv_loop_t* loop;
+uv_file infd;
+uv_poll_t uv_poll_in_req;
+uv_fs_t uv_open_in_req;
 
-static parse_res_t (*parse_parser)(
+parse_res_t (*parse_parser)(
   void*, char*, size_t) = (parse_res_t(*)(void*, char*, size_t))(&parser_parse);
-static void (*free_parser)(void*) = (void (*)(void*))(&parser_free);
-static void* (*create_parser)() = (void* (*)())(&parser_create);
-static void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
+void (*free_parser)(void*) = (void (*)(void*))(&parser_free);
+void* (*create_parser)() = (void* (*)())(&parser_create);
+void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
 
 void input_try_reopen();
 bool try_deferr_input_reopen();
@@ -86,6 +88,8 @@ void input_close()
 	uv_fs_close(loop, &req_in_close, infd, NULL);
 	uv_fs_req_cleanup(&req_in_close);
 	uv_poll_stop(&uv_poll_in_req);
+	if (tail.pid != 0)
+		uv_kill(tail.pid, SIGHUP);
 }
 
 void close_logd_uv_handles()
@@ -182,24 +186,6 @@ char* args_init(int argc, char* argv[])
 		}
 	}
 
-	/* check that -f/--file arg is not a directory or a regular file */
-	uv_fs_t uv_stat_in_req;
-	int ret;
-	if ((ret = uv_fs_stat(loop, &uv_stat_in_req, args.input_file, NULL)) < 0) {
-		errno = -ret;
-		perror("uv_fs_stat");
-		return NULL;
-	}
-
-	int mode = uv_stat_in_req.statbuf.st_mode;
-	if (S_ISREG(mode) || S_ISDIR(mode)) {
-		errno = EINVAL;
-		perror("args_init: --file, -f");
-		return NULL;
-	}
-
-	uv_fs_req_cleanup(&uv_stat_in_req);
-
 	return argv[optind];
 }
 
@@ -242,24 +228,32 @@ err:
 	return 1;
 }
 
-void on_eof()
+void check_input_reopen(int exit_ret)
 {
-	if (lua_on_eof_defined(lstate)) {
-		lua_call_on_eof(lstate);
-	}
 	if (args.reopen_retries != 0) {
 		if (curr_reopen_retries != 0) {
 			DEBUG_LOG("reopen already scheduled, current retries: %d",
 			  curr_reopen_retries);
 			input_close();
-			if (!try_deferr_input_reopen())
+			if (!try_deferr_input_reopen()) {
 				close_logd_uv_handles();
+				pret = exit_ret;
+			}
 		} else {
 			input_try_reopen();
 		}
 	} else {
 		close_logd_uv_handles();
+		pret = exit_ret;
 	}
+}
+
+void on_eof()
+{
+	if (lua_on_eof_defined(lstate)) {
+		lua_call_on_eof(lstate);
+	}
+	check_input_reopen(0);
 }
 
 void on_poll_err(int ret)
@@ -450,20 +444,106 @@ skip:
 	return;
 }
 
-int input_init(uv_loop_t* loop, const char* input_file)
+void on_tail_exit(uv_process_t* req, int64_t exit_status, int term_signal)
+{
+	DEBUG_LOG(
+	  "tail subprocess with pid %d exited with status %ld and signal %d",
+	  req->pid, exit_status, term_signal);
+	pret = exit_status;
+
+	/* make sure it's not from previous to reopen subprocess */
+	if (req->pid != tail.pid) {
+		DEBUG_LOG("recv callback of previous tail process, curr_tail_pid: %d",
+		  tail.pid);
+		return;
+	}
+
+	tail.pid = 0;
+	check_input_reopen(exit_status ? exit_status : term_signal + 128);
+}
+
+int input_init_tail(uv_loop_t* loop, char* input_file)
+{
+	static uv_process_options_t options;
+	static uv_stdio_container_t child_stdio[3];
+	static char* args[5];
+
+	args[0] = "tail";
+	args[1] = "-n0";
+	args[2] = "-f";
+	args[3] = input_file;
+	args[4] = NULL;
+
+	options.exit_cb = on_tail_exit;
+	options.file = "tail";
+	options.args = args;
+	options.flags = 0;
+
+	child_stdio[0].flags = UV_IGNORE;
+	child_stdio[1].flags = UV_INHERIT_FD;
+	child_stdio[1].data.fd = 0;
+	child_stdio[2].flags = UV_IGNORE;
+
+	options.stdio_count = 3;
+	options.stdio = child_stdio;
+
+	int r;
+	if ((r = uv_spawn(loop, &tail, &options))) {
+		errno = -r;
+		perror("uv_spawn");
+		return 1;
+	}
+
+	DEBUG_LOG("launched pipe subprocess with pid %d..", tail.pid);
+
+	return 0;
+}
+
+int input_open_nonreg(uv_loop_t* loop, char* input_file)
 {
 	int ret;
-	uv_fs_t uv_open_in_req;
 
 	if ((ret = uv_fs_open(loop, &uv_open_in_req, input_file,
 		   O_NONBLOCK | O_RDONLY, 0, NULL)) < 0) {
 		errno = -ret;
 		perror("uv_fs_open");
+		ret = -1;
 		goto exit;
 	}
 
-	infd = uv_open_in_req.result;
+	ret = uv_open_in_req.result;
+
+exit:
 	uv_fs_req_cleanup(&uv_open_in_req);
+	return ret;
+}
+
+int input_init(uv_loop_t* loop, char* input_file)
+{
+	uv_fs_t uv_stat_in_req;
+	int ret;
+	if ((ret = uv_fs_stat(loop, &uv_stat_in_req, args.input_file, NULL)) < 0) {
+		errno = -ret;
+		perror("uv_fs_stat");
+		return 1;
+	}
+
+	int mode = uv_stat_in_req.statbuf.st_mode;
+	if (S_ISDIR(mode)) {
+		errno = EINVAL;
+		perror("args_init: --file, -f");
+		return 1;
+	}
+	uv_fs_req_cleanup(&uv_stat_in_req);
+
+	if (S_ISREG(mode)) {
+		if ((ret = input_init_tail(loop, input_file)) != 0 ||
+		  (infd = input_open_nonreg(loop, "/dev/stdin")) == -1) {
+			return 1;
+		}
+	} else if ((infd = input_open_nonreg(loop, input_file)) == -1) {
+		return 1;
+	}
 
 	DEBUG_LOG("input file open, fd: %d", infd);
 
@@ -471,13 +551,12 @@ int input_init(uv_loop_t* loop, const char* input_file)
 	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
 		errno = -ret;
 		perror("uv_poll");
-		goto exit;
+		return 1;
 	}
 
 	STAMP_HANDLE((uv_handle_t*)&uv_poll_in_req);
 
-exit:
-	return ret;
+	return 0;
 }
 
 void deferred_input_reopen()
@@ -604,7 +683,7 @@ void print_usage(const char* exe)
 	printf("usage: %s <script> [options]\n", exe);
 	printf("\noptions:\n");
 	printf(
-	  "  -f, --file=<path>		Pipe/Unix Socket to read data from [default: "
+	  "  -f, --file=<path>		File/Pipe/Socket to read data from [default: "
 	  "/dev/stdin]\n");
 	printf("  -p, --parser=<parser_so>	Load shared object "
 		   "parser via dlopen [default: "
