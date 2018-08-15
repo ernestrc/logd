@@ -7,8 +7,6 @@
 #define __STR_HELPER(x) #x
 #define STR(x) __STR_HELPER(x)
 
-#define LOGD_RET_VALUE_EINVAL_FILE 28
-
 #ifdef LOGD_DEBUG
 #define DEBUG_ASSERT(cond) assert(cond);
 #else
