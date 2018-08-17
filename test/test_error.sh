@@ -51,7 +51,6 @@ function logd.on_error(error, logptr, at)
 		at_expected = "GARBAGE DEBUG	[thread4]	clazz	callType: b: ,"
 	else
 		error_expected = "reached max number of log properties: $LOGD_SLAB_CAP"
-		at_expected = nil
 	end
 
 	assert(errors < 4)

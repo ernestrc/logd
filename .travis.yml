@@ -14,36 +14,36 @@ matrix:
     # check that we can build on Ubuntu
     - os: linux
       env:
-        - MATRIX_SCRIPT="docker build . -t logd-build:ubuntu -f utils/Dockerfile.ubuntu && docker run --rm -ti -v /tmp/logd_ubuntu:/opt/logd/bin logd-build:ubuntu sh -c 'make && make install'"
+        - MATRIX_SCRIPT="docker build . -t logd-build:ubuntu -f utils/Dockerfile.ubuntu && docker run --rm -ti -v /tmp/logd_ubuntu:/opt/logd/bin logd-build:ubuntu sh -c 'make && make test && make install'"
 
     # check that we can build on Centos 7
     - os: linux
       env:
-        - MATRIX_SCRIPT="docker build . -t logd-build:centos -f utils/Dockerfile.centos7 && docker run --rm -ti -v /tmp/logd_centos:/opt/logd/bin logd-build:centos sh -c 'make && make install'"
+        - MATRIX_SCRIPT="docker build . -t logd-build:centos -f utils/Dockerfile.centos7 && docker run --rm -ti -v /tmp/logd_centos:/opt/logd/bin logd-build:centos sh -c 'make && make test && make install'"
 
     # check that we can build on Debian
     - os: linux
       env:
-        - MATRIX_SCRIPT="docker build . -t logd-build:debian -f utils/Dockerfile.debian && docker run --rm -ti -v /tmp/logd_debian:/opt/logd/bin logd-build:debian sh -c 'make && make install'"
+        - MATRIX_SCRIPT="docker build . -t logd-build:debian -f utils/Dockerfile.debian && docker run --rm -ti -v /tmp/logd_debian:/opt/logd/bin logd-build:debian sh -c 'make && make test && make install'"
 
     # check that we can build with musl-libc and link statically
     - os: linux
       env:
-        - MATRIX_SCRIPT="docker build . -t logd-build:static -f utils/Dockerfile.static && docker run --rm -ti -v /tmp/logd_static:/opt/logd/bin logd-build:static sh -c 'make && make install'"
+        - MATRIX_SCRIPT="docker build . -t logd-build:static -f utils/Dockerfile.static && docker run --rm -ti -v /tmp/logd_static:/opt/logd/bin logd-build:static sh -c 'make && make test && make install'"
 
     # check that we can build on OSX 10.11
     - os: osx
       osx_image: xcode8
       env:
         - MATRIX_EVAL="export LIBTOOLIZE=glibtoolize && export LIBTOOL=glibtool"
-        - MATRIX_SCRIPT="brew update && brew bundle --file=utils/Brewfile && ./configure --enable-build-all && make"
+        - MATRIX_SCRIPT="brew update && brew bundle --file=utils/Brewfile && ./configure --enable-build-all && make && make test"
 
     # check that we can build on OSX 10.12
     - os: osx
       osx_image: xcode9
       env:
         - MATRIX_EVAL="export LIBTOOLIZE=glibtoolize && export LIBTOOL=glibtool"
-        - MATRIX_SCRIPT="brew update && brew bundle --file=utils/Brewfile && ./configure --enable-build-all && make"
+        - MATRIX_SCRIPT="brew update && brew bundle --file=utils/Brewfile && ./configure --enable-build-all && make && make test"
 
 before_install:
     - eval "${MATRIX_EVAL}"
