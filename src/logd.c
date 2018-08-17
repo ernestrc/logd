@@ -30,6 +30,7 @@ struct args_s {
 
 int pret;
 char* script;
+char* log_start;
 void* parser;
 void* dlparser_handle;
 lua_t* lstate;
@@ -55,9 +56,7 @@ bool try_deferr_input_reopen();
 
 #define LOGD_HANDLE ((void*)"__LOGD_HANDLE")
 #define STAMP_HANDLE(handle) (handle)->data = LOGD_HANDLE;
-#define RESET_REOPEN_RETRIES()                                                 \
-	DEBUG_LOG("reset reopen retries from %d to 0", curr_reopen_retries);       \
-	curr_reopen_retries = 0;
+#define RESET_REOPEN_RETRIES() curr_reopen_retries = 0;
 
 void print_version() { printf("logd %s\n", LOGD_VERSION); }
 
@@ -248,6 +247,37 @@ void check_input_reopen(int exit_ret)
 	}
 }
 
+int logd_buf_reserve()
+{
+	int ret;
+	int offset = log_start - b->buf;
+	ret = buf_reserve(b, LOGD_BUF_INIT_CAP);
+	reset_parser(parser);
+	log_start = b->buf + offset;
+
+	return ret;
+}
+
+void logd_reset_parser()
+{
+	reset_parser(parser);
+	log_start = b->next_read;
+}
+
+bool logd_buf_compact()
+{
+	if (b->buf == log_start)
+		return 0;
+
+	int moved = log_start - b->buf;
+	int len = b->last - log_start;
+	log_start = memmove(b->buf, log_start, len);
+	b->next_write = b->buf + len;
+	b->next_read = b->next_read - moved;
+
+	return 1;
+}
+
 void on_eof()
 {
 	if (lua_on_eof_defined(lstate)) {
@@ -280,10 +310,9 @@ parse:
 	res = parse_parser(parser, b->next_read, buf_readable(b));
 	switch (res.type) {
 	case PARSE_COMPLETE:
-		buf_ack(b, res.consumed);
-		// DEBUG_LOG("parsed new log: %p", &res.log);
 		lua_call_on_log(lstate, res.log);
-		reset_parser(parser);
+		buf_ack(b, res.consumed);
+		logd_reset_parser();
 		goto parse;
 	case PARSE_ERROR:
 		DEBUG_LOG("EOF parse error: %s", res.error.msg);
@@ -291,7 +320,7 @@ parse:
 		if (lua_on_error_defined(lstate)) {
 			lua_call_on_error(lstate, res.error.msg, res.log, res.error.at);
 		}
-		reset_parser(parser);
+		logd_reset_parser();
 		goto parse;
 	case PARSE_PARTIAL:
 		on_eof();
@@ -344,7 +373,7 @@ void on_read_skip(uv_poll_t* req, int status, int events)
 	DEBUG_LOG("successfully skipped line: buffer has now %zu readable bytes "
 			  "and %zu writable bytes",
 	  buf_readable(b), buf_writable(b));
-	reset_parser(parser);
+	logd_reset_parser();
 
 	if ((ret = uv_poll_stop(&uv_poll_in_req)) < 0 ||
 	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
@@ -387,7 +416,7 @@ parse:
 		// DEBUG_LOG("parsed new log: %p", &res.log);
 		lua_call_on_log(lstate, res.log);
 		buf_consume(b, res.consumed);
-		reset_parser(parser);
+		logd_reset_parser();
 		goto parse;
 
 	case PARSE_ERROR:
@@ -396,7 +425,7 @@ parse:
 		if (lua_on_error_defined(lstate)) {
 			lua_call_on_error(lstate, res.error.msg, res.log, res.error.at);
 		}
-		reset_parser(parser);
+		logd_reset_parser();
 		goto parse;
 
 	case PARSE_PARTIAL:
@@ -405,7 +434,8 @@ parse:
 			goto read;
 		}
 
-		if (buf_compact(b)) {
+		/* compact if we have data from previous log in buffer */
+		if (logd_buf_compact()) {
 			DEBUG_LOG(
 			  "compacted buffer: now writable %zd bytes", buf_writable(b));
 			reset_parser(parser);
@@ -422,7 +452,7 @@ parse:
 
 		/* complete log doesn't fit buffer so reserve more space */
 		/* do not ack so we re-parse with the re-allocated buffer */
-		if (buf_reserve(b, LOGD_BUF_INIT_CAP) != 0) {
+		if (logd_buf_reserve() != 0) {
 			perror("buf_reserve");
 			fprintf(stderr, "error reserving more space in input buffer\n");
 			pret = 1;
@@ -430,7 +460,6 @@ parse:
 		}
 
 		DEBUG_LOG("reserved more space in input buffer: now %zd bytes", b->cap);
-		reset_parser(parser);
 		goto read;
 	}
 
@@ -683,7 +712,7 @@ void print_usage(const char* exe)
 	printf("usage: %s <script> [options]\n", exe);
 	printf("\noptions:\n");
 	printf(
-	  "  -f, --file=<path>		File/Pipe/Socket to read data from [default: "
+	  "  -f, --file=<path>		File to ingest appended data from [default: "
 	  "/dev/stdin]\n");
 	printf("  -p, --parser=<parser_so>	Load shared object "
 		   "parser via dlopen [default: "
@@ -727,6 +756,8 @@ int main(int argc, char* argv[])
 		pret = 1;
 		goto exit;
 	}
+
+	logd_reset_parser();
 
 	if ((pret = loop_create()) != 0) {
 		perror("loop_create");

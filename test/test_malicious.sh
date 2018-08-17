@@ -5,11 +5,6 @@ SCRIPT="$DIR/malicious.lua"
 OUT="$DIR/malicious.out"
 LOGD_EXEC="$DIR/../bin/logd"
 
-if [ "$LOGD_BUF_MAX_CAP" == "" ]; then
-	LOGD_BUF_MAX_CAP=1000
-	echo "WARN: using LOGD_BUF_MAX_CAP=$LOGD_BUF_MAX_CAP; note that this could be out of sync with Makefile. Use make test instead."
-fi
-
 source $DIR/helper.sh
 
 function finish {
@@ -26,7 +21,7 @@ touch $OUT
 touch $IN
 
 echo -n "2018-05-12 12:51:28 ERROR	[thread1]	clazz	callType: " > $IN
-dd if=/dev/urandom count=$(($(( $LOGD_BUF_MAX_CAP / 512 )) + 10)) >> $IN 2>/dev/null
+dd if=/dev/urandom count=$(($(( $LOGD_BUF_MAX_CAP / 512 )) * 2)) >> $IN 2>/dev/null
 if [ $? -ne 0 ]; then
 	echo "could not create test file"
 	exit 1
