@@ -34,7 +34,7 @@ EXTOBJS = $(addprefix $(LIBDIR)/objs/, $(foreach lib,$(STATIC_LIBS),$(call listo
 default: src
 
 ifeq ($(DEVELOP_BUILD),yes)
-src: $(LIB) $(LUAMOD) $(EXEC) $(CMOD)
+src: $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(PARSER_SO)
 else
 src: $(LIB) $(LUAMOD) $(EXEC) $(PARSER_SO)
 endif

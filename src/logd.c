@@ -10,11 +10,16 @@
 #include "./config.h"
 #include "./lua.h"
 #include "./parser.h"
+#include "./tail.h"
 #include "./util.h"
 
 #define OPT_DEFAULT_DEBUG false
 #define LINEAL_BACKOFF "lineal"
 #define EXP_BACKOFF "exponential"
+
+#define LOGD_HANDLE ((void*)"__LOGD_HANDLE")
+#define STAMP_HANDLE(handle) (handle)->data = LOGD_HANDLE;
+#define RESET_REOPEN_RETRIES() curr_reopen_retries = 0;
 
 void on_read_skip(uv_poll_t* req, int status, int events);
 void on_read(uv_poll_t* req, int status, int events);
@@ -35,9 +40,9 @@ void* parser;
 void* dlparser_handle;
 lua_t* lstate;
 buf_t* b;
+tail_t* tail;
 int curr_reopen_retries;
 int backoff;
-uv_process_t tail;
 
 uv_signal_t sigusr1, sigusr2, sigint;
 uv_loop_t* loop;
@@ -54,10 +59,6 @@ void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
 void input_try_reopen();
 bool try_deferr_input_reopen();
 
-#define LOGD_HANDLE ((void*)"__LOGD_HANDLE")
-#define STAMP_HANDLE(handle) (handle)->data = LOGD_HANDLE;
-#define RESET_REOPEN_RETRIES() curr_reopen_retries = 0;
-
 void print_version() { printf("logd %s\n", LOGD_VERSION); }
 
 void on_close_lua_handle(uv_handle_t* handle)
@@ -67,7 +68,8 @@ void on_close_lua_handle(uv_handle_t* handle)
 
 void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
 {
-	if (handle->data == LOGD_HANDLE || uv_is_closing(handle)) {
+	if (handle->data == LOGD_HANDLE || handle->data == tail ||
+	  uv_is_closing(handle)) {
 		DEBUG_LOG("skipping uv handle %p", handle);
 		return;
 	}
@@ -84,11 +86,13 @@ void input_close()
 
 	DEBUG_LOG("closing input, fd: %d", infd);
 
-	uv_fs_close(loop, &req_in_close, infd, NULL);
-	uv_fs_req_cleanup(&req_in_close);
+	if (tail != NULL) {
+		tail_close(tail);
+	} else {
+		uv_fs_close(loop, &req_in_close, infd, NULL);
+		uv_fs_req_cleanup(&req_in_close);
+	}
 	uv_poll_stop(&uv_poll_in_req);
-	if (tail.pid != 0)
-		uv_kill(tail.pid, SIGHUP);
 }
 
 void close_logd_uv_handles()
@@ -116,6 +120,7 @@ void free_all()
 	if (dlparser_handle) {
 		dlclose(dlparser_handle);
 	}
+	tail_free(tail);
 	buf_free(b);
 }
 
@@ -473,61 +478,6 @@ skip:
 	return;
 }
 
-void on_tail_exit(uv_process_t* req, int64_t exit_status, int term_signal)
-{
-	DEBUG_LOG(
-	  "tail subprocess with pid %d exited with status %ld and signal %d",
-	  req->pid, exit_status, term_signal);
-	pret = exit_status;
-
-	/* make sure it's not from previous to reopen subprocess */
-	if (req->pid != tail.pid) {
-		DEBUG_LOG("recv callback of previous tail process, curr_tail_pid: %d",
-		  tail.pid);
-		return;
-	}
-
-	tail.pid = 0;
-	check_input_reopen(exit_status ? exit_status : term_signal + 128);
-}
-
-int input_init_tail(uv_loop_t* loop, char* input_file)
-{
-	static uv_process_options_t options;
-	static uv_stdio_container_t child_stdio[3];
-	static char* args[5];
-
-	args[0] = "tail";
-	args[1] = "-n0";
-	args[2] = "-f";
-	args[3] = input_file;
-	args[4] = NULL;
-
-	options.exit_cb = on_tail_exit;
-	options.file = "tail";
-	options.args = args;
-	options.flags = 0;
-
-	child_stdio[0].flags = UV_IGNORE;
-	child_stdio[1].flags = UV_INHERIT_FD;
-	child_stdio[1].data.fd = 0;
-	child_stdio[2].flags = UV_IGNORE;
-
-	options.stdio_count = 3;
-	options.stdio = child_stdio;
-
-	int r;
-	if ((r = uv_spawn(loop, &tail, &options))) {
-		errno = -r;
-		perror("uv_spawn");
-		return 1;
-	}
-
-	DEBUG_LOG("launched pipe subprocess with pid %d..", tail.pid);
-
-	return 0;
-}
-
 int input_open_nonreg(uv_loop_t* loop, char* input_file)
 {
 	int ret;
@@ -566,17 +516,24 @@ int input_init(uv_loop_t* loop, char* input_file)
 	uv_fs_req_cleanup(&uv_stat_in_req);
 
 	if (S_ISREG(mode)) {
-		if ((ret = input_init_tail(loop, input_file)) != 0 ||
-		  (infd = input_open_nonreg(loop, "/dev/stdin")) == -1) {
+		/* allocate tail only once */
+		if (tail == NULL &&
+		  (tail = tail_create(loop, args.input_file)) == NULL) {
+			perror("tail_open");
 			return 1;
 		}
-	} else if ((infd = input_open_nonreg(loop, input_file)) == -1) {
-		return 1;
+		if ((infd = tail_open(tail, check_input_reopen)) < 0) {
+			perror("tail_open");
+			return 1;
+		}
+		DEBUG_LOG("input is regular file, infd: %d", infd);
+	} else {
+		if ((infd = input_open_nonreg(loop, input_file)) < 0)
+			return 1;
+		DEBUG_LOG("input is non regular file, infd: %d", infd);
 	}
 
-	DEBUG_LOG("input file open, fd: %d", infd);
-
-	if ((ret = uv_poll_init(loop, &uv_poll_in_req, infd)) < 0 ||
+	if ((ret = uv_poll_init(loop, &uv_poll_in_req, infd)) ||
 	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
 		errno = -ret;
 		perror("uv_poll");
