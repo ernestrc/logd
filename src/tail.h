@@ -4,7 +4,7 @@
 #include <uv.h>
 
 typedef enum tail_state_e {
-	IDLE_TSTATE,
+	INIT_TSTATE,
 	OPEN_TSTATE,
 	CLOSING_OPENING_TSTATE,
 	CLOSING_FREEING_TSTATE,

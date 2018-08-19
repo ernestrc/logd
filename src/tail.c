@@ -4,7 +4,7 @@
 #include "./tail.h"
 #include "./util.h"
 
-static int tail_spawn(tail_t* tail);
+static void tail_spawn_async(tail_t* tail);
 static void tail_kill_tail(tail_t* tail);
 static void tail_close_pipes(tail_t* tail);
 
@@ -37,6 +37,13 @@ static void on_tail_stderr(uv_poll_t* req, int status, int events)
 	fprintf(stderr, "%.*s", ret, (char*)&buf);
 }
 
+static void tail_call_exit_cb(tail_t* tail, int status)
+{
+	if (tail->exit_cb) {
+		tail->exit_cb(status);
+	}
+}
+
 static void on_tail_exit(
   uv_process_t* req, int64_t exit_status, int term_signal)
 {
@@ -46,31 +53,27 @@ static void on_tail_exit(
 			  "%d, tail_state: %d",
 	  req->pid, exit_status, term_signal, tail->state);
 
-	uv_close((uv_handle_t*)tail, NULL);
+	uv_close((uv_handle_t*)req, NULL);
 
 	switch (tail->state) {
 	case CLOSING_FREEING_TSTATE:
 		free(tail);
 		return;
 	case CLOSING_OPENING_TSTATE:
-		if (tail_spawn(tail) == 0)
-			return;
-		tail_close_pipes(tail);
+		tail_spawn_async(tail);
 		break;
 	case OPEN_TSTATE:
 		tail_close_pipes(tail);
 		/* fallthrough */
 	case CLOSING_TSTATE:
 		break;
-	case IDLE_TSTATE:
+	case INIT_TSTATE:
 		abort();
 		break;
 	}
 
-	tail->state = IDLE_TSTATE;
-	if (tail->exit_cb) {
-		tail->exit_cb(exit_status ? exit_status : term_signal + 128);
-	}
+	tail->state = INIT_TSTATE;
+	tail_call_exit_cb(tail, exit_status ? exit_status : term_signal + 128);
 }
 
 tail_t* tail_create(uv_loop_t* loop, char* input_file)
@@ -138,8 +141,10 @@ static int tail_open_pipes(tail_t* tail)
 	return 0;
 }
 
-static int tail_spawn(tail_t* tail)
+static void tail_spawn(uv_timer_t* timer)
 {
+	tail_t* tail = (tail_t*)timer->data;
+
 	tail->proc_child_stdio[0].flags = UV_INHERIT_FD;
 	tail->proc_child_stdio[0].data.fd = tail->read_infd;
 	tail->proc_child_stdio[1].flags = UV_INHERIT_FD;
@@ -155,14 +160,26 @@ static int tail_spawn(tail_t* tail)
 	if ((r = uv_spawn(tail->loop, &tail->proc, &tail->proc_options))) {
 		errno = -r;
 		perror("uv_spawn");
-		return 1;
+		tail_close_pipes(tail);
+		tail_call_exit_cb(tail, 1);
+		tail->state = INIT_TSTATE;
+		return;
 	}
 
 	tail->state = OPEN_TSTATE;
 
 	DEBUG_LOG("launched new tail subprocess, pid: %d", tail->proc.pid);
+}
 
-	return 0;
+// we need to spawn asynchronously because libuv calls uv__finish_close even after
+// calling proc exit callback so we run into some assertion failures
+static void tail_spawn_async(tail_t* tail)
+{
+	static uv_timer_t timer;
+	uv_timer_init(tail->loop, &timer);
+
+	timer.data = tail;
+	uv_timer_start(&timer, tail_spawn, 0, 0);
 }
 
 int tail_open(tail_t* tail, void (*exit_cb)(int))
@@ -183,7 +200,7 @@ int tail_open(tail_t* tail, void (*exit_cb)(int))
 			return -1;
 		}
 		return tail->read_infd;
-	case IDLE_TSTATE:
+	case INIT_TSTATE:
 		break;
 	}
 	DEBUG_ASSERT(tail != NULL);
@@ -195,10 +212,7 @@ int tail_open(tail_t* tail, void (*exit_cb)(int))
 
 	tail->exit_cb = exit_cb;
 
-	if (tail_spawn(tail) != 0) {
-		perror("tail_spawn");
-		return -1;
-	}
+	tail_spawn_async(tail);
 
 	return tail->read_infd;
 }
@@ -235,7 +249,7 @@ void tail_close(tail_t* tail)
 		/* fallthrough */
 	case CLOSING_TSTATE:
 		/* fallthrough */
-	case IDLE_TSTATE:
+	case INIT_TSTATE:
 		return;
 	case OPEN_TSTATE:
 		break;
@@ -251,7 +265,7 @@ void tail_free(tail_t* tail)
 		return;
 
 	switch (tail->state) {
-	case IDLE_TSTATE:
+	case INIT_TSTATE:
 		free(tail);
 		break;
 	case OPEN_TSTATE:
