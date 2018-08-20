@@ -2,8 +2,8 @@
 #define LOGD_UTIL_H
 #include <stdio.h>
 
-#include "log.h"
 #include "config.h"
+#include "log.h"
 
 #define __STR_HELPER(x) #x
 #define STR(x) __STR_HELPER(x)
@@ -36,6 +36,31 @@
 #else
 #define DEBUG_LOG(fmt, ...)
 #endif
+
+#define UNEINTR(syscall)                                                       \
+	{                                                                          \
+		int r = 0;                                                             \
+		do {                                                                   \
+			errno = 0;                                                         \
+			r = syscall;                                                       \
+		} while (r == -1 && errno == EINTR);                                   \
+		if (r == -1) {                                                         \
+			perror("syscall");                                                 \
+			return 1;                                                          \
+		}                                                                      \
+	}
+
+#define UNEINTR2(syscall)                                                      \
+	{                                                                          \
+		int r = 0;                                                             \
+		do {                                                                   \
+			errno = 0;                                                         \
+			r = syscall;                                                       \
+		} while (r == -1 && errno == EINTR);                                   \
+		if (r == -1) {                                                         \
+			DEBUG_LOG("syscall error, errno: %d", errno);                      \
+		}                                                                      \
+	}
 
 void printl(log_t* l);
 void fprintl(FILE* stream, log_t* l);

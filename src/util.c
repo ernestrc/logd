@@ -139,14 +139,14 @@ int next_attempt_backoff(
   int start_delay, int curr_reopen_retry, int backoff_exponent)
 {
 	int timeout;
-	DEBUG_ASSERT(curr_reopen_retry > 0);
 	DEBUG_ASSERT(backoff_exponent > 0);
 
-	if (backoff_exponent == 1) {
+	if (curr_reopen_retry == 0)
+		timeout = 0;
+	else if (backoff_exponent == 1)
 		timeout = start_delay * curr_reopen_retry;
-	} else {
+	else
 		timeout = pow(start_delay, curr_reopen_retry);
-	}
 
 	return timeout;
 }

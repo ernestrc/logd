@@ -19,10 +19,7 @@
 
 #define LOGD_HANDLE ((void*)"__LOGD_HANDLE")
 #define STAMP_HANDLE(handle) (handle)->data = LOGD_HANDLE;
-#define RESET_REOPEN_RETRIES() curr_reopen_retries = 0;
-
-void on_read_skip(uv_poll_t* req, int status, int events);
-void on_read(uv_poll_t* req, int status, int events);
+#define STDIN_INPUT_FILE "/dev/stdin"
 
 struct args_s {
 	int reopen_delay;
@@ -33,6 +30,13 @@ struct args_s {
 	const char* dlparser;
 } args;
 
+enum input_state_e {
+	CLOSED_ISTATE,
+	OPENING_ISTATE,
+	READING_ISTATE,
+	EXIT_ISTATE,
+} input_state;
+
 int pret;
 char* script;
 char* log_start;
@@ -40,14 +44,14 @@ void* parser;
 void* dlparser_handle;
 lua_t* lstate;
 buf_t* b;
+uv_file infd;
 tail_t* tail;
+uv_poll_t uv_poll_in_req;
+uv_loop_t* loop;
 int curr_reopen_retries;
 int backoff;
-
+int input_is_reg;
 uv_signal_t sigusr1, sigusr2, sigint;
-uv_loop_t* loop;
-uv_file infd;
-uv_poll_t uv_poll_in_req;
 uv_fs_t uv_open_in_req;
 
 parse_res_t (*parse_parser)(
@@ -56,78 +60,43 @@ void (*free_parser)(void*) = (void (*)(void*))(&parser_free);
 void* (*create_parser)() = (void* (*)())(&parser_create);
 void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
 
-void input_try_reopen();
-bool try_deferr_input_reopen();
+void on_read_skip(uv_poll_t* req, int status, int events);
+void on_read(uv_poll_t* req, int status, int events);
+void on_first_read(uv_poll_t* req, int status, int events);
+void input_close();
+static void input_reopen_open();
+int input_open(uv_loop_t*, tail_t*, char*);
 
 void print_version() { printf("logd %s\n", LOGD_VERSION); }
 
-void on_close_lua_handle(uv_handle_t* handle)
+void print_usage(const char* exe)
 {
-	DEBUG_LOG("closed uv handle %p", handle);
-}
-
-void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
-{
-	if (handle->data == LOGD_HANDLE || handle->data == tail ||
-	  uv_is_closing(handle)) {
-		DEBUG_LOG("skipping uv handle %p", handle);
-		return;
-	}
-
-	DEBUG_LOG("closing uv handle %p", handle);
-	uv_close(handle, on_close_lua_handle);
-}
-
-void close_lua_uv_handles() { uv_walk(loop, uv_walk_close_lua_handles, NULL); }
-
-void input_close()
-{
-	uv_fs_t req_in_close;
-
-	DEBUG_LOG("closing input, fd: %d", infd);
-
-	if (tail != NULL) {
-		tail_close(tail);
-	} else {
-		uv_fs_close(loop, &req_in_close, infd, NULL);
-		uv_fs_req_cleanup(&req_in_close);
-	}
-	uv_poll_stop(&uv_poll_in_req);
-}
-
-void close_logd_uv_handles()
-{
-	input_close();
-	uv_signal_stop(&sigusr1);
-	uv_signal_stop(&sigusr2);
-	uv_signal_stop(&sigint);
-}
-
-void close_all_handles()
-{
-	close_lua_uv_handles();
-	close_logd_uv_handles();
-}
-
-void free_all()
-{
-	lua_free(lstate);
-	if (loop) {
-		uv_loop_close(loop);
-		free(loop);
-	}
-	free_parser(parser);
-	if (dlparser_handle) {
-		dlclose(dlparser_handle);
-	}
-	tail_free(tail);
-	buf_free(b);
+	printf("usage: %s <script> [options]\n", exe);
+	printf("\noptions:\n");
+	printf(
+	  "  -f, --file=<path>		File to ingest appended data from [default: "
+	  "/dev/stdin]\n");
+	printf("  -p, --parser=<parser_so>	Load shared object "
+		   "parser via dlopen [default: "
+		   "builtin]\n");
+	printf("  -r, --reopen-retries		Reopen retries on EOF before giving up "
+		   "[default: %d]\n",
+	  args.reopen_retries);
+	printf("  -d, --reopen-delay		Retry reopen delay in milliseconds "
+		   "[default: %d]\n",
+	  args.reopen_delay);
+	printf("  -b, --reopen-backoff		Retry reopen delay backoff 'linear' or "
+		   "'exponential'"
+		   "[default: %s]\n",
+	  args.reopen_backoff);
+	printf("  -h, --help			Display this message.\n");
+	printf("  -v, --version			Display logd version information.\n");
 }
 
 char* args_init(int argc, char* argv[])
 {
 	/* set defaults for arguments */
-	args.input_file = "/dev/stdin";
+	args.input_file = STDIN_INPUT_FILE;
 	args.help = 0;
 	args.dlparser = NULL;
 	args.reopen_backoff = LINEAL_BACKOFF;
@@ -232,24 +201,218 @@ err:
 	return 1;
 }
 
-void check_input_reopen(int exit_ret)
+void on_close_lua_handle(uv_handle_t* handle)
 {
-	if (args.reopen_retries != 0) {
-		if (curr_reopen_retries != 0) {
-			DEBUG_LOG("reopen already scheduled, current retries: %d",
-			  curr_reopen_retries);
-			input_close();
-			if (!try_deferr_input_reopen()) {
-				close_logd_uv_handles();
-				pret = exit_ret;
-			}
+	DEBUG_LOG("closed uv handle %p, handles: %d", handle, loop->active_handles);
+}
+
+void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
+{
+	if (handle->data == LOGD_HANDLE || handle->data == tail ||
+	  uv_is_closing(handle)) {
+		DEBUG_LOG("skipping uv handle %p", handle);
+		return;
+	}
+
+	DEBUG_LOG("closing uv handle %p", handle);
+	uv_close(handle, on_close_lua_handle);
+}
+
+void close_lua_uv_handles() { uv_walk(loop, uv_walk_close_lua_handles, NULL); }
+
+void close_logd_uv_handles()
+{
+	DEBUG_LOG("closing logd libuv handles, handles: %d", loop->active_handles);
+
+	input_close();
+	uv_signal_stop(&sigusr1);
+	uv_signal_stop(&sigusr2);
+	uv_signal_stop(&sigint);
+}
+
+void close_all(int exit_status)
+{
+	DEBUG_LOG("closing all libuv handles, handles: %d", loop->active_handles);
+
+	close_lua_uv_handles();
+	close_logd_uv_handles();
+
+	pret = exit_status;
+	input_state = EXIT_ISTATE;
+}
+
+// NOTE: only used one at a time during input reopening mechanism
+static void set_timeout(int timeout, void (*func)(uv_timer_t*))
+{
+	static uv_timer_t timer;
+
+	uv_timer_init(loop, &timer);
+	uv_timer_start(&timer, func, timeout, 0);
+}
+
+static void input_reopen()
+{
+	DEBUG_LOG(
+	  "trying to reopen file, current retries: %d", curr_reopen_retries);
+
+	input_close();
+	input_reopen_open();
+}
+
+static void input_reopen_open()
+{
+	int ret;
+
+	curr_reopen_retries += 1;
+	DEBUG_LOG("reopen attempt, state: %d, current_try: %d", input_state,
+	  curr_reopen_retries);
+
+	if ((ret = input_open(loop, tail, args.input_file)) != 0) {
+		perror("input_open");
+		if (curr_reopen_retries <= args.reopen_retries) {
+			set_timeout(next_attempt_backoff(
+						  args.reopen_delay, curr_reopen_retries, backoff),
+			  input_reopen);
 		} else {
-			input_try_reopen();
+			close_logd_uv_handles();
 		}
+	}
+}
+
+void input_close()
+{
+	uv_fs_t req_in_close;
+
+	DEBUG_LOG("input close attempt, state: %d", input_state);
+
+	switch (input_state) {
+	case EXIT_ISTATE:
+	case CLOSED_ISTATE:
+		return;
+	case OPENING_ISTATE:
+		/* fallthrough */
+	case READING_ISTATE:
+		break;
+	}
+
+	DEBUG_LOG("closing input, fd: %d", infd);
+
+	if (input_is_reg) {
+		tail_close(tail);
+	} else {
+		uv_fs_close(loop, &req_in_close, infd, NULL);
+		uv_fs_req_cleanup(&req_in_close);
+	}
+
+	uv_poll_stop(&uv_poll_in_req);
+
+	input_state = CLOSED_ISTATE;
+}
+
+void input_reopen_attempt(int exit_status)
+{
+	void (*open_func)(uv_timer_t*);
+
+	DEBUG_LOG("input reopen attempt, exit_status: %d, state: %d", exit_status,
+	  input_state);
+
+	switch (input_state) {
+	case OPENING_ISTATE:
+		DEBUG_LOG("reopen mechanism in-progress, current_retry: %d",
+		  curr_reopen_retries);
+		/* falltrhough */
+	case EXIT_ISTATE:
+		return;
+	case CLOSED_ISTATE:
+		open_func = input_reopen_open;
+		break;
+	case READING_ISTATE:
+		open_func = input_reopen;
+		break;
+	}
+
+	if (args.reopen_retries != 0) {
+		input_state = OPENING_ISTATE;
+		set_timeout(
+		  next_attempt_backoff(args.reopen_delay, curr_reopen_retries, backoff),
+		  open_func);
 	} else {
 		close_logd_uv_handles();
-		pret = exit_ret;
 	}
+}
+
+int input_open_nonreg(uv_loop_t* loop, char* input_file)
+{
+	int ret;
+
+	if ((ret = uv_fs_open(loop, &uv_open_in_req, input_file,
+		   O_NONBLOCK | O_RDONLY, 0, NULL)) < 0) {
+		errno = -ret;
+		perror("uv_fs_open");
+		ret = -1;
+		goto exit;
+	}
+
+	ret = uv_open_in_req.result;
+
+exit:
+	uv_fs_req_cleanup(&uv_open_in_req);
+	return ret;
+}
+
+int input_open(uv_loop_t* loop, tail_t* tail, char* input_file)
+{
+	uv_fs_t uv_stat_in_req;
+	int ret, mode;
+
+	DEBUG_LOG("input open, input_file: %s, state: %d", input_file, input_state);
+
+	switch (input_state) {
+	case EXIT_ISTATE:
+		/* fallthrough */
+	case READING_ISTATE:
+		return 0;
+	case OPENING_ISTATE: // only reached when called from reopen mechanism
+		/* fallthrough */
+	case CLOSED_ISTATE:
+		break;
+	}
+
+	if ((ret = uv_fs_stat(loop, &uv_stat_in_req, input_file, NULL)) < 0) {
+		errno = -ret;
+		perror("uv_fs_stat");
+		return 1;
+	}
+
+	mode = uv_stat_in_req.statbuf.st_mode;
+	if (S_ISDIR(mode)) {
+		errno = EINVAL;
+		perror("args_init: --file, -f");
+		return 1;
+	}
+	uv_fs_req_cleanup(&uv_stat_in_req);
+
+	if ((input_is_reg = S_ISREG(mode))) {
+		if ((infd = tail_open(tail, input_reopen_attempt)) < 0) {
+			perror("tail_open");
+			return 1;
+		}
+	} else if ((infd = input_open_nonreg(loop, input_file)) < 0) {
+		perror("input_open_nonreg");
+		return 1;
+	}
+
+	if ((ret = uv_poll_init(loop, &uv_poll_in_req, infd)) ||
+	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
+		errno = -ret;
+		perror("uv_poll");
+		return 1;
+	}
+
+	STAMP_HANDLE((uv_handle_t*)&uv_poll_in_req);
+	input_state = OPENING_ISTATE;
+
+	return 0;
 }
 
 int logd_buf_reserve()
@@ -288,22 +451,20 @@ void on_eof()
 	if (lua_on_eof_defined(lstate)) {
 		lua_call_on_eof(lstate);
 	}
-	check_input_reopen(0);
+	input_reopen_attempt(0);
 }
 
 void on_poll_err(int ret)
 {
 	errno = -ret;
 	perror("uv_poll");
-	close_all_handles();
-	pret = 1;
+	close_all(1);
 }
 
 void on_read_err()
 {
 	perror("input read");
-	close_all_handles();
-	pret = 1;
+	close_all(1);
 }
 
 void on_read_eof()
@@ -335,33 +496,35 @@ parse:
 	return;
 }
 
+#define READ(req, status, read_len, on_eof_h)                                  \
+	if (status < 0) {                                                          \
+		on_poll_err(status);                                                   \
+		return;                                                                \
+	}                                                                          \
+                                                                               \
+	errno = 0;                                                                 \
+	int ret = read(infd, b->next_write, read_len);                             \
+	if (errno == EAGAIN) {                                                     \
+		DEBUG_LOG("input not ready: %d", infd);                                \
+		return;                                                                \
+	}                                                                          \
+	if (ret < 0) {                                                             \
+		on_read_err();                                                         \
+		return;                                                                \
+	}                                                                          \
+                                                                               \
+	if (ret == 0) {                                                            \
+		on_eof_h();                                                            \
+		return;                                                                \
+	}                                                                          \
+	buf_extend(b, ret);
+
 void on_read_skip(uv_poll_t* req, int status, int events)
 {
 	parse_res_t res;
-	if (status < 0) {
-		on_poll_err(status);
-		return;
-	}
 
-	errno = 0;
-	int ret = read(infd, b->next_write, buf_writable(b));
-	if (errno == EAGAIN) {
-		DEBUG_LOG("input not ready: %d", infd);
-		return;
-	}
-	if (ret < 0) {
-		on_read_err();
-		return;
-	}
+	READ(req, status, buf_writable(b), on_eof);
 
-	if (ret == 0) {
-		on_eof();
-		return;
-	}
-
-	RESET_REOPEN_RETRIES();
-
-	buf_extend(b, ret);
 	res = parse_parser(parser, b->next_read, buf_readable(b));
 	if (res.type == PARSE_PARTIAL) {
 		buf_reset_offsets(b);
@@ -389,30 +552,13 @@ void on_read_skip(uv_poll_t* req, int status, int events)
 void on_read(uv_poll_t* req, int status, int events)
 {
 	parse_res_t res;
-	if (status < 0) {
-		on_poll_err(status);
-		return;
-	}
 
-	errno = 0;
-	int ret = read(infd, b->next_write, buf_writable(b));
-	if (errno == EAGAIN) {
-		DEBUG_LOG("input not ready: %d", infd);
-		return;
-	}
-	if (ret < 0) {
-		on_read_err();
-		return;
-	}
+	READ(req, status, buf_writable(b), on_read_eof);
 
-	if (ret == 0) {
-		on_read_eof();
-		return;
-	}
+	// TODO optimize
+	curr_reopen_retries = 0;
+	input_state = READING_ISTATE;
 
-	RESET_REOPEN_RETRIES();
-
-	buf_extend(b, ret);
 parse:
 	res = parse_parser(parser, b->next_read, buf_readable(b));
 	switch (res.type) {
@@ -478,117 +624,9 @@ skip:
 	return;
 }
 
-int input_open_nonreg(uv_loop_t* loop, char* input_file)
-{
-	int ret;
-
-	if ((ret = uv_fs_open(loop, &uv_open_in_req, input_file,
-		   O_NONBLOCK | O_RDONLY, 0, NULL)) < 0) {
-		errno = -ret;
-		perror("uv_fs_open");
-		ret = -1;
-		goto exit;
-	}
-
-	ret = uv_open_in_req.result;
-
-exit:
-	uv_fs_req_cleanup(&uv_open_in_req);
-	return ret;
-}
-
-int input_init(uv_loop_t* loop, char* input_file)
-{
-	uv_fs_t uv_stat_in_req;
-	int ret;
-	if ((ret = uv_fs_stat(loop, &uv_stat_in_req, args.input_file, NULL)) < 0) {
-		errno = -ret;
-		perror("uv_fs_stat");
-		return 1;
-	}
-
-	int mode = uv_stat_in_req.statbuf.st_mode;
-	if (S_ISDIR(mode)) {
-		errno = EINVAL;
-		perror("args_init: --file, -f");
-		return 1;
-	}
-	uv_fs_req_cleanup(&uv_stat_in_req);
-
-	if (S_ISREG(mode)) {
-		/* allocate tail only once */
-		if (tail == NULL &&
-		  (tail = tail_create(loop, args.input_file)) == NULL) {
-			perror("tail_open");
-			return 1;
-		}
-		if ((infd = tail_open(tail, check_input_reopen)) < 0) {
-			perror("tail_open");
-			return 1;
-		}
-		DEBUG_LOG("input is regular file, infd: %d", infd);
-	} else {
-		if ((infd = input_open_nonreg(loop, input_file)) < 0)
-			return 1;
-		DEBUG_LOG("input is non regular file, infd: %d", infd);
-	}
-
-	if ((ret = uv_poll_init(loop, &uv_poll_in_req, infd)) ||
-	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
-		errno = -ret;
-		perror("uv_poll");
-		return 1;
-	}
-
-	STAMP_HANDLE((uv_handle_t*)&uv_poll_in_req);
-
-	return 0;
-}
-
-void deferred_input_reopen()
-{
-	uv_timer_t timer;
-	int timeout =
-	  next_attempt_backoff(args.reopen_delay, curr_reopen_retries, backoff);
-
-	DEBUG_LOG("reopening pipe in %d milliseconds..", timeout);
-
-	uv_timer_init(loop, &timer);
-	uv_timer_start(&timer, input_try_reopen, timeout, 0);
-}
-
-bool try_deferr_input_reopen()
-{
-	if (curr_reopen_retries <= args.reopen_retries) {
-		deferred_input_reopen();
-		return true;
-	}
-
-	return false;
-}
-
-void input_try_reopen()
-{
-	int ret;
-
-	input_close();
-
-	DEBUG_LOG(
-	  "trying to reopen file, current retries: %d", curr_reopen_retries);
-	curr_reopen_retries += 1;
-
-	if ((ret = input_init(loop, args.input_file)) != 0) {
-		perror("input_init");
-		if (!try_deferr_input_reopen()) {
-			pret = ret;
-			close_all_handles();
-		}
-	}
-}
-
 void rel_cfg_sig_h(uv_signal_t* handle, int signum)
 {
-	DEBUG_LOG("Received signal %d. Reloading configuration ...", signum);
+	DEBUG_LOG("Received signal %d. Reloading lua script ...", signum);
 	close_lua_uv_handles();
 	uv_stop(loop);
 }
@@ -596,14 +634,14 @@ void rel_cfg_sig_h(uv_signal_t* handle, int signum)
 void rel_log_sig_h(uv_signal_t* handle, int signum)
 {
 	DEBUG_LOG("Received signal %d. Re-opening input files ...", signum);
-	input_try_reopen();
+	input_state = OPENING_ISTATE;
+	input_reopen();
 }
 
 void shutdown_sig_h(uv_signal_t* handle, int signum)
 {
 	DEBUG_LOG("Received signal %d. Shutdown ...", signum);
-	close_all_handles();
-	pret = signum + 128;
+	close_all(signum + 128);
 }
 
 int signals_init(uv_loop_t* loop)
@@ -664,28 +702,19 @@ error:
 	return 1;
 }
 
-void print_usage(const char* exe)
+void free_all()
 {
-	printf("usage: %s <script> [options]\n", exe);
-	printf("\noptions:\n");
-	printf(
-	  "  -f, --file=<path>		File to ingest appended data from [default: "
-	  "/dev/stdin]\n");
-	printf("  -p, --parser=<parser_so>	Load shared object "
-		   "parser via dlopen [default: "
-		   "builtin]\n");
-	printf("  -r, --reopen-retries		Reopen retries on EOF before giving up "
-		   "[default: %d]\n",
-	  args.reopen_retries);
-	printf("  -d, --reopen-delay		Retry reopen delay in milliseconds "
-		   "[default: %d]\n",
-	  args.reopen_delay);
-	printf("  -b, --reopen-backoff		Retry reopen delay backoff 'linear' or "
-		   "'exponential'"
-		   "[default: %s]\n",
-	  args.reopen_backoff);
-	printf("  -h, --help			Display this message.\n");
-	printf("  -v, --version			Display logd version information.\n");
+	lua_free(lstate);
+	tail_free(tail);
+	buf_free(b);
+	free_parser(parser);
+	if (loop) {
+		uv_loop_close(loop);
+		free(loop);
+	}
+	if (dlparser_handle) {
+		dlclose(dlparser_handle);
+	}
 }
 
 int main(int argc, char* argv[])
@@ -726,8 +755,13 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	if ((pret = input_init(loop, args.input_file)) != 0) {
-		perror("input_init");
+	if ((tail = tail_create(loop, args.input_file)) == NULL) {
+		perror("tail_create");
+		goto exit;
+	}
+
+	if ((pret = input_open(loop, tail, args.input_file)) != 0) {
+		perror("input_open");
 		goto exit;
 	}
 

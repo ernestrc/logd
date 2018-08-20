@@ -1,12 +1,28 @@
+#include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 #include "./tail.h"
 #include "./util.h"
 
-static void tail_spawn_async(tail_t* tail);
 static void tail_kill_tail(tail_t* tail);
 static void tail_close_pipes(tail_t* tail);
+static void tail_spawn(uv_timer_t*);
+
+static uv_timer_t* set_inmediate(uv_loop_t* loop, void* data, uv_timer_cb cb)
+{
+	uv_timer_t* timer = calloc(1, sizeof(uv_timer_t));
+	if (timer == NULL) {
+		errno = ENOMEM;
+		return NULL;
+	}
+	uv_timer_init(loop, timer);
+
+	timer->data = data;
+	uv_timer_start(timer, cb, 0, 0);
+
+	return timer;
+}
 
 static void on_tail_stderr(uv_poll_t* req, int status, int events)
 {
@@ -20,9 +36,9 @@ static void on_tail_stderr(uv_poll_t* req, int status, int events)
 	tail_t* tail = (tail_t*)req->data;
 
 	errno = 0;
-	int ret = read(tail->read_errfd, &buf, STDERR_BUF_SIZE);
+	int ret = read(tail->read_tail_stderr_fd, &buf, STDERR_BUF_SIZE);
 	if (errno == EAGAIN) {
-		DEBUG_LOG("stderr tail not ready, fd: %d", tail->read_infd);
+		DEBUG_LOG("stderr tail not ready, fd: %d", tail->read_data_fd);
 		return;
 	}
 	if (ret < 0) {
@@ -60,7 +76,11 @@ static void on_tail_exit(
 		free(tail);
 		return;
 	case CLOSING_OPENING_TSTATE:
-		tail_spawn_async(tail);
+		if (set_inmediate(tail->loop, tail, tail_spawn) == NULL) {
+			tail_close_pipes(tail);
+			perror("set_inmediate");
+			return;
+		}
 		break;
 	case OPEN_TSTATE:
 		tail_close_pipes(tail);
@@ -108,22 +128,22 @@ static int tail_open_pipes(tail_t* tail)
 	int pipefd[2];
 	int ret;
 
-	if (pipe(pipefd) == -1) {
-		perror("pipe");
-		return 1;
-	}
-	tail->read_infd = pipefd[0];
-	tail->write_infd = pipefd[1];
+	UNEINTR(pipe(pipefd));
+	tail->read_data_fd = pipefd[0];
+	tail->write_data_fd = pipefd[1];
 
-	if (pipe(pipefd) == -1) {
-		perror("pipe");
-		return 1;
-	}
-	tail->read_errfd = pipefd[0];
-	tail->write_errfd = pipefd[1];
+	UNEINTR(pipe(pipefd));
+	tail->read_tail_stderr_fd = pipefd[0];
+	tail->write_tail_stderr_fd = pipefd[1];
 
-	if ((ret = uv_poll_init(
-		   tail->loop, &tail->uv_poll_err_req, tail->read_errfd)) < 0 ||
+	// gnu tail doesn't need nonblock mode
+	// UNEINTR(fcntl(tail->write_tail_stderr_fd, F_SETFL, O_NONBLOCK));
+	// UNEINTR(fcntl(tail->write_data_fd, F_SETFL, O_NONBLOCK));
+	UNEINTR(fcntl(tail->read_data_fd, F_SETFL, O_NONBLOCK));
+	UNEINTR(fcntl(tail->read_tail_stderr_fd, F_SETFL, O_NONBLOCK));
+
+	if ((ret = uv_poll_init(tail->loop, &tail->uv_poll_err_req,
+		   tail->read_tail_stderr_fd)) < 0 ||
 	  (ret = uv_poll_start(
 		 &tail->uv_poll_err_req, UV_READABLE, &on_tail_stderr)) < 0) {
 		errno = -ret;
@@ -131,10 +151,11 @@ static int tail_open_pipes(tail_t* tail)
 		return 1;
 	}
 
-	DEBUG_LOG(
-	  "opened tail pipes, write_errfd: %d, read_errfd: %d, write_infd: %d, "
-	  "read_infd: %d",
-	  tail->write_errfd, tail->read_errfd, tail->write_infd, tail->read_infd);
+	DEBUG_LOG("opened tail pipes, write_tail_stderr_fd: %d, "
+			  "read_tail_stderr_fd: %d, write_data_fd: %d, "
+			  "read_data_fd: %d",
+	  tail->write_tail_stderr_fd, tail->read_tail_stderr_fd,
+	  tail->write_data_fd, tail->read_data_fd);
 
 	tail->uv_poll_err_req.data = tail;
 
@@ -144,13 +165,13 @@ static int tail_open_pipes(tail_t* tail)
 static void tail_spawn(uv_timer_t* timer)
 {
 	tail_t* tail = (tail_t*)timer->data;
+	free(timer);
 
-	tail->proc_child_stdio[0].flags = UV_INHERIT_FD;
-	tail->proc_child_stdio[0].data.fd = tail->read_infd;
+	tail->proc_child_stdio[0].flags = UV_IGNORE;
 	tail->proc_child_stdio[1].flags = UV_INHERIT_FD;
-	tail->proc_child_stdio[1].data.fd = tail->write_infd;
+	tail->proc_child_stdio[1].data.fd = tail->write_data_fd;
 	tail->proc_child_stdio[2].flags = UV_INHERIT_FD;
-	tail->proc_child_stdio[2].data.fd = tail->write_errfd;
+	tail->proc_child_stdio[2].data.fd = tail->write_tail_stderr_fd;
 
 	tail->proc_options.stdio_count = 3;
 	tail->proc_options.stdio = tail->proc_child_stdio;
@@ -168,18 +189,7 @@ static void tail_spawn(uv_timer_t* timer)
 
 	tail->state = OPEN_TSTATE;
 
-	DEBUG_LOG("launched new tail subprocess, pid: %d", tail->proc.pid);
-}
-
-// we need to spawn asynchronously because libuv calls uv__finish_close even after
-// calling proc exit callback so we run into some assertion failures
-static void tail_spawn_async(tail_t* tail)
-{
-	static uv_timer_t timer;
-	uv_timer_init(tail->loop, &timer);
-
-	timer.data = tail;
-	uv_timer_start(&timer, tail_spawn, 0, 0);
+	DEBUG_LOG("executed new tail subprocess, pid: %d", tail->proc.pid);
 }
 
 int tail_open(tail_t* tail, void (*exit_cb)(int))
@@ -199,7 +209,7 @@ int tail_open(tail_t* tail, void (*exit_cb)(int))
 			perror("tail_open_pipes");
 			return -1;
 		}
-		return tail->read_infd;
+		return tail->read_data_fd;
 	case INIT_TSTATE:
 		break;
 	}
@@ -212,21 +222,28 @@ int tail_open(tail_t* tail, void (*exit_cb)(int))
 
 	tail->exit_cb = exit_cb;
 
-	tail_spawn_async(tail);
+	// we need to spawn asynchronously because libuv calls uv__finish_close even
+	// after calling proc exit callback so we run into some assertion failures
+	if (set_inmediate(tail->loop, tail, tail_spawn) == NULL) {
+		perror("set_inmediate");
+		return -1;
+	}
 
-	return tail->read_infd;
+	return tail->read_data_fd;
 }
 
 static void tail_close_pipes(tail_t* tail)
 {
-	DEBUG_LOG("closing pipes, write_errfd: %d, read_errfd: %d, write_infd: %d, "
-			  "read_infd: %d",
-	  tail->write_errfd, tail->read_errfd, tail->write_infd, tail->read_infd);
+	DEBUG_LOG("closing pipes, write_tail_stderr_fd: %d, read_tail_stderr_fd: "
+			  "%d, write_data_fd: %d, "
+			  "read_data_fd: %d",
+	  tail->write_tail_stderr_fd, tail->read_tail_stderr_fd,
+	  tail->write_data_fd, tail->read_data_fd);
 
-	close(tail->write_errfd);
-	close(tail->read_errfd);
-	close(tail->write_infd);
-	close(tail->read_infd);
+	UNEINTR2(close(tail->write_tail_stderr_fd));
+	UNEINTR2(close(tail->read_tail_stderr_fd));
+	UNEINTR2(close(tail->write_data_fd));
+	UNEINTR2(close(tail->read_data_fd));
 	uv_poll_stop(&tail->uv_poll_err_req);
 }
 

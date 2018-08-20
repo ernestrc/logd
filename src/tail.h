@@ -18,10 +18,10 @@ typedef struct tail_s {
 	uv_process_options_t proc_options;
 	uv_stdio_container_t proc_child_stdio[3];
 	char* proc_args[5];
-	uv_file read_infd;
-	uv_file write_infd;
-	uv_file read_errfd;
-	uv_file write_errfd;
+	uv_file read_data_fd;
+	uv_file write_data_fd;
+	uv_file read_tail_stderr_fd;
+	uv_file write_tail_stderr_fd;
 	uv_poll_t uv_poll_err_req;
 	void(*exit_cb)(int status);
 } tail_t;

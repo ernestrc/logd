@@ -29,7 +29,7 @@ function makescript() {
 local logd = require("logd")
 function logd.on_log(logptr)
 	io.write("log")
-	io.flush()
+	io.flush() -- setvbuf default is line
 end
 EOF
 }
@@ -57,8 +57,16 @@ touch $IN
 
 # send SIGUSR2 to re-open pipe
 kill -s 12 $PID
- 
+sleep 1
+
 pushdata
 assert_file_content "loglogloglog" $OUT
+
+# truncate test
+truncate -s 0 $IN
+ 
+pushdata
+assert_file_content "loglogloglogloglog" $OUT
+
 
 exit 0
