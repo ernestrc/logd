@@ -19,30 +19,45 @@
 #define LUA_NAME_TABLE_TO_LOGPTR "to_logptr"
 #define LUA_NAME_LOG_TO_STR "to_str"
 #define LUA_LEGACY_NAME_LOG_STRING "log_string"
+#define LUA_NAME_LOG_CLONE "log_clone"
 
-#define ASSERT_LOG_PTR(L, idx, fn_name)                                        \
+#define TO_LOG_PTR(L, var, idx, fn_name)                                       \
 	switch (lua_type(L, idx)) {                                                \
 	case LUA_TLIGHTUSERDATA:                                                   \
 	case LUA_TUSERDATA:                                                        \
+		var = (log_t*)lua_touserdata(L, idx);                                  \
+		if (!var->is_safe) {                                                   \
+			luaL_error(L,                                                      \
+			  "it is not safe to use a logptr outside of logd.on_log's "       \
+			  "calling thead's context. Clone first with `logd.clone`'");      \
+		}                                                                      \
 		break;                                                                 \
 	default:                                                                   \
 		luaL_error(L,                                                          \
 		  "1st argument must be a logptr in call to '" fn_name "': found %s",  \
 		  lua_typename(L, lua_type(L, idx)));                                  \
-		break;                                                                 \
+		return 0;                                                              \
 	}
+
+#define GET_USERDATA_PROPS(log) ((prop_t*)((log) + 1))
+#define NEW_USERDATA_LOG(L, size)                                              \
+	((log_t*)lua_newuserdata((L), sizeof(log_t) + (size) * sizeof(prop_t)))
 
 static void table_to_log(
   lua_State* L, int idx, prop_t* props, int props_len, log_t* log)
 {
-	int added_props;
 	const char* key;
 	const char* value;
+	int added_props = 0;
 	bool level_added = false;
 	bool time_added = false;
 	bool date_added = false;
 
-	for (lua_pushnil(L), added_props = 0; lua_next(L, idx); added_props++) {
+	DEBUG_ASSERT(props != NULL);
+	DEBUG_ASSERT(log != NULL);
+
+	lua_pushnil(L);
+	while (lua_next(L, idx)) {
 		if (added_props >= props_len) {
 			luaL_error(L,
 			  "table exceeds max table len of %d in call to table_to_log",
@@ -91,37 +106,42 @@ static void table_to_log(
 			abort(); /* not possible */
 		}
 
-		log_set(log, &props[added_props], key, value);
+		DEBUG_ASSERT(added_props < props_len);
+		log_set(log, &props[added_props++], key, value);
 
 		lua_pop(L, 1);
 	}
 
 	if (!level_added) {
+		DEBUG_ASSERT(added_props < props_len);
 		log_set(log, &props[added_props++], KEY_LEVEL, "DEBUG");
 	}
 	if (!time_added) {
+		DEBUG_ASSERT(added_props < props_len);
 		log_set(log, &props[added_props++], KEY_TIME, util_get_time());
 	}
 	if (!date_added) {
-		log_set(log, &props[added_props], KEY_DATE, util_get_date());
+		DEBUG_ASSERT(added_props < props_len);
+		log_set(log, &props[added_props++], KEY_DATE, util_get_date());
 	}
 }
 
 /*
  * logd_table_to_logptr will convert a table into a logptr userdata.
  * The returned pointer will be valid until the original table is GC'd.
- *
- * TODO: use weak tables to prevent props from being GCd
  */
 static int table_to_logptr(lua_State* L, int idx)
 {
-	log_t* log = (log_t*)lua_newuserdata(L, sizeof(log_t));
-	prop_t* props =
-	  (prop_t*)lua_newuserdata(L, LOGD_PRINT_MAX_KEYS * sizeof(prop_t));
-	log_init(log);
+
+	log_t* log;
+	prop_t* props;
 
 	switch (lua_type(L, idx)) {
 	case LUA_TTABLE:
+		log = NEW_USERDATA_LOG(L, LOGD_PRINT_MAX_KEYS);
+		props = GET_USERDATA_PROPS(log);
+		log_init(log);
+		log->is_safe = true;
 		table_to_log(L, idx, props, LOGD_PRINT_MAX_KEYS, log);
 		break;
 	default:
@@ -132,13 +152,10 @@ static int table_to_logptr(lua_State* L, int idx)
 		break;
 	}
 
-	return 2;
+	return 1;
 }
 
-static int logd_table_to_logptr(lua_State* L)
-{
-	return table_to_logptr(L, 1);
-}
+static int logd_table_to_logptr(lua_State* L) { return table_to_logptr(L, 1); }
 
 static char* force_snprintl(lua_State* L, log_t* log)
 {
@@ -156,9 +173,9 @@ static char* force_snprintl(lua_State* L, log_t* log)
 
 static int logd_log_to_str(lua_State* L)
 {
-	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_TO_STR);
+	log_t* log;
+	TO_LOG_PTR(L, log, 1, LUA_NAME_LOG_TO_STR);
 
-	log_t* log = (log_t*)lua_touserdata(L, 1);
 	char* str = force_snprintl(L, log);
 	lua_pushstring(L, str);
 	free(str);
@@ -166,10 +183,11 @@ static int logd_log_to_str(lua_State* L)
 	return 1;
 }
 
-void lua_print_log(lua_State* L, int idx)
+int lua_print_log(lua_State* L, int idx)
 {
-	ASSERT_LOG_PTR(L, idx, LUA_NAME_PRINT);
-	log_t* log = (log_t*)lua_touserdata(L, idx);
+	log_t* log;
+	TO_LOG_PTR(L, log, idx, LUA_NAME_PRINT);
+
 	char* str = force_snprintl(L, log);
 	lua_getglobal(L, "io");
 	lua_getfield(L, -1, "write");
@@ -180,6 +198,8 @@ void lua_print_log(lua_State* L, int idx)
 	lua_call(L, 1, 0);
 	lua_pop(L, 1);
 	free(str);
+
+	return 0;
 }
 
 static int logd_print(lua_State* L)
@@ -205,8 +225,8 @@ static int logd_print(lua_State* L)
 		break;
 	default:
 		luaL_error(L,
-		  "1st argument must be a string, a table or a logptr in call to '" LUA_NAME_PRINT
-		  "': found %s",
+		  "1st argument must be a string, a table or a logptr in call to "
+		  "'" LUA_NAME_PRINT "': found %s",
 		  lua_typename(L, lua_type(L, 1)));
 		break;
 	}
@@ -214,13 +234,30 @@ static int logd_print(lua_State* L)
 	return 0;
 }
 
-/*
- * TODO: use weak tables to prevent props from being GCd
- */
+static int logd_log_clone(lua_State* L)
+{
+	log_t *orig, *clone;
+	prop_t* clone_props;
+	TO_LOG_PTR(L, orig, 1, LUA_NAME_LOG_RESET);
+
+	int size = log_size(orig);
+
+	clone = NEW_USERDATA_LOG(L, size);
+	clone_props = GET_USERDATA_PROPS(clone);
+	log_init(clone);
+	clone->is_safe = true;
+
+	for (prop_t* next = orig->props; next != NULL; next = next->next)
+		log_set(clone, clone_props++, next->key, next->value);
+
+	return 1;
+}
+
 static int logd_log_set(lua_State* L)
 {
-	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_SET);
-	log_t* log = (log_t*)lua_touserdata(L, 1);
+	log_t* log;
+	TO_LOG_PTR(L, log, 1, LUA_NAME_LOG_SET);
+
 	const char* key = lua_tostring(L, 2);
 	if (key == NULL) {
 		luaL_error(L,
@@ -236,6 +273,8 @@ static int logd_log_set(lua_State* L)
 		  lua_typename(L, lua_type(L, 3)));
 	}
 
+	// usage of this after being GC'd is protected by
+	// the log->is_safe check.
 	prop_t* prop = lua_newuserdata(L, sizeof(prop_t));
 	log_set(log, prop, key, value);
 	return 1;
@@ -243,8 +282,8 @@ static int logd_log_set(lua_State* L)
 
 static int logd_log_remove(lua_State* L)
 {
-	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_REMOVE);
-	log_t* log = (log_t*)lua_touserdata(L, 1);
+	log_t* log;
+	TO_LOG_PTR(L, log, 1, LUA_NAME_LOG_REMOVE);
 	const char* key = lua_tostring(L, 2);
 	if (key == NULL) {
 		luaL_error(L,
@@ -260,8 +299,9 @@ static int logd_log_remove(lua_State* L)
 
 static int logd_log_get(lua_State* L)
 {
-	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_GET);
-	log_t* log = (log_t*)lua_touserdata(L, 1);
+	log_t* log;
+	TO_LOG_PTR(L, log, 1, LUA_NAME_LOG_GET);
+
 	const char* key = lua_tostring(L, 2);
 	if (key == NULL) {
 		luaL_error(L,
@@ -280,8 +320,8 @@ static int logd_log_get(lua_State* L)
 
 static int logd_log_reset(lua_State* L)
 {
-	ASSERT_LOG_PTR(L, 1, LUA_NAME_LOG_RESET);
-	log_t* log = (log_t*)lua_touserdata(L, 1);
+	log_t* log;
+	TO_LOG_PTR(L, log, 1, LUA_NAME_LOG_RESET);
 
 	log_init(log);
 
@@ -292,6 +332,7 @@ static const struct luaL_Reg logd_functions[] = {{LUA_NAME_ON_LOG, NULL},
   {LUA_NAME_PRINT, &logd_print}, {LUA_LEGACY_NAME_DEBUG, &logd_print},
   {LUA_NAME_TABLE_TO_LOGPTR, &logd_table_to_logptr},
   {LUA_NAME_LOG_TO_STR, &logd_log_to_str},
+  {LUA_NAME_LOG_CLONE, &logd_log_clone},
   {LUA_LEGACY_NAME_LOG_STRING, &logd_log_to_str},
   {LUA_NAME_LOG_GET, &logd_log_get}, {LUA_NAME_LOG_SET, &logd_log_set},
   {LUA_NAME_LOG_REMOVE, &logd_log_remove},

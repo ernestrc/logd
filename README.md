@@ -8,6 +8,7 @@ Logd is a log processor daemon that exposes a lua API to run arbitrary logic on 
 | `function logd.log_set (logptr, key, value)` | Set a property to the log |
 | `function logd.log_remove (logptr, key)` | Remove a property from a log |
 | `function logd.log_reset (logptr)` | Reset all log properties |
+| `function logd.log_clone (logptr) logptr` | Make a safe clone of logptr which is managed by lua's GC. |
 | `function logd.to_str (logptr) str` | Serialize a log into a string |
 | `function logd.to_logptr (table) logptr` | Instantiate a logptr from a table |
 | `function logd.print (string\|table\|logptr)` | Serialize message or table into a log string and print it to stdout |

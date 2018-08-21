@@ -71,6 +71,20 @@ int test_log_set()
 	return 0;
 }
 
+int test_log_size()
+{
+	log_t log;
+	ASSERT_EQ(init_test_log(&log), 0);
+	ASSERT_EQ(log_size(&log), 1);
+
+	log_t log2;
+	log_init(&log2);
+	ASSERT_EQ(log_size(&log2), 0);
+
+	free(log.props);
+	return 0;
+}
+
 int test_log_remove()
 {
 	log_t log;
@@ -126,6 +140,7 @@ int main(int argc, char* argv[])
 	TEST_RUN(ctx, test_log_get);
 	TEST_RUN(ctx, test_log_set);
 	TEST_RUN(ctx, test_log_remove);
+	TEST_RUN(ctx, test_log_size);
 
 	TEST_RELEASE(ctx);
 }
