@@ -46,7 +46,7 @@ touch $IN
 makescript
 $LOGD_EXEC $SCRIPT -f $IN 2> $ERR 1> $OUT & 
 PID=$!
-sleep 1
+sleep 2
 
 pushdata
 assert_file_content "loglog" $OUT
@@ -57,7 +57,7 @@ touch $IN
 
 # send SIGUSR2 to re-open pipe
 kill -s 12 $PID
-sleep 1
+sleep 2
 
 pushdata
 assert_file_content "loglogloglog" $OUT
