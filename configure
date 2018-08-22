@@ -661,6 +661,7 @@ LOGD_BUF_INIT_CAP
 LOGD_SLAB_CAP
 PATCHPGR
 GITPRG
+TRPROG
 XXDPROG
 PKGCFG
 target_alias
@@ -2242,6 +2243,46 @@ fi
 
 if test x"$XXDPROG" != x"yes" ; then
     as_fn_error $? "Please install xxd before building logd." "$LINENO" 5
+fi
+# Extract the first word of "tr", so it can be a program name with args.
+set dummy tr; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_TRPROG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$TRPROG"; then
+  ac_cv_prog_TRPROG="$TRPROG" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_TRPROG="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+TRPROG=$ac_cv_prog_TRPROG
+if test -n "$TRPROG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $TRPROG" >&5
+$as_echo "$TRPROG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+if test x"$TRPROG" != x"yes" ; then
+    as_fn_error $? "Please install GNU coreutils (with gnu/tr) before building logd." "$LINENO" 5
 fi
 
 # Extract the first word of "git", so it can be a program name with args.

@@ -59,6 +59,11 @@ if test x"$XXDPROG" != x"yes" ; then
     AC_MSG_ERROR([Please install xxd before building logd.])
 fi
 
+AC_CHECK_PROG(TRPROG,tr,yes)
+if test x"$TRPROG" != x"yes" ; then
+    AC_MSG_ERROR([Please install GNU coreutils (with gnu/tr) before building logd.])
+fi
+
 AC_CHECK_PROG(GITPRG,git,yes)
 if test x"$GITPRG" != x"yes" ; then
     AC_MSG_ERROR([Please install git before building logd.])
