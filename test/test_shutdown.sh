@@ -57,7 +57,7 @@ EOF
 cat $IN | $LOGD_EXEC $SCRIPT 1>> $ERR 2> $ERR &
 PID=$!
 
-sleep 1
+sleep $TESTS_SLEEP
 kill -s SIGINT $PID
 
 if [ "$(cat $OUT | grep 'such grace')" == "" ]; then

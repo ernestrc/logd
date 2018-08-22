@@ -54,9 +54,19 @@ if test x"$PKGCFG" != x"yes" ; then
     AC_MSG_ERROR([Please install pkg-config before building logd.])
 fi
 
+AC_CHECK_PROG(TRUNCPROG,truncate,yes)
+if test x"$TRUNCPROG" != x"yes" ; then
+    AC_MSG_ERROR([Please install GNU coreutils (or just truncate) truncate before building logd.])
+fi
+
 AC_CHECK_PROG(XXDPROG,xxd,yes)
 if test x"$XXDPROG" != x"yes" ; then
     AC_MSG_ERROR([Please install xxd before building logd.])
+fi
+
+AC_CHECK_PROG(TRPROG,tr,yes)
+if test x"$TRPROG" != x"yes" ; then
+    AC_MSG_ERROR([Please install GNU coreutils (or just tr) before building logd.])
 fi
 
 AC_CHECK_PROG(GITPRG,git,yes)
@@ -269,6 +279,7 @@ AC_SUBST(LOGD_VERSION, ["$version"])
 AC_CONFIG_FILES([Makefile
 				 src/Makefile
 				 src/logdconfig.lua
+				 test/helper.sh
 				 deps/Makefile
                  test/Makefile])
 

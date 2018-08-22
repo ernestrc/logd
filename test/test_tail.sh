@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-IN="$DIR/reload_eof.in"
-SCRIPT="$DIR/reload_eof.lua"
-OUT="$DIR/reload_eof.out"
-ERR="$DIR/reload_eof.err"
+IN="$DIR/tail_input.in"
+IN_MOVED="$DIR/tail_input_moved.in"
+SCRIPT="$DIR/tail_input.lua"
+OUT="$DIR/tail_input.out"
+ERR="$DIR/tail_input.err"
 LOGD_EXEC="$DIR/../bin/logd"
 PID=
-WRITER_PID=0
-WRITER_PID2=0
 
 source $DIR/helper.sh
 
@@ -17,10 +16,8 @@ function finish {
 	rm -f $OUT
 	rm -f $ERR
 	rm -f $IN
+	rm -f $IN_MOVED
 	kill $PID
-	if [ $WRITER_PID2 -ne 0 ]; then
-		kill $WRITER_PID2
-	fi
 	exit $CODE;
 }
 
@@ -32,18 +29,9 @@ function makescript() {
 local logd = require("logd")
 function logd.on_log(logptr)
 	io.write("log")
-	io.flush()
+	io.flush() -- setvbuf default is line
 end
 EOF
-}
-
-function makewriter() {
-	while sleep 1; do :; done >$IN &
-}
-
-function makepipe() {
-	mkfifo $IN 2> /dev/null 1> /dev/null
-	makewriter
 }
 
 function pushdata() {
@@ -54,22 +42,31 @@ EOF
 }
 
 touch $OUT
-makepipe
-WRITER_PID=$!
+touch $IN
 makescript
-$LOGD_EXEC $SCRIPT --reopen-retries=10 --reopen-delay=10 --reopen-backoff=lineal -f $IN 2> $ERR 1> $OUT & 
+$LOGD_EXEC $SCRIPT -f $IN 2> $ERR 1> $OUT & 
 PID=$!
 sleep $TESTS_SLEEP
 
 pushdata
 assert_file_content "loglog" $OUT
 
-# kill writer to force EOF
-kill $WRITER_PID
-makewriter
-WRITER_PID2=$!
+# move input file
+mv $IN $IN_MOVED
+touch $IN
+
+# send SIGUSR2 to re-open pipe
+kill -s 12 $PID
+sleep $TESTS_SLEEP
 
 pushdata
 assert_file_content "loglogloglog" $OUT
+
+# truncate test
+truncate -s 0 $IN
+ 
+pushdata
+assert_file_content "loglogloglogloglog" $OUT
+
 
 exit 0

@@ -36,7 +36,7 @@ default: src
 ifeq ($(DEVELOP_BUILD),yes)
 src: $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(PARSER_SO)
 else
-src: $(LIB) $(LUAMOD) $(EXEC)
+src: $(LIB) $(LUAMOD) $(EXEC) $(PARSER_SO)
 endif
 
 lua.c: $(LUAMOD)
