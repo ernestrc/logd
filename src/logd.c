@@ -513,7 +513,7 @@ parse:
 		return;                                                                \
 	}                                                                          \
                                                                                \
-	if (ret == 0) {                                                            \
+	if (ret == 0 && read_len != 0) {                                           \
 		on_eof_h();                                                            \
 		return;                                                                \
 	}                                                                          \
