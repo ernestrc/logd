@@ -53,7 +53,7 @@ unit_test: $(TARGET_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" $$f --silent; done
 
 int_test: $(INT_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" ./$$f 2>/dev/null; done
+	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" ./$$f; done
 
 lua_test: $(LUA_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LUA_PATH="$(LUA_PATH)" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
