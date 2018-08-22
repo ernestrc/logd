@@ -35,7 +35,7 @@ EOF
 }
 
 function pushdata() {
-	cat >>$IN << EOF
+	cat >$IN << EOF
 2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
 2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
 EOF
@@ -46,7 +46,7 @@ touch $IN
 makescript
 $LOGD_EXEC $SCRIPT -f $IN 2> $ERR 1> $OUT & 
 PID=$!
-sleep 2
+sleep $TESTS_SLEEP
 
 pushdata
 assert_file_content "loglog" $OUT
@@ -57,7 +57,7 @@ touch $IN
 
 # send SIGUSR2 to re-open pipe
 kill -s 12 $PID
-sleep 2
+sleep $TESTS_SLEEP
 
 pushdata
 assert_file_content "loglogloglog" $OUT

@@ -4,6 +4,11 @@ LOGD_SLAB_CAP=@LOGD_SLAB_CAP@
 LOGD_BUF_INIT_CAP=@LOGD_BUF_INIT_CAP@
 LOGD_BUF_MAX_CAP=@LOGD_BUF_MAX_CAP@
 
+TESTS_SLEEP="$TESTS_SLEEP"
+if [[ "$TESTS_SLEEP" == "" ]]; then
+	TESTS_SLEEP=1
+fi
+
 function assert_file_content {
 	local __OUT=$(tr -d '\0' < $2)
 	

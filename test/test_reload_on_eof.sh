@@ -59,7 +59,7 @@ WRITER_PID=$!
 makescript
 $LOGD_EXEC $SCRIPT --reopen-retries=10 --reopen-delay=10 --reopen-backoff=lineal -f $IN 2> $ERR 1> $OUT & 
 PID=$!
-sleep 1
+sleep $TESTS_SLEEP
 
 pushdata
 assert_file_content "loglog" $OUT
