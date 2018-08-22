@@ -476,9 +476,11 @@ parse:
 	res = parse_parser(parser, b->next_read, buf_readable(b));
 	switch (res.type) {
 	case PARSE_COMPLETE:
+		res.log->is_safe = true;
 		lua_call_on_log(lstate, res.log);
 		buf_ack(b, res.consumed);
 		logd_reset_parser();
+		res.log->is_safe = false;
 		goto parse;
 	case PARSE_ERROR:
 		DEBUG_LOG("EOF parse error: %s", res.error.msg);
@@ -565,9 +567,11 @@ parse:
 
 	case PARSE_COMPLETE:
 		// DEBUG_LOG("parsed new log: %p", &res.log);
+		res.log->is_safe = true;
 		lua_call_on_log(lstate, res.log);
 		buf_consume(b, res.consumed);
 		logd_reset_parser();
+		res.log->is_safe = false;
 		goto parse;
 
 	case PARSE_ERROR:
