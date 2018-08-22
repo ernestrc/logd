@@ -12,9 +12,9 @@ SRCDIR=$(ROOT_DIR)/src
 
 COVERAGE_SRC_OBJ=$(SRCDIR)/log.o $(SRCDIR)/parser.o $(SRCDIR)/logd_module.o $(SRCDIR)/util.o $(SRCDIR)/lua.o
 COVERAGE_OBJ=$(addprefix -object , $(COVERAGE_SRC_OBJ))
-TESTS=$(wildcard test_*.c)
-LUA_TESTS=$(wildcard test_*.lua)
-INT_TESTS=$(wildcard test_*.sh)
+TESTS=$(filter-out $(SKIP_C_TESTS), $(wildcard test_*.c))
+LUA_TESTS=$(filter-out $(SKIP_LUA_TESTS), $(wildcard test_*.lua))
+INT_TESTS=$(filter-out $(SKIP_INT_TESTS), $(wildcard test_*.sh))
 FUZZERS=$(wildcard fuzz_*.c)
 TARGET_TESTS = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(TESTS)))
 TARGET_FUZZERS = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(FUZZERS)))
