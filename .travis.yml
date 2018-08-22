@@ -29,6 +29,7 @@ matrix:
     # check that we can build with musl-libc and link statically
     - os: linux
       env:
+        - MATRIX_EVAL="export SKIP_INT_TESTS=test_so_parser.sh"
         - MATRIX_SCRIPT="docker build . -t logd-build:static -f utils/Dockerfile.static && docker run --env-file env.list --rm -ti -v /tmp/logd_static:/opt/logd/bin logd-build:static sh -c 'make && env && make test && make install'"
 
     # check that we can build on OSX 10.11
