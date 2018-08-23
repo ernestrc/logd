@@ -28,6 +28,7 @@ LIBLUV = $(LIBDIR)libluv.a
 LIBCRYPTO = $(LIBDIR)libcrypto.a
 LIBSSL = $(LIBDIR)libssl.a
 LIBZ = $(LIBDIR)libz.a
+LIBJSMN = $(LIBDIR)libjsmn.a
 LUA_COMPAT= $(INCDIR)c-api
 
 LPEG = $(LIBDIR)liblpeg.a
@@ -74,8 +75,8 @@ ifeq ($(DEVELOP_BUILD),yes)
 $(LIBSLAB):
 	@ echo "  COMPILING	libslab"
 	@ cd slab && $(MAKE) CC='$(CC)' CFLAGS='$(CFLAGS)'
+	@ mkdir -p $(INCDIR)slab && cp -f slab/src/*.h $(INCDIR)slab
 	@ cp slab/lib/libslab.a $(LIBSLAB)
-	@ mkdir -p $(INCDIR)slab && cp slab/src/*.h $(INCDIR)slab
 else
 $(LIBSLAB):
 	@ echo "  COMPILING	libslab"
@@ -94,8 +95,8 @@ $(LIBLUV): $(LIBLUVDEPS)
 	@ echo "  COMPILING	luv"
 	@ cp luv.patch luv/luv.patch
 	@- cd luv && patch -N -p1 < luv.patch
+	@ mkdir -p $(INCDIR)luv && cp -f luv/src/*.h  $(INCDIR)luv
 	$(CC) $(CFLAGS) -c luv/src/luv.c -o luv/src/luv.o && $(AR) rcs $(LIBLUV) luv/src/luv.o
-	@ mkdir -p $(INCDIR)luv && cp luv/src/*.h  $(INCDIR)luv
 
 ifeq ($(BUILD_LUAJIT),yes)
 LPEGDEPS=$(LIBLUAJIT)
@@ -139,6 +140,12 @@ $(LZLIB): $(LIBZDEPS)
 $(LUA_COMPAT):
 	@ echo "  LN lua-compat"
 	@ ln -s $(PREFIX)/luv/deps/lua-compat-5.3/c-api $(LUA_COMPAT)
+
+$(LIBJSMN):
+	@ echo "  COMPILING	jsmn"
+	cd jsmn && make CFLAGS='$(CFLAGS) -DJSMN_PARENT_LINKS=1'
+	@ cp jsmn/jsmn.h $(INCDIR)
+	@ cp jsmn/libjsmn.a $(LIBJSMN)
 
 $(ROOT_DIR)/deps/%/:
 	@ mkdir -p $@
