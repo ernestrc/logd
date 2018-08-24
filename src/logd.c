@@ -504,13 +504,16 @@ parse:
 		return;                                                                \
 	}                                                                          \
                                                                                \
+	call:                                                                      \
 	errno = 0;                                                                 \
 	int ret = read(infd, b->next_write, read_len);                             \
-	if (errno == EAGAIN) {                                                     \
-		DEBUG_LOG("input not ready: %d", infd);                                \
-		return;                                                                \
-	}                                                                          \
 	if (ret < 0) {                                                             \
+		if (errno == EINTR)                                                    \
+			goto call;                                                         \
+		if (errno == EAGAIN) {                                                 \
+			DEBUG_LOG("input not ready: %d", infd);                            \
+			return;                                                            \
+		}                                                                      \
 		on_read_err();                                                         \
 		return;                                                                \
 	}                                                                          \
