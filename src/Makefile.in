@@ -21,7 +21,7 @@ EXEC = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(EXEC_SRC)))
 STATIC_LIBS = $(LIBDEPS)/libslab.a $(LIBDEPS)/liblssl.a $(LIBDEPS)/libluv.a $(LIBDEPS)/liblpeg.a $(LIBDEPS)/liblzlib.a $(BUILD_LIBS)
 CMOD = $(LIBDIR)/logd.so
 CMOD_DEPS=log.c util.c
-PARSER_SO = $(LIBDIR)/logd_parser.so
+SO_PARSERS = $(patsubst %.c,$(LIBDIR)/logd_%.so,$(wildcard *parser.c))
 PARSER_DEPS=log.c util.c
 LIBLUAHEX = $(LIBDIR)/liblogdjit.a
 LIB = $(LIBDIR)/liblogd.a
@@ -34,9 +34,9 @@ EXTOBJS = $(addprefix $(LIBDIR)/objs/, $(foreach lib,$(STATIC_LIBS),$(call listo
 default: src
 
 ifeq ($(DEVELOP_BUILD),yes)
-src: $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(PARSER_SO)
+src: $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(SO_PARSERS)
 else
-src: $(LIB) $(LUAMOD) $(EXEC) $(PARSER_SO)
+src: $(LIB) $(LUAMOD) $(EXEC) $(SO_PARSERS)
 endif
 
 lua.c: $(LUAMOD)
@@ -59,8 +59,8 @@ $(LIB): $(OBJS)
 $(BINDIR)/%: %.c $(LIB)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< $(LIB) $(LIBS)
 
-$(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
-	$(CC) -o $(PARSER_SO) $(CFLAGS) -shared -fPIC parser.c $(PARSER_DEPS) $(LIBS)
+$(LIBDIR)/logd_%.so: %.c parse.h parser.h $(PARSER_DEPS)
+	$(CC) -o $@ $(CFLAGS) -shared -fPIC $(patsubst $(LIBDIR)/logd_%.so,%.c,$@) $(PARSER_DEPS) $(LIBS)
 
 $(CMOD): logd_module.h logd_module.c $(CMOD_DEPS)
 	$(CC) -o $(CMOD) $(CFLAGS) -shared -fPIC logd_module.c $(CMOD_DEPS) $(LIBS)
