@@ -446,6 +446,13 @@ bool logd_buf_compact()
 	return 1;
 }
 
+void call_on_error(lua_t* l, const char* err, log_t* partial, const char* at)
+{
+	partial->is_safe = true;
+	lua_call_on_error(lstate, err, partial, at);
+	partial->is_safe = false;
+}
+
 void on_eof()
 {
 	if (lua_on_eof_defined(lstate)) {
@@ -486,7 +493,7 @@ parse:
 		DEBUG_LOG("EOF parse error: %s", res.error.msg);
 		buf_ack(b, res.consumed);
 		if (lua_on_error_defined(lstate)) {
-			lua_call_on_error(lstate, res.error.msg, res.log, res.error.at);
+			call_on_error(lstate, res.error.msg, res.log, res.error.at);
 		}
 		logd_reset_parser();
 		goto parse;
@@ -534,7 +541,7 @@ void on_read_skip(uv_poll_t* req, int status, int events)
 	}
 
 	if (lua_on_error_defined(lstate)) {
-		lua_call_on_error(lstate,
+		call_on_error(lstate,
 		  "log line was skipped because it is more than " STR(
 			LOGD_BUF_MAX_CAP) " bytes",
 		  res.log, "");
@@ -578,7 +585,7 @@ parse:
 		DEBUG_LOG("parse error: %s", res.error.msg);
 		buf_ack(b, res.consumed);
 		if (lua_on_error_defined(lstate)) {
-			lua_call_on_error(lstate, res.error.msg, res.log, res.error.at);
+			call_on_error(lstate, res.error.msg, res.log, res.error.at);
 		}
 		logd_reset_parser();
 		goto parse;
