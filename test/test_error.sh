@@ -43,6 +43,8 @@ function logd.on_error(error, logptr, at)
 	local error_expected
 	local at_expected
 	errors = errors + 1
+	-- should be able to use log_get on logptr
+	logd.log_get(logptr, "date")
 	if errors == 1 then
 		error_expected = "incomplete header"
 		at_expected = ""
