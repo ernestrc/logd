@@ -28,7 +28,6 @@ LIBLUV = $(LIBDIR)libluv.a
 LIBCRYPTO = $(LIBDIR)libcrypto.a
 LIBSSL = $(LIBDIR)libssl.a
 LIBZ = $(LIBDIR)libz.a
-LIBJSMN = $(LIBDIR)libjsmn.a
 LUA_COMPAT= $(INCDIR)c-api
 
 LPEG = $(LIBDIR)liblpeg.a
@@ -140,12 +139,6 @@ $(LZLIB): $(LIBZDEPS)
 $(LUA_COMPAT):
 	@ echo "  LN lua-compat"
 	@ ln -s $(PREFIX)/luv/deps/lua-compat-5.3/c-api $(LUA_COMPAT)
-
-$(LIBJSMN):
-	@ echo "  COMPILING	jsmn"
-	cd jsmn && make CFLAGS='$(CFLAGS) -DJSMN_PARENT_LINKS=1'
-	@ cp jsmn/jsmn.h $(INCDIR)
-	@ cp jsmn/libjsmn.a $(LIBJSMN)
 
 $(ROOT_DIR)/deps/%/:
 	@ mkdir -p $@
