@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-#include "log.h"
+#include "parse.h"
 
 typedef enum pstate_s {
 	INIT_PSTATE = 0,
@@ -28,31 +28,9 @@ typedef enum pstate_s {
 	ERROR_PSTATE = 19,
 } pstate_t;
 
-enum presult_e {
-	PARSE_PARTIAL = 0,
-	PARSE_COMPLETE = 1,
-	PARSE_ERROR = 2,
-};
-
-typedef struct parse_res_s {
-	enum presult_e type;
-	size_t consumed;
-	struct {
-		const char* msg;
-		const char* at;
-	} error;
-	log_t* log;
-} parse_res_t;
-
 typedef struct parser_s {
 	pstate_t state;
-	log_t result;
-	prop_t* pslab;
-	int pnext;
-	char token;
-	char* chunk;
-	int blen;
-	parse_res_t res;
+	LOGD_PARSER_FIELDS
 } parser_t;
 
 parser_t* parser_create();

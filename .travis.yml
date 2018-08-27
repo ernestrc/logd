@@ -48,7 +48,7 @@ matrix:
 
 before_install:
     - eval "${MATRIX_EVAL}"
-    - env | grep -v UTF > env.list
+    - env | grep -v UTF > env.list && cat env.list
     - echo "${MATRIX_SCRIPT}" > script.sh
 
 script:

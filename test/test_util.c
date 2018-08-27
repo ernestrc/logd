@@ -67,6 +67,7 @@ int main(int argc, char* argv[])
 {
 	test_ctx_t ctx;
 	TEST_INIT(ctx, argc, argv);
+	init_test_data();
 
 	TEST_RUN(ctx, test_snprintl);
 	TEST_RUN(ctx, test_exp_backoff);
