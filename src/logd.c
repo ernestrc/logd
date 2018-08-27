@@ -453,6 +453,13 @@ void call_on_error(lua_t* l, const char* err, log_t* partial, const char* at)
 	partial->is_safe = false;
 }
 
+#define CALL_ON_LOG(lstate, res)                                               \
+	res.log->is_safe = true;                                                   \
+	lua_call_on_log(lstate, res.log);                                          \
+	buf_consume(b, res.consumed);                                              \
+	logd_reset_parser();                                                       \
+	res.log->is_safe = false;
+
 void on_eof()
 {
 	if (lua_on_eof_defined(lstate)) {
@@ -483,11 +490,7 @@ parse:
 	res = parse_parser(parser, b->next_read, buf_readable(b));
 	switch (res.type) {
 	case PARSE_COMPLETE:
-		res.log->is_safe = true;
-		lua_call_on_log(lstate, res.log);
-		buf_ack(b, res.consumed);
-		logd_reset_parser();
-		res.log->is_safe = false;
+		CALL_ON_LOG(lstate, res);
 		goto parse;
 	case PARSE_ERROR:
 		DEBUG_LOG("EOF parse error: %s", res.error.msg);
@@ -574,11 +577,7 @@ parse:
 
 	case PARSE_COMPLETE:
 		// DEBUG_LOG("parsed new log: %p", &res.log);
-		res.log->is_safe = true;
-		lua_call_on_log(lstate, res.log);
-		buf_consume(b, res.consumed);
-		logd_reset_parser();
-		res.log->is_safe = false;
+		CALL_ON_LOG(lstate, res);
 		goto parse;
 
 	case PARSE_ERROR:
