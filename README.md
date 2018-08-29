@@ -20,13 +20,6 @@ Logd is a log processor daemon that exposes a lua API to run arbitrary logic on 
 | `function logd.on_eof ()` | Called when collector has reached EOF reading the input file. |
 | `function logd.on_error (error, logptr, at)` | Called when collector failed to parse a log line. Parsing will resume after this function returns. |
 
-## Parsing
-The builtin parser expects logs to be in the following format:
-```
-YYYY-MM-dd hh:mm:ss	LEVEL	[Thread]	Class	key: value...
-```
-If you need to parse logs with a different format, you can load a dynamic shared object that implements [src/parser.h](src/parser.h)  via `--parser` flag.
-
 ## Preloaded Lua modules
 - [logd](#logd-module-api)
 - [uv](https://github.com/luvit/luv)
@@ -75,6 +68,18 @@ $ make && make install
 ```
 
 Please refer to MacOS section in [.travis.yml](.travis.yml) to see the latest build options.
+
+## Parsing
+The builtin parser expects logs to be in the following format:
+```
+YYYY-MM-dd hh:mm:ss	LEVEL	[Thread]	Class	key: value...
+```
+If you need to parse logs in a different format, you can load a dynamic shared object that implements [src/parser.h](src/parser.h) via the `--parser` flag. For static builds (if dlopen is disabled) or if you simply want to build the project with a different builtin parser, you can configure so with:
+```
+$ ./configure --with-builtin-parser=my_parser.c
+```
+
+For a list of available parsers look for the source files in [src](src) that end in \_parser.c.
 
 ## Running tests
 Configure and enable the development build:
