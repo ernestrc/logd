@@ -57,7 +57,7 @@ $ make
 ```
 Finally, you can also disable some of the modules:
 ```sh
-$ ./configure --disable-openssl --disable-lpeg
+$ ./configure --without-openssl --without-lpeg
 $ make
 ```
 For a full list of options run `./configure --help`.

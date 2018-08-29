@@ -45,9 +45,11 @@ AC_ARG_ENABLE(build-luajit, [AS_HELP_STRING([--enable-build-luajit], [build loca
 AC_ARG_ENABLE(build-zlib, [AS_HELP_STRING([--enable-build-zlib], [build local zlib])], [build_libz=yes], [build_libz=no])
 AC_ARG_ENABLE(build-openssl, [AS_HELP_STRING([--enable-build-openssl], [build local openssl])], [build_libopenssl=yes], [build_libopenssl=no])
 
-AC_ARG_ENABLE(zlib, [AS_HELP_STRING([--disable-zlib], [do not include zlib as system or local dependency. This overrides --enable-build-zlib])], [include_libz=no], [include_libz=yes])
-AC_ARG_ENABLE(openssl, [AS_HELP_STRING([--disable-openssl], [do not include openssl as system or local dependency. This overrides --enable-build-openssl])], [include_libopenssl=no], [include_libopenssl=yes])
-AC_ARG_ENABLE(lpeg, [AS_HELP_STRING([--disable-lpeg], [do not include lpeg module.])], [include_lpeg=no], [include_lpeg=yes])
+AC_ARG_WITH(zlib, [AS_HELP_STRING([--without-zlib], [do not include zlib as system or local dependency. This overrides --enable-build-zlib])], [include_libz=no], [include_libz=yes])
+AC_ARG_WITH(openssl, [AS_HELP_STRING([--without-openssl], [do not include openssl as system or local dependency. This overrides --enable-build-openssl])], [include_libopenssl=no], [include_libopenssl=yes])
+AC_ARG_WITH(lpeg, [AS_HELP_STRING([--without-lpeg], [do not include lpeg module.])], [include_lpeg=no], [include_lpeg=yes])
+
+AC_ARG_WITH(builtin-parser, [AS_HELP_STRING([--with-builtin-parser], [Build with given source file parser as builtin parser.])], [builtin_parser="$with_builtin_parser"], [builtin_parser=default_parser.c])
 
 AC_CHECK_PROG(PKGCFG,pkg-config,yes)
 if test x"$PKGCFG" != x"yes" ; then
@@ -198,6 +200,8 @@ AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_USE_SYSTEM_EXTENSIONS
 
+AC_CHECK_FILE("src/$builtin_parser", [AC_MSG_NOTICE([compiling logd with builtin parser: $builtin_parser])], [AC_MSG_ERROR([could not find parser implementation 'src/$builtin_parser'. Please copy the source file to src folder.])])
+
 AC_CHECK_PROG(OBJDUMP_CHECK,nm,yes)
 if test x"$OBJDUMP_CHECK" != x"yes" ; then
     AC_MSG_ERROR([Please make sure that GNU nm is installed before building logd.])
@@ -242,6 +246,7 @@ AC_CONFIG_SRCDIR(src/logd_module.c)
 AC_SUBST(LUAJITBIN, ["$luajit"])
 AC_SUBST([BUILD_LIBUV], ["$build_libuv"])
 AC_SUBST([BUILD_LUAJIT], ["$build_libluajit"])
+AC_SUBST([BUILTIN_PARSER], ["$builtin_parser"])
 AC_SUBST([BUILD_ZLIB], ["$build_libz"])
 AC_SUBST([BUILD_OPENSSL], ["$build_libopenssl"])
 AC_SUBST([DEVELOP_BUILD], ["$enable_develop"])
@@ -270,6 +275,7 @@ AC_MSG_NOTICE([using include_libopenssl=$include_libopenssl])
 AC_MSG_NOTICE([using include_lpeg=$include_lpeg])
 AC_MSG_NOTICE([using include_libuv=$include_libuv])
 AC_MSG_NOTICE([using include_libluajit=$include_libluajit])
+AC_MSG_NOTICE([using builtin_parser=$builtin_parser])
 AC_MSG_NOTICE([using BUILD_LIBS=$BUILD_LIBS])
 AC_MSG_NOTICE([using LIBS=$LIBS])
 
