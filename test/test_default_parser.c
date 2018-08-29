@@ -3,6 +3,7 @@
 #include "../src/config.h"
 #include "../src/log.h"
 #include "../src/parser.h"
+#include "../src/default_parser.h"
 #include "../src/util.h"
 #include "test.h"
 
@@ -118,7 +119,7 @@ static void init_data()
 
 int test_parser_create()
 {
-	parser_t* p = parser_create();
+	parser_t* p = (parser_t*)parser_create();
 	ASSERT_NEQ(p->pslab, NULL);
 	parser_free(p);
 
@@ -128,7 +129,7 @@ int test_parser_create()
 int test_parse_partial2()
 {
 	parse_res_t res;
-	parser_t* p = parser_create();
+	parser_t* p = (parser_t*)parser_create();
 
 	char* chunk1 = BUF8;
 	size_t len1 = 159;
@@ -153,7 +154,7 @@ int test_parse_partial1()
 {
 
 	parse_res_t res;
-	parser_t* p = parser_create();
+	parser_t* p = (parser_t*)parser_create();
 
 	char* chunk1 = BUF1;
 	size_t len1 = 8;
@@ -240,7 +241,7 @@ int test_parse_error()
 	}
 	size_t ELEN2 = snprintl(ERR2, BLEN2, big_log);
 
-	parser_t* p = parser_create();
+	parser_t* p = (parser_t*)parser_create();
 	parse_res_t res;
 
 	res = parser_parse(p, ERR1, ELEN1);
@@ -313,7 +314,7 @@ int test_parse_error()
 
 int test_parse_multiple()
 {
-	parser_t* p = parser_create();
+	parser_t* p = (parser_t*)parser_create();
 	parse_res_t res;
 
 	/* feed partial data */
@@ -333,7 +334,7 @@ int test_parse_multiple()
 
 int test_parse_reset()
 {
-	parser_t* p = parser_create();
+	parser_t* p = (parser_t*)parser_create();
 	static const size_t CASES_LEN = 4;
 	struct tcase CASES[CASES_LEN];
 	CASES[0] = (struct tcase){BUF3, LEN3, &EXPECTED3};

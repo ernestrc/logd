@@ -40,7 +40,7 @@ end
 EOF
 
 # using SO parser
-cat $IN | $LOGD_EXEC $SCRIPT --parser="$DIR/../lib/logd_parser.so" 2> $OUT 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT --parser="$DIR/../lib/logd_default_parser.so" 2> $OUT 1> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
 	echo "error processing file with dynamic parser"
