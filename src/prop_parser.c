@@ -5,8 +5,6 @@
 #include "string.h"
 #include "util.h"
 
-/* TODO document */
-
 #define PARSER_ERROR_INVALID_KEY(p)                                            \
 	REMOVE_PROP(p);                                                            \
 	PARSER_SET_ERROR(p, "invalid log", ERROR_JSTATE);

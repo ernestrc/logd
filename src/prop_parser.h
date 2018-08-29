@@ -3,6 +3,32 @@
 
 #include "parser.h"
 
+/*
+ * Expects data to be in one of the following formats:
+ *
+ * key1: value2, key2: value2, ...
+ * "key1": "value2", "key2": "value2", ...
+ * { "key1": "value2", "key2": "value2", ... }
+ *
+ * Note that if the logs are in JSON format, only the top level key-value pairs
+ * are parsed. For example, if a log looks like this:
+ *
+ * { "date": "2018-08-30", "count": 4, "lang": { "sucks": "java", "rocks": ["golang", "c", "lua"] }, "frameworks": []}
+ *
+ * After parsing is complete, calls to logd.log_get(logptr, <key>) will return the following lua strings:
+ *
+ * logd.log_get(logptr, "date") -- '2018-08-30'
+ * logd.log_get(logptr, "count") -- '4'
+ * logd.log_get(logptr, "languages") -- '{ "sucks": "java", "rocks": ["golang", "c", "lua"] }' 
+ * logd.log_get(logptr, "frameworks") -- '[]' 
+ *
+ * Therefore, anything other than JSON strings is ready to be parsed by a regular JSON parser:
+ *
+ * local JSON = require('json')
+ *
+ * JSON.parse(logd.log_get(logptr, "count")) -- 4
+ * JSON.parse(logd.log_get(logptr, "frameworks")) -- {}
+ */
 typedef enum jstate_s {
 	INIT_JSTATE,
 	KEY_TRANS_JSTATE,
@@ -24,20 +50,7 @@ typedef enum jstate_s {
 
 typedef struct prop_parser_s {
 	jstate_t state;
-	log_t result;
-	prop_t* pslab;
-	int pnext, tnext;
-	char token;
-	char* chunk;
-	int blen;
-	int nest;
-	parse_res_t res;
+	LOGD_PARSER_FIELDS
 } prop_parser_t;
-
-void parser_reset(prop_parser_t* p);
-void parser_init(prop_parser_t* p, prop_t* pslab);
-void parser_free(prop_parser_t* p);
-prop_parser_t* parser_create();
-parse_res_t parser_parse(prop_parser_t* p, char* chunk, size_t clen);
 
 #endif

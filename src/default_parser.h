@@ -3,6 +3,11 @@
 
 #include "parser.h"
 
+/*
+ * Expects data to be in the following format:
+ *
+ * YYYY-MM-dd hh:mm:ss	LEVEL	Thread	Class	key1: value2, key2: value2 ...
+*/
 typedef enum pstate_s {
 	INIT_PSTATE = 0,
 	DATE_PSTATE = 1,

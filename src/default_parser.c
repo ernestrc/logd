@@ -8,8 +8,6 @@
 #include "./parser.h"
 #include "./util.h"
 
-/* TODO document */
-
 #define TRIM_SPACES(p, SET_MACRO, label, END_MACRO)                            \
 	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
