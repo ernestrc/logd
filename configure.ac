@@ -279,6 +279,7 @@ AC_MSG_NOTICE([using builtin_parser=$builtin_parser])
 AC_MSG_NOTICE([using BUILD_LIBS=$BUILD_LIBS])
 AC_MSG_NOTICE([using LIBS=$LIBS])
 
+AC_DEFINE_UNQUOTED([LOGD_BUILTIN_PARSER], ["$builtin_parser"])
 AC_DEFINE_UNQUOTED(LOGD_VERSION, ["$version"])
 AC_SUBST(LOGD_VERSION, ["$version"])
 

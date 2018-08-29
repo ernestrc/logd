@@ -21,7 +21,7 @@ struct tcase {
 	"\"Publish:Rumor:012ae1a5-3416-4458-b0c1-6eb3e0ab4c80\" \n"
 #define LOG2                                                                   \
 	"{\"date\":\"2017-09-07\", \"time\":\"14:54:39,474\"	\"level\": "          \
-	"\"DEBUG\",	\"thread\": pool-\"5-thread-6,	"                             \
+	"\"DEBUG\",	\"thread\": pool-\"5-thread-6,	"                               \
 	"\"class\": \"control.RaptorHandler\",	\"sessionId\": "                    \
 	"\"1_MX4xMDB-fjE1MDQ4MjEyNzAxMjR-WThtTVpEN0J2c1Z2TlJGcndTN1lpTExGfn4\", "  \
 	"\"flow\": \"Publish\", \"conId\": "                                       \
@@ -34,7 +34,7 @@ struct tcase {
 	"\"CreatePublisher\", \"traceId\": "                                       \
 	"\"Publish:Rumor:112ae1a5-3416-4458-b0c1-6eb3e0ab4c80\", \"streamId\": "   \
 	"\"b4da82c4-cac5-4e13-b1dc-bb1f42b475dd\", \"remoteIpAddress\":    "       \
-	"{{{\"}ip\":\"127.\\\"}}0.0.1\"     }}}, "                                                          \
+	"{{{\"}ip\":\"127.\\\"}}0.0.1\"     }}}, "                                 \
 	"\"correlationId\": \"b90232b5-3ee5-4c65-bb4e-29286d6a2771\"}\n"
 #define LOG3                                                                   \
 	"{\"date\":\"2017-04-19\", \"time\":\"18:01:11,437\"     \"level\": "      \
@@ -242,8 +242,7 @@ int test_parse_error()
 	ASSERT_EQ(res.type, PARSE_ERROR);
 	ASSERT_EQ(res.consumed, ELEN1);
 	ASSERT_EQ(res.error.msg, "invalid log");
-	ASSERT_STR_EQ(
-	  res.error.at, "hee");
+	ASSERT_STR_EQ(res.error.at, "hee");
 	log_t* log1 = log_create();
 	ASSERT_EQ(log1->props, NULL);
 	log_set(log1, slab_get(pslab), "msg", "value");

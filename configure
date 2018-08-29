@@ -5650,6 +5650,10 @@ $as_echo "$as_me: using BUILD_LIBS=$BUILD_LIBS" >&6;}
 $as_echo "$as_me: using LIBS=$LIBS" >&6;}
 
 cat >>confdefs.h <<_ACEOF
+#define LOGD_BUILTIN_PARSER "$builtin_parser"
+_ACEOF
+
+cat >>confdefs.h <<_ACEOF
 #define LOGD_VERSION "$version"
 _ACEOF
 

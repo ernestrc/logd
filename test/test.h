@@ -108,7 +108,8 @@ void init_test_data()
 	  "Publish:Rumor:112ae1a5-3416-4458-b0c1-6eb3e0ab4c80");
 	log_set(&EXPECTED2, slab_get(pslab), "streamId",
 	  "b4da82c4-cac5-4e13-b1dc-bb1f42b475dd");
-	log_set(&EXPECTED2, slab_get(pslab), "remoteIpAddress", "{{{\"}ip\":\"127.\\\"}}0.0.1\"     }}}");
+	log_set(&EXPECTED2, slab_get(pslab), "remoteIpAddress",
+	  "{{{\"}ip\":\"127.\\\"}}0.0.1\"     }}}");
 	log_set(&EXPECTED2, slab_get(pslab), "correlationId",
 	  "b90232b5-3ee5-4c65-bb4e-29286d6a2771");
 

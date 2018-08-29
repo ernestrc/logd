@@ -3,39 +3,113 @@
 
 #include <stdbool.h>
 
-#include "parse.h"
+#include "log.h"
 
-typedef enum pstate_s {
-	INIT_PSTATE = 0,
-	DATE_PSTATE = 1,
-	TIME_PSTATE = 2,
-	TRANSITIONLEVEL_PSTATE = 3,
-	LEVEL_PSTATE = 4,
-	TRANSITIONTHREAD_PSTATE = 5,
-	THREAD_PSTATE = 6,
-	THREADBRACKET_PSTATE = 7, // IF NEXT == '['
-	THREADNOBRACKET_PSTATE = 8, // ELSE
-	TRANSITIONCLASS_PSTATE = 9,
-	CLASS_PSTATE = 10,
-	TRANSITIONCALLTYPE_PSTATE = 11,
-	CALLTYPE_PSTATE = 12,
-	TRANSITIONVERIFYCALLTYPE_PSTATE = 13,
-	VERIFYCALLTYPE_PSTATE = 14,
-	TRANSITIONKEY_PSTATE = 15,
-	KEY_PSTATE = 16,
-	TRANSITIONVALUE_PSTATE = 17,
-	VALUE_PSTATE = 18,
-	ERROR_PSTATE = 19,
-} pstate_t;
+/* parse result data structures */
+enum presult_e {
+	PARSE_PARTIAL = 0,
+	PARSE_COMPLETE = 1,
+	PARSE_ERROR = 2,
+};
 
-typedef struct parser_s {
-	pstate_t state;
-	LOGD_PARSER_FIELDS
-} parser_t;
+typedef struct parse_res_s {
+	enum presult_e type;
+	size_t consumed;
+	struct {
+		const char* msg;
+		const char* at;
+	} error;
+	log_t* log;
+} parse_res_t;
 
-parser_t* parser_create();
-void parser_init(parser_t* p, prop_t* pslab);
-void parser_free(parser_t* p);
+/* optional base fields for parser.h implementations.
+ * This fields enable the use of the following macros */
+#define LOGD_PARSER_FIELDS                                                     \
+	/* log to fill up and return with parser_parse */                          \
+	log_t result;                                                              \
+	/* slab of properties to fill up */                                        \
+	prop_t* pslab;                                                             \
+	/* current property index in pslab */                                      \
+	int pnext;                                                                 \
+	/* current token */                                                        \
+	char token;                                                                \
+	/* address of current scanned chunk */                                     \
+	char* chunk;                                                               \
+	/* offset from chunk address for current iteration */                      \
+	int blen;                                                                  \
+	/* return value of parser_parse  */                                        \
+	parse_res_t res;
+
+#define LOGD_PARSER_INIT(p, pslab)                                             \
+	p->pslab = pslab;                                                          \
+	p->res.log = &p->result;                                                   \
+	parser_reset(p);
+
+#define LOGD_PARSER_RESET(p)                                                   \
+	p->pnext = 0;                                                              \
+	memset(p->pslab, 0, LOGD_SLAB_CAP);                                        \
+	log_init(&p->result);                                                      \
+	p->res.type = PARSE_PARTIAL;
+
+#define PARSER_SET_ERROR(p, m, error_state)                                    \
+	(p)->res.error.msg = (m);                                                  \
+	(p)->res.error.at = (p)->chunk;                                            \
+	(p)->state = error_state;
+
+#define ADD_PROP(p)                                                            \
+	(p)->pslab[(p)->pnext].next = (p)->result.props;                           \
+	(p)->result.props = &(p)->pslab[(p)->pnext];                               \
+	(p)->pnext++;
+
+#define TRY_ADD_PROP(p, error_state)                                           \
+	if ((p)->pnext == LOGD_SLAB_CAP) {                                         \
+		PARSER_SET_ERROR(p,                                                    \
+		  "reached max number of log properties: " STR(LOGD_SLAB_CAP),         \
+		  error_state);                                                        \
+		continue;                                                              \
+	}                                                                          \
+	ADD_PROP(p);
+
+#define SET_VALUE(p, chunk) (p)->result.props->value = chunk;
+
+#define SET_KEY(p, chunk) (p)->result.props->key = chunk;
+
+#define NOOP(p, chunk) ;
+
+#define COMMIT(p)                                                              \
+	(p)->chunk[(p)->blen] = '\x00';                                            \
+	(p)->chunk += (p)->blen + 1;                                               \
+	(p)->blen = 0;
+
+#define SKIP(p) (p)->chunk++;
+
+#define REMOVE_PROP(p)                                                         \
+	(p)->result.props = (p)->result.props->next;                               \
+	(p)->pnext--;
+
+#define PARSER_END_ERROR(p)                                                    \
+	(p)->res.type = PARSE_ERROR;                                               \
+	COMMIT(p); /* make sure 'at' is null terminated */                         \
+	DEBUG_ASSERT((p)->res.error.msg != NULL);                                  \
+	DEBUG_ASSERT((p)->res.error.at != NULL);
+
+#define PARSER_PARSE_ERROR(p)                                                  \
+	switch ((p)->token) {                                                      \
+	case '\n':                                                                 \
+		PARSER_END_ERROR(p);                                                   \
+		return (p)->res;                                                       \
+	default:                                                                   \
+		(p)->blen++;                                                           \
+		break;                                                                 \
+	}
+
+#define TRY_SET_NEW_KEY(p, chunk, error_state)                                 \
+	TRY_ADD_PROP(p, error_state);                                              \
+	SET_KEY(p, chunk);
+
+void* parser_create();
+void parser_init(void* p, prop_t* pslab);
+void parser_free(void* p);
 
 /* parser_parse takes a mutable chunk of data, and attempts to parse its
  * contents into a structured log.
@@ -64,9 +138,9 @@ void parser_free(parser_t* p);
  * - Should parse partial logs and return the appropriate consumed bytes
  * - Should be able to parse data multiple times except after a complete result
  */
-parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen);
+parse_res_t parser_parse(void* p, char* chunk, size_t clen);
 
 /* parser_reset should be called after a returned log has been used */
-void parser_reset(parser_t* p);
+void parser_reset(void* p);
 
 #endif

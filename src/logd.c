@@ -8,8 +8,8 @@
 #include <slab/buf.h>
 
 #include "./config.h"
+#include "./default_parser.h"
 #include "./lua.h"
-#include "./parser.h"
 #include "./tail.h"
 #include "./util.h"
 
@@ -78,7 +78,7 @@ void print_usage(const char* exe)
 	  "/dev/stdin]\n");
 	printf("  -p, --parser=<parser_so>	Load shared object "
 		   "parser via dlopen [default: "
-		   "builtin]\n");
+		   "%s]\n", LOGD_BUILTIN_PARSER);
 	printf("  -r, --reopen-retries		Reopen retries on EOF before giving up "
 		   "[default: %d]\n",
 	  args.reopen_retries);
@@ -86,7 +86,7 @@ void print_usage(const char* exe)
 		   "[default: %d]\n",
 	  args.reopen_delay);
 	printf("  -b, --reopen-backoff		Retry reopen delay backoff 'linear' or "
-		   "'exponential'"
+		   "'exponential' "
 		   "[default: %s]\n",
 	  args.reopen_backoff);
 	printf("  -h, --help			Display this message.\n");

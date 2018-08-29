@@ -29,7 +29,7 @@ struct tcase {
 	"CreatePublisher, traceId: "                                               \
 	"Publish:Rumor:112ae1a5-3416-4458-b0c1-6eb3e0ab4c80, streamId: "           \
 	"b4da82c4-cac5-4e13-b1dc-bb1f42b475dd, remoteIpAddress:    "               \
-	"{{{\"}ip\":\"127.\\\"}}0.0.1\"     }}}, "                                           \
+	"{{{\"}ip\":\"127.\\\"}}0.0.1\"     }}}, "                                 \
 	"correlationId: b90232b5-3ee5-4c65-bb4e-29286d6a2771\n"
 #define LOG3                                                                   \
 	"2017-04-19 18:01:11,437     INFO [Test worker]    "                       \

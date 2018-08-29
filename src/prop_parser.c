@@ -1,9 +1,11 @@
 #include "config.h"
 #include "log.h"
-#include "parse.h"
+#include "parser.h"
 #include "stdio.h"
 #include "string.h"
 #include "util.h"
+
+/* TODO document */
 
 #define PARSER_ERROR_INVALID_KEY(p)                                            \
 	REMOVE_PROP(p);                                                            \
@@ -48,8 +50,10 @@ typedef struct prop_parser_s {
 	parse_res_t res;
 } prop_parser_t;
 
-INLINE void parser_reset(prop_parser_t* p)
+INLINE void parser_reset(void* _p)
 {
+	prop_parser_t* p = (prop_parser_t*)_p;
+
 	DEBUG_ASSERT(p != NULL);
 
 	p->state = INIT_JSTATE;
@@ -58,15 +62,19 @@ INLINE void parser_reset(prop_parser_t* p)
 	LOGD_PARSER_RESET(p);
 }
 
-void parser_init(prop_parser_t* p, prop_t* pslab)
+void parser_init(void* _p, prop_t* pslab)
 {
+	prop_parser_t* p = (prop_parser_t*)_p;
+
 	DEBUG_ASSERT(p != NULL);
 
 	LOGD_PARSER_INIT(p, pslab);
 }
 
-void parser_free(prop_parser_t* p)
+void parser_free(void* _p)
 {
+	prop_parser_t* p = (prop_parser_t*)_p;
+
 	if (p == NULL)
 		return;
 
@@ -74,7 +82,7 @@ void parser_free(prop_parser_t* p)
 	free(p);
 }
 
-prop_parser_t* parser_create()
+void* parser_create()
 {
 	prop_parser_t* p = NULL;
 	prop_t* pslab = NULL;
@@ -87,7 +95,7 @@ prop_parser_t* parser_create()
 
 	parser_init(p, pslab);
 
-	return p;
+	return (void*)p;
 
 error:
 	if (p)
@@ -359,8 +367,10 @@ error:
 		break;                                                                 \
 	}
 
-INLINE parse_res_t parser_parse(prop_parser_t* p, char* chunk, size_t clen)
+INLINE parse_res_t parser_parse(void* _p, char* chunk, size_t clen)
 {
+	prop_parser_t* p = (prop_parser_t*)_p;
+
 	DEBUG_ASSERT(p != NULL);
 	DEBUG_ASSERT(chunk != NULL);
 

@@ -42,7 +42,7 @@
 		int r = 0;                                                             \
 		do {                                                                   \
 			errno = 0;                                                         \
-			r = (syscall);                                                       \
+			r = (syscall);                                                     \
 		} while (r == -1 && errno == EINTR);                                   \
 		if (r == -1) {                                                         \
 			perror("syscall");                                                 \
@@ -55,7 +55,7 @@
 		int r = 0;                                                             \
 		do {                                                                   \
 			errno = 0;                                                         \
-			r = (syscall);                                                       \
+			r = (syscall);                                                     \
 		} while (r == -1 && errno == EINTR);                                   \
 		if (r == -1) {                                                         \
 			DEBUG_LOG("syscall error, errno: %d", errno);                      \

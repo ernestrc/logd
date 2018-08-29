@@ -1,7 +1,7 @@
 #ifndef LOGD_PROP_PARSER_H
 #define LOGD_PROP_PARSER_H
 
-#include "parse.h"
+#include "parser.h"
 
 typedef enum jstate_s {
 	INIT_JSTATE,

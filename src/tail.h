@@ -23,11 +23,11 @@ typedef struct tail_s {
 	uv_file read_tail_stderr_fd;
 	uv_file write_tail_stderr_fd;
 	uv_poll_t uv_poll_err_req;
-	void(*exit_cb)(int status);
+	void (*exit_cb)(int status);
 } tail_t;
 
 tail_t* tail_create(uv_loop_t* loop, char* input_file);
-int tail_open(tail_t* tail, void(*exit_cb)(int));
+int tail_open(tail_t* tail, void (*exit_cb)(int));
 void tail_close(tail_t* tail);
 void tail_free(tail_t* tail);
 

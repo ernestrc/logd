@@ -4,9 +4,11 @@
 #include <string.h>
 
 #include "./config.h"
-#include "./parse.h"
+#include "./default_parser.h"
 #include "./parser.h"
 #include "./util.h"
+
+/* TODO document */
 
 #define TRIM_SPACES(p, SET_MACRO, label, END_MACRO)                            \
 	switch ((p)->token) {                                                      \
@@ -205,7 +207,7 @@
 		break;                                                                 \
 	}
 
-parser_t* parser_create()
+void* parser_create()
 {
 	parser_t* p = NULL;
 	prop_t* slab = NULL;
@@ -218,7 +220,7 @@ parser_t* parser_create()
 
 	parser_init(p, slab);
 
-	return p;
+	return (void*)p;
 
 error:
 	if (p)
@@ -228,8 +230,10 @@ error:
 	return NULL;
 }
 
-INLINE void parser_reset(parser_t* p)
+INLINE void parser_reset(void* _p)
 {
+	parser_t* p = (parser_t*)_p;
+
 	DEBUG_ASSERT(p != NULL);
 
 	p->state = INIT_PSTATE;
@@ -240,14 +244,18 @@ INLINE void parser_reset(parser_t* p)
 	SET_KEY(p, KEY_DATE);
 }
 
-void parser_init(parser_t* p, prop_t* pslab)
+void parser_init(void* _p, prop_t* pslab)
 {
+	parser_t* p = (parser_t*)_p;
+
 	DEBUG_ASSERT(p != NULL);
 	LOGD_PARSER_INIT(p, pslab);
 }
 
-void parser_free(parser_t* p)
+void parser_free(void* _p)
 {
+	parser_t* p = (parser_t*)_p;
+
 	if (p == NULL)
 		return;
 
@@ -255,8 +263,10 @@ void parser_free(parser_t* p)
 	free(p);
 }
 
-INLINE parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen)
+INLINE parse_res_t parser_parse(void* _p, char* chunk, size_t clen)
 {
+	parser_t* p = (parser_t*)_p;
+
 	DEBUG_ASSERT(p != NULL);
 	DEBUG_ASSERT(chunk != NULL);
 
