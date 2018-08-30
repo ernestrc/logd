@@ -145,4 +145,4 @@ $(ROOT_DIR)/deps/%/:
 
 clean:
 	@ rm -rf $(LIBDIR) $(BINDIR) $(INCDIR) $(MANDIR) $(SHAREDIR)
-	@ rm -f *.cnf *.cnf.dist
+	@ rm -rf *.cnf *.cnf.dist certs private misc

@@ -6,7 +6,6 @@
 #include <string.h>
 #include <time.h>
 
-#include "parser.h"
 #include "util.h"
 
 static const char* util_log_get(log_t* l, const char* key)

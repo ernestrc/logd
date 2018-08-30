@@ -78,5 +78,5 @@ clean:
 	@- rm -f $(LIB)
 	@- rm -f $(LUAMOD)
 	@- rm -f $(SO)
-	@- rm -f $(OBJS)
+	@- rm -f $(wildcard *.o)
 	@ rm -f *.profraw
