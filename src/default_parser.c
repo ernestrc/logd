@@ -228,7 +228,7 @@ error:
 	return NULL;
 }
 
-INLINE void parser_reset(void* _p)
+void parser_reset(void* _p)
 {
 	parser_t* p = (parser_t*)_p;
 
@@ -261,7 +261,7 @@ void parser_free(void* _p)
 	free(p);
 }
 
-INLINE parse_res_t parser_parse(void* _p, char* chunk, size_t clen)
+parse_res_t parser_parse(void* _p, char* chunk, size_t clen)
 {
 	parser_t* p = (parser_t*)_p;
 

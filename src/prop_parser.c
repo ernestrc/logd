@@ -1,4 +1,3 @@
-#include "config.h"
 #include "log.h"
 #include "parser.h"
 #include "stdio.h"
@@ -48,7 +47,7 @@ typedef struct prop_parser_s {
 	parse_res_t res;
 } prop_parser_t;
 
-INLINE void parser_reset(void* _p)
+void parser_reset(void* _p)
 {
 	prop_parser_t* p = (prop_parser_t*)_p;
 
@@ -365,7 +364,7 @@ error:
 		break;                                                                 \
 	}
 
-INLINE parse_res_t parser_parse(void* _p, char* chunk, size_t clen)
+parse_res_t parser_parse(void* _p, char* chunk, size_t clen)
 {
 	prop_parser_t* p = (prop_parser_t*)_p;
 
