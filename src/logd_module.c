@@ -17,6 +17,7 @@
 #define LUA_NAME_LOG_REMOVE "log_remove"
 #define LUA_NAME_LOG_RESET "log_reset"
 #define LUA_NAME_TABLE_TO_LOGPTR "to_logptr"
+#define LUA_NAME_LOG_TO_TABLE "to_table"
 #define LUA_NAME_LOG_TO_STR "to_str"
 #define LUA_LEGACY_NAME_LOG_STRING "log_string"
 #define LUA_NAME_LOG_CLONE "log_clone"
@@ -164,7 +165,7 @@ static char* force_snprintl(lua_State* L, log_t* log)
 	char* str = malloc(strlen);
 	if (str == NULL) {
 		luaL_error(L, "force_snprintl: ENOMEM");
-		return NULL;
+		return NULL; /* unreachable */
 	}
 	snprintl(str, strlen, log);
 
@@ -179,6 +180,24 @@ static int logd_log_to_str(lua_State* L)
 	char* str = force_snprintl(L, log);
 	lua_pushstring(L, str);
 	free(str);
+
+	return 1;
+}
+
+static int logd_log_to_table(lua_State* L)
+{
+	log_t* log;
+	prop_t* prop;
+
+	TO_LOG_PTR(L, log, 1, LUA_NAME_LOG_TO_TABLE);
+
+	lua_newtable(L);
+
+	for (prop = log->props; prop != NULL; prop = prop->next) {
+		lua_pushstring(L, prop->key);
+		lua_pushstring(L, prop->value);
+		lua_settable(L, 2);
+	}
 
 	return 1;
 }
@@ -332,6 +351,7 @@ static const struct luaL_Reg logd_functions[] = {{LUA_NAME_ON_LOG, NULL},
   {LUA_NAME_PRINT, &logd_print}, {LUA_LEGACY_NAME_DEBUG, &logd_print},
   {LUA_NAME_TABLE_TO_LOGPTR, &logd_table_to_logptr},
   {LUA_NAME_LOG_TO_STR, &logd_log_to_str},
+  {LUA_NAME_LOG_TO_TABLE, &logd_log_to_table},
   {LUA_NAME_LOG_CLONE, &logd_log_clone},
   {LUA_LEGACY_NAME_LOG_STRING, &logd_log_to_str},
   {LUA_NAME_LOG_GET, &logd_log_get}, {LUA_NAME_LOG_SET, &logd_log_set},

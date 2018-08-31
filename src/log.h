@@ -2,8 +2,8 @@
 #define LOGD_LOG_H
 
 #include <assert.h>
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #define KEY_THREAD "thread"
 #define KEY_CLASS "class"

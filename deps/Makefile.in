@@ -74,8 +74,8 @@ ifeq ($(DEVELOP_BUILD),yes)
 $(LIBSLAB):
 	@ echo "  COMPILING	libslab"
 	@ cd slab && $(MAKE) CC='$(CC)' CFLAGS='$(CFLAGS)'
+	@ mkdir -p $(INCDIR)slab && cp -f slab/src/*.h $(INCDIR)slab
 	@ cp slab/lib/libslab.a $(LIBSLAB)
-	@ mkdir -p $(INCDIR)slab && cp slab/src/*.h $(INCDIR)slab
 else
 $(LIBSLAB):
 	@ echo "  COMPILING	libslab"
@@ -94,8 +94,8 @@ $(LIBLUV): $(LIBLUVDEPS)
 	@ echo "  COMPILING	luv"
 	@ cp luv.patch luv/luv.patch
 	@- cd luv && patch -N -p1 < luv.patch
+	@ mkdir -p $(INCDIR)luv && cp -f luv/src/*.h  $(INCDIR)luv
 	$(CC) $(CFLAGS) -c luv/src/luv.c -o luv/src/luv.o && $(AR) rcs $(LIBLUV) luv/src/luv.o
-	@ mkdir -p $(INCDIR)luv && cp luv/src/*.h  $(INCDIR)luv
 
 ifeq ($(BUILD_LUAJIT),yes)
 LPEGDEPS=$(LIBLUAJIT)
@@ -145,4 +145,4 @@ $(ROOT_DIR)/deps/%/:
 
 clean:
 	@ rm -rf $(LIBDIR) $(BINDIR) $(INCDIR) $(MANDIR) $(SHAREDIR)
-	@ rm -f *.cnf *.cnf.dist
+	@ rm -rf *.cnf *.cnf.dist certs private misc

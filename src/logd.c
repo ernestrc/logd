@@ -7,7 +7,6 @@
 
 #include <slab/buf.h>
 
-#include "./config.h"
 #include "./lua.h"
 #include "./parser.h"
 #include "./tail.h"
@@ -78,7 +77,8 @@ void print_usage(const char* exe)
 	  "/dev/stdin]\n");
 	printf("  -p, --parser=<parser_so>	Load shared object "
 		   "parser via dlopen [default: "
-		   "builtin]\n");
+		   "%s]\n",
+	  LOGD_BUILTIN_PARSER);
 	printf("  -r, --reopen-retries		Reopen retries on EOF before giving up "
 		   "[default: %d]\n",
 	  args.reopen_retries);
@@ -86,7 +86,7 @@ void print_usage(const char* exe)
 		   "[default: %d]\n",
 	  args.reopen_delay);
 	printf("  -b, --reopen-backoff		Retry reopen delay backoff 'linear' or "
-		   "'exponential'"
+		   "'exponential' "
 		   "[default: %s]\n",
 	  args.reopen_backoff);
 	printf("  -h, --help			Display this message.\n");
@@ -453,6 +453,13 @@ void call_on_error(lua_t* l, const char* err, log_t* partial, const char* at)
 	partial->is_safe = false;
 }
 
+#define CALL_ON_LOG(lstate, res)                                               \
+	res.log->is_safe = true;                                                   \
+	lua_call_on_log(lstate, res.log);                                          \
+	buf_consume(b, res.consumed);                                              \
+	logd_reset_parser();                                                       \
+	res.log->is_safe = false;
+
 void on_eof()
 {
 	if (lua_on_eof_defined(lstate)) {
@@ -483,11 +490,7 @@ parse:
 	res = parse_parser(parser, b->next_read, buf_readable(b));
 	switch (res.type) {
 	case PARSE_COMPLETE:
-		res.log->is_safe = true;
-		lua_call_on_log(lstate, res.log);
-		buf_ack(b, res.consumed);
-		logd_reset_parser();
-		res.log->is_safe = false;
+		CALL_ON_LOG(lstate, res);
 		goto parse;
 	case PARSE_ERROR:
 		DEBUG_LOG("EOF parse error: %s", res.error.msg);
@@ -577,11 +580,7 @@ parse:
 
 	case PARSE_COMPLETE:
 		// DEBUG_LOG("parsed new log: %p", &res.log);
-		res.log->is_safe = true;
-		lua_call_on_log(lstate, res.log);
-		buf_consume(b, res.consumed);
-		logd_reset_parser();
-		res.log->is_safe = false;
+		CALL_ON_LOG(lstate, res);
 		goto parse;
 
 	case PARSE_ERROR:

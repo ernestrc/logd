@@ -63,3 +63,9 @@ function test_logd_log_clone()
 	local clone = logd.log_clone(ptr)
 	assert_sample_log(clone)
 end
+
+function test_logd_log_to_table()
+	local ptr = logd.to_logptr(sample_log)
+	local clone = logd.to_logptr(logd.to_table(ptr))
+	assert_sample_log(clone)
+end
