@@ -43,6 +43,8 @@ function logd.on_error(error, logptr, at)
 	local error_expected
 	local at_expected
 	errors = errors + 1
+	-- should be able to use log_get on logptr
+	logd.log_get(logptr, "date")
 	if errors == 1 then
 		error_expected = "incomplete header"
 		at_expected = ""
@@ -51,12 +53,13 @@ function logd.on_error(error, logptr, at)
 		at_expected = "GARBAGE DEBUG	[thread4]	clazz	callType: b: ,"
 	else
 		error_expected = "reached max number of log properties: $LOGD_SLAB_CAP"
-		at_expected = " b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, : c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, b: c: C, "
 	end
 
 	assert(errors < 4)
 	assert(error == error_expected, string.format("error was '%s' instead of '%s'", error, error_expected))
-	assert(at == at_expected, string.format("at was '%s' instead of '%s'", at, at_expected))
+	if at_expected ~= nil then
+		assert(at == at_expected, string.format("at was '%s' instead of '%s'", at, at_expected))
+	end
 end
 EOF
 

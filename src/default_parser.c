@@ -4,113 +4,80 @@
 #include <string.h>
 
 #include "./config.h"
+#include "./default_parser.h"
 #include "./parser.h"
 #include "./util.h"
 
 #define TRIM_SPACES(p, SET_MACRO, label, END_MACRO)                            \
-	switch (p->token) {                                                        \
+	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
 		END_MACRO(p);                                                          \
-		return p->res;                                                         \
+		return (p)->res;                                                       \
 	case '\t':                                                                 \
 	case ' ':                                                                  \
 		SKIP(p);                                                               \
 		break;                                                                 \
 	default:                                                                   \
-		SET_MACRO(p, p->chunk);                                                \
-		p->state++;                                                            \
+		SET_MACRO(p, (p)->chunk);                                              \
+		(p)->state++;                                                          \
 		goto label;                                                            \
 	}
 
-#define ADD_PROP(p)                                                            \
-	p->pslab[p->pnext].next = p->result.props;                                 \
-	p->result.props = &p->pslab[p->pnext];                                     \
-	p->pnext++;
-
-#define TRY_ADD_PROP(p)                                                        \
-	if (p->pnext == LOGD_SLAB_CAP) {                                         \
-		parser_error(                                                          \
-		  p, "reached max number of log properties: " STR(LOGD_SLAB_CAP));   \
-		continue;                                                              \
-	}                                                                          \
-	ADD_PROP(p);
-
-#define SET_VALUE(p, chunk) p->result.props->value = chunk;
-
-#define SET_KEY(p, chunk) p->result.props->key = chunk;
-
-#define COMMIT(p)                                                              \
-	(p)->chunk[(p)->blen] = 0;                                                 \
-	(p)->chunk += (p)->blen + 1;                                               \
-	(p)->blen = 0;
-
-#define SKIP(p) (p)->chunk++;
-
-#define REMOVE_PROP(p)                                                         \
-	p->result.props = p->result.props->next;                                   \
-	p->pnext--;
-
-#define PARSER_END_ERROR(p)                                                    \
-	p->res.type = PARSE_ERROR;                                                 \
-	COMMIT(p);                                                                 \
-	DEBUG_ASSERT(p->res.error.msg != NULL);                                    \
-	DEBUG_ASSERT(p->res.error.at != NULL);
-
-#define PARSER_END_ERROR_INCOMPLETE(p)                                         \
-	parser_error(p, "incomplete header");                                      \
-	SET_VALUE(p, "");                                                          \
-	PARSER_END_ERROR(p);
-
 #define PARSE_END_MESSAGE(p)                                                   \
-	SET_KEY(p, KEY_MESSAGE);                                                   \
-	SET_VALUE(p, p->chunk);                                                    \
+	SET_KEY((p), KEY_MESSAGE);                                                 \
+	SET_VALUE(p, (p)->chunk);                                                  \
 	COMMIT(p);                                                                 \
-	p->res.type = PARSE_COMPLETE;
+	(p)->res.type = PARSE_COMPLETE;
 
 #define PARSE_END(p)                                                           \
-	SET_VALUE(p, p->chunk);                                                    \
+	SET_VALUE(p, (p)->chunk);                                                  \
 	COMMIT(p);                                                                 \
-	p->res.type = PARSE_COMPLETE;
+	(p)->res.type = PARSE_COMPLETE;
+
+#define PARSER_END_ERROR_INCOMPLETE(p)                                         \
+	PARSER_SET_ERROR(p, "incomplete header", ERROR_PSTATE);                    \
+	SET_VALUE((p), "");                                                        \
+	PARSER_END_ERROR(p);
 
 #define PARSER_PARSE_NEXT_KEY(p)                                               \
-	switch (p->token) {                                                        \
+	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
 		PARSE_END_MESSAGE(p);                                                  \
-		return p->res;                                                         \
+		return (p)->res;                                                       \
 	case ':':                                                                  \
 	case '\x00': /* re-submitted partial data */                               \
 		COMMIT(p);                                                             \
-		p->state = TRANSITIONVALUE_PSTATE;                                     \
+		(p)->state = TRANSITIONVALUE_PSTATE;                                   \
 		break;                                                                 \
 	default:                                                                   \
-		p->blen++;                                                             \
+		(p)->blen++;                                                           \
 		break;                                                                 \
 	}
 
 #define PARSER_PARSE_NEXT_VALUE(p)                                             \
-	switch (p->token) {                                                        \
+	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
 		PARSE_END(p);                                                          \
-		return p->res;                                                         \
+		return (p)->res;                                                       \
 	case ',':                                                                  \
 	case '\x00':                                                               \
 		COMMIT(p);                                                             \
-		TRY_ADD_PROP(p);                                                       \
-		p->state = TRANSITIONKEY_PSTATE;                                       \
+		TRY_ADD_PROP(p, ERROR_PSTATE);                                         \
+		(p)->state = TRANSITIONKEY_PSTATE;                                     \
 		break;                                                                 \
 	default:                                                                   \
-		p->blen++;                                                             \
+		(p)->blen++;                                                           \
 		break;                                                                 \
 	}
 
 #define PARSER_PARSE_NEXT_DATE(p, next_key)                                    \
-	switch (p->token) {                                                        \
+	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
 		PARSER_END_ERROR_INCOMPLETE(p);                                        \
-		return p->res;                                                         \
+		return (p)->res;                                                       \
 	case '[':                                                                  \
 		SKIP(p);                                                               \
-		SET_VALUE(p, p->chunk);                                                \
+		SET_VALUE(p, (p)->chunk);                                              \
 		break;                                                                 \
 	case '0':                                                                  \
 	case '1':                                                                  \
@@ -128,7 +95,7 @@
 	case '-':                                                                  \
 	case 'Z':                                                                  \
 	case '+':                                                                  \
-		p->blen++;                                                             \
+		(p)->blen++;                                                           \
 		break;                                                                 \
 	case 'T':                                                                  \
 	case ' ':                                                                  \
@@ -138,24 +105,25 @@
 		COMMIT(p);                                                             \
 		ADD_PROP(p);                                                           \
 		SET_KEY(p, next_key);                                                  \
-		SET_VALUE(p, p->chunk);                                                \
-		p->state++;                                                            \
+		SET_VALUE(p, (p)->chunk);                                              \
+		(p)->state++;                                                          \
 		break;                                                                 \
 	default:                                                                   \
-		parser_error(p, "invalid date or time in log header");                 \
+		PARSER_SET_ERROR(                                                      \
+		  p, "invalid date or time in log header", ERROR_PSTATE);              \
 		REMOVE_PROP(p);                                                        \
-		p->blen++;                                                             \
+		(p)->blen++;                                                           \
 		break;                                                                 \
 	}
 
 #define PARSER_PARSE_NEXT_HEADER(p, next_key)                                  \
-	switch (p->token) {                                                        \
+	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
 		PARSER_END_ERROR_INCOMPLETE(p);                                        \
-		return p->res;                                                         \
+		return (p)->res;                                                       \
 	case '[':                                                                  \
 		SKIP(p);                                                               \
-		SET_VALUE(p, p->chunk);                                                \
+		SET_VALUE(p, (p)->chunk);                                              \
 		break;                                                                 \
 	case '\t':                                                                 \
 	case ' ':                                                                  \
@@ -164,71 +132,71 @@
 		COMMIT(p);                                                             \
 		ADD_PROP(p);                                                           \
 		SET_KEY(p, next_key);                                                  \
-		p->state++;                                                            \
+		(p)->state++;                                                          \
 		break;                                                                 \
 	default:                                                                   \
-		p->blen++;                                                             \
+		(p)->blen++;                                                           \
 		break;                                                                 \
 	}
 
 #define PARSE_PARSE_NEXT_THREAD_BRACKET(p)                                     \
-	switch (p->token) {                                                        \
+	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
 		PARSER_END_ERROR_INCOMPLETE(p);                                        \
-		return p->res;                                                         \
+		return (p)->res;                                                       \
 	case ']':                                                                  \
 	case '\t':                                                                 \
 	case '\x00':                                                               \
 		COMMIT(p);                                                             \
 		ADD_PROP(p);                                                           \
 		SET_KEY(p, KEY_CLASS);                                                 \
-		p->state = TRANSITIONCLASS_PSTATE;                                     \
+		(p)->state = TRANSITIONCLASS_PSTATE;                                   \
 		break;                                                                 \
 	default:                                                                   \
-		p->blen++;                                                             \
+		(p)->blen++;                                                           \
 		break;                                                                 \
 	}
 
 #define PARSER_PARSE_NEXT_THREAD(p)                                            \
-	switch (p->token) {                                                        \
+	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
 		PARSER_END_ERROR_INCOMPLETE(p);                                        \
-		return p->res;                                                         \
+		return (p)->res;                                                       \
 	case '[':                                                                  \
-		p->state = THREADBRACKET_PSTATE;                                       \
+		(p)->state = THREADBRACKET_PSTATE;                                     \
 		SKIP(p);                                                               \
-		SET_VALUE(p, p->chunk);                                                \
+		SET_VALUE(p, (p)->chunk);                                              \
 		break;                                                                 \
 	default:                                                                   \
-		p->state = THREADNOBRACKET_PSTATE;                                     \
+		(p)->state = THREADNOBRACKET_PSTATE;                                   \
 		PARSER_PARSE_NEXT_HEADER(p, KEY_CLASS);                                \
 		break;                                                                 \
 	}
 
 #define PARSER_PARSE_NEXT_CALLTYPE(p)                                          \
-	switch (p->token) {                                                        \
+	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
 		PARSE_END_MESSAGE(p);                                                  \
-		return p->res;                                                         \
+		return (p)->res;                                                       \
 	case ':':                                                                  \
 	case '\x00':                                                               \
 		COMMIT(p);                                                             \
 		ADD_PROP(p);                                                           \
-		p->state++;                                                            \
+		(p)->state++;                                                          \
 		break;                                                                 \
 	default:                                                                   \
-		p->blen++;                                                             \
+		(p)->blen++;                                                           \
 		break;                                                                 \
 	}
 
 #define PARSER_PARSE_VERIFY_CALLTYPE(p)                                        \
-	switch (p->token) {                                                        \
+	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
 		PARSE_END_MESSAGE(p);                                                  \
-		return p->res;                                                         \
+		return (p)->res;                                                       \
 	case ',':                                                                  \
-		p->result.props->next->key = p->result.props->next->value;             \
-		p->result.props->next->value = p->chunk;                               \
+		(p)->result.props->next->key = (p)->result.props->next->value;         \
+		(p)->result.props->next->value = (p)->chunk;                           \
 		REMOVE_PROP(p);                                                        \
 		PARSER_PARSE_NEXT_VALUE(p);                                            \
 		break;                                                                 \
@@ -237,65 +205,55 @@
 		break;                                                                 \
 	}
 
-#define PARSER_PARSE_ERROR(p)                                                  \
-	switch (p->token) {                                                        \
-	case '\n':                                                                 \
-		PARSER_END_ERROR(p);                                                   \
-		return p->res;                                                         \
-	default:                                                                   \
-		p->blen++;                                                             \
-		break;                                                                 \
-	}
-
-INLINE static void parser_error(parser_t* p, const char* msg)
+void* parser_create()
 {
-	p->res.error.msg = msg;
-	p->res.error.at = p->chunk;
-	p->state = ERROR_PSTATE;
-}
+	parser_t* p = NULL;
+	prop_t* slab = NULL;
 
-parser_t* parser_create()
-{
-	parser_t* p;
-
-	if ((p = calloc(1, sizeof(parser_t))) == NULL) {
+	if ((p = calloc(1, sizeof(parser_t))) == NULL ||
+	  (slab = calloc(LOGD_SLAB_CAP, sizeof(prop_t))) == NULL) {
 		perror("calloc");
-		return NULL;
+		goto error;
 	}
 
-	prop_t* slab = calloc(LOGD_SLAB_CAP, sizeof(prop_t));
 	parser_init(p, slab);
 
-	return p;
+	return (void*)p;
+
+error:
+	if (p)
+		free(p);
+	if (slab)
+		free(slab);
+	return NULL;
 }
 
-INLINE void parser_reset(parser_t* p)
+void parser_reset(void* _p)
 {
+	parser_t* p = (parser_t*)_p;
+
 	DEBUG_ASSERT(p != NULL);
 
 	p->state = INIT_PSTATE;
-	p->pnext = 0;
-	memset(p->pslab, 0, LOGD_SLAB_CAP);
-	log_init(&p->result);
 
-	p->res.type = PARSE_PARTIAL;
+	LOGD_PARSER_RESET(p);
 
 	ADD_PROP(p);
 	SET_KEY(p, KEY_DATE);
 }
 
-void parser_init(parser_t* p, prop_t* pslab)
+void parser_init(void* _p, prop_t* pslab)
 {
+	parser_t* p = (parser_t*)_p;
+
 	DEBUG_ASSERT(p != NULL);
-
-	p->pslab = pslab;
-	p->res.log = &p->result;
-
-	parser_reset(p);
+	LOGD_PARSER_INIT(p, pslab);
 }
 
-void parser_free(parser_t* p)
+void parser_free(void* _p)
 {
+	parser_t* p = (parser_t*)_p;
+
 	if (p == NULL)
 		return;
 
@@ -303,8 +261,10 @@ void parser_free(parser_t* p)
 	free(p);
 }
 
-INLINE parse_res_t parser_parse(parser_t* p, char* chunk, size_t clen)
+parse_res_t parser_parse(void* _p, char* chunk, size_t clen)
 {
+	parser_t* p = (parser_t*)_p;
+
 	DEBUG_ASSERT(p != NULL);
 	DEBUG_ASSERT(chunk != NULL);
 

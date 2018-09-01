@@ -24,6 +24,8 @@ void log_init(log_t* l)
 {
 	DEBUG_ASSERT(l != NULL);
 	l->props = NULL;
+	// remains unchanged
+	// l->is_safe = false;
 }
 
 const char* log_get(log_t* l, const char* key)
@@ -69,6 +71,17 @@ void log_set(log_t* l, prop_t* prop, const char* key, const char* value)
 
 	prop->next = l->props;
 	l->props = prop;
+}
+
+int log_size(log_t* l)
+{
+	DEBUG_ASSERT(l != NULL);
+
+	int ret = 0;
+	for (prop_t* next = l->props; next != NULL; next = next->next)
+		ret++;
+
+	return ret;
 }
 
 void log_free(log_t* l)

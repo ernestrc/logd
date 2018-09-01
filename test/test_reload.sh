@@ -56,13 +56,13 @@ WRITER_PID=$!
 makescript
 $LOGD_EXEC $SCRIPT -f $IN 2> $ERR 1> $OUT & 
 PID=$!
-sleep 1
+sleep $TESTS_SLEEP
 assert_file_content "load" $OUT
 
 updatescript
 truncate -s 0 $OUT
 kill -s 10 $PID
-sleep 1
+sleep $TESTS_SLEEP
 assert_file_content "reload" $OUT
 
 exit 0

@@ -1,0 +1,39 @@
+#ifndef LOGD_DEFAULT_PARSER_H
+#define LOGD_DEFAULT_PARSER_H
+
+#include "parser.h"
+
+/*
+ * Expects data to be in the following format:
+ *
+ * YYYY-MM-dd hh:mm:ss	LEVEL	Thread	Class	key1: value2, key2: value2 ...
+*/
+typedef enum pstate_s {
+	INIT_PSTATE = 0,
+	DATE_PSTATE = 1,
+	TIME_PSTATE = 2,
+	TRANSITIONLEVEL_PSTATE = 3,
+	LEVEL_PSTATE = 4,
+	TRANSITIONTHREAD_PSTATE = 5,
+	THREAD_PSTATE = 6,
+	THREADBRACKET_PSTATE = 7, // IF NEXT == '['
+	THREADNOBRACKET_PSTATE = 8, // ELSE
+	TRANSITIONCLASS_PSTATE = 9,
+	CLASS_PSTATE = 10,
+	TRANSITIONCALLTYPE_PSTATE = 11,
+	CALLTYPE_PSTATE = 12,
+	TRANSITIONVERIFYCALLTYPE_PSTATE = 13,
+	VERIFYCALLTYPE_PSTATE = 14,
+	TRANSITIONKEY_PSTATE = 15,
+	KEY_PSTATE = 16,
+	TRANSITIONVALUE_PSTATE = 17,
+	VALUE_PSTATE = 18,
+	ERROR_PSTATE = 19,
+} pstate_t;
+
+typedef struct parser_s {
+	pstate_t state;
+	LOGD_PARSER_FIELDS
+} parser_t;
+
+#endif

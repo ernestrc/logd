@@ -3,9 +3,9 @@
 
 #include <stdbool.h>
 
+#include "log.h"
 #include <lua.h>
 #include <uv.h>
-#include "log.h"
 
 typedef struct lua_s {
 	lua_State* state;

@@ -39,11 +39,11 @@ function logd.on_eof()
 end
 EOF
 
-# stdin
-cat $IN | $LOGD_EXEC $SCRIPT 2> $OUT 1> $OUT
+# using SO parser
+cat $IN | $LOGD_EXEC $SCRIPT --parser="$DIR/../lib/logd_default_parser.so" 2> $OUT 1> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
-	echo "error processing file via stdin"
+	echo "error processing file with dynamic parser"
 	exit 1
 fi
 

@@ -4,19 +4,17 @@ LDFLAGS=@LDFLAGS@ @EXTRA_LDFLAGS@
 LIBS=@LIBS@
 FUZZFLAGS=@FUZZFLAGS@ # fuzzer flags
 LUAJIT= @LUAJITBIN@
-LOGD_BUF_MAX_CAP=@LOGD_BUF_MAX_CAP@
-LOGD_BUF_INIT_CAP=@LOGD_BUF_INIT_CAP@
-LOGD_SLAB_CAP=@LOGD_SLAB_CAP@
 ROOT_DIR=@ROOT_DIR@
+DEVELOP_BUILD=@DEVELOP_BUILD@
 BINDIR = $(ROOT_DIR)/bin
 LIBDIR=$(ROOT_DIR)/lib
 SRCDIR=$(ROOT_DIR)/src
 
-COVERAGE_SRC_OBJ=$(SRCDIR)/log.o $(SRCDIR)/parser.o $(SRCDIR)/logd_module.o $(SRCDIR)/util.o $(SRCDIR)/lua.o
+COVERAGE_SRC_OBJ=$(SRCDIR)/log.o $(SRCDIR)/prop_parser.o $(SRCDIR)/default_parser.o $(SRCDIR)/logd_module.o $(SRCDIR)/util.o $(SRCDIR)/lua.o
 COVERAGE_OBJ=$(addprefix -object , $(COVERAGE_SRC_OBJ))
-TESTS=$(wildcard test_*.c)
-LUA_TESTS=$(wildcard test_*.lua)
-INT_TESTS=$(wildcard test_*.sh)
+TESTS=$(filter-out $(SKIP_C_TESTS), $(wildcard test_*.c))
+LUA_TESTS=$(filter-out $(SKIP_LUA_TESTS), $(wildcard test_*.lua))
+INT_TESTS=$(filter-out $(SKIP_INT_TESTS), $(wildcard test_*.sh))
 FUZZERS=$(wildcard fuzz_*.c)
 TARGET_TESTS = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(TESTS)))
 TARGET_FUZZERS = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(FUZZERS)))
@@ -42,7 +40,11 @@ FUZZPROFDATA=$(BINDIR)/fuzz.profdata
 
 .PHONY: clean test fuzz coverage html-coverage fuzz-coverage fuzz-html-coverage purge
 
+ifeq ($(DEVELOP_BUILD),yes)
 test: unit_test $(LINK_SO) lua_test int_test
+else
+test: int_test
+endif
 
 $(LINK_SO):
 	@ ln -s $(SO) $(LINK_SO)
@@ -51,7 +53,7 @@ unit_test: $(TARGET_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" $$f --silent; done
 
 int_test: $(INT_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LOGD_SLAB_CAP=$(LOGD_SLAB_CAP) LOGD_BUF_MAX_CAP=$(LOGD_BUF_MAX_CAP) ./$$f 2>/dev/null; done
+	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" ./$$f; done
 
 lua_test: $(LUA_TESTS)
 	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LUA_PATH="$(LUA_PATH)" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done

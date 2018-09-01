@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+
+LOGD_SLAB_CAP=@LOGD_SLAB_CAP@
+LOGD_BUF_INIT_CAP=@LOGD_BUF_INIT_CAP@
+LOGD_BUF_MAX_CAP=@LOGD_BUF_MAX_CAP@
+
+TESTS_SLEEP="$TESTS_SLEEP"
+if [[ "$TESTS_SLEEP" == "" ]]; then
+	TESTS_SLEEP=1
+fi
+
+function assert_file_content {
+	local __OUT=$(tr -d '\0' < $2)
+	
+
+	if [ "$__OUT" != "$1" ]; then
+		echo "`date "+%Y-%m-%d %H:%M:%S"` expected '$1' but found '$__OUT'"
+		if [ -f "$ERR" ]; then
+			cat $ERR
+		fi
+		exit 1;
+	fi
+}
+
+function push_file() {
+	if [[ "$PUSH_FILE_ITER" == "" ]]; then
+		PUSH_FILE_ITER=10
+	fi
+	for i in $(seq 1 $PUSH_FILE_ITER); do 
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >>$IN 
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, " >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >> $IN
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, " >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >> $IN
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: " >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "GARBAGE 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >> $IN
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >> $IN
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, " >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >> $IN
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, " >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c:" >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, " >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >> $IN
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >> $IN
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, " >> $IN
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >> $IN
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, " >> $IN
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >> $IN
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c:" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, " >> $IN
+		echo "" >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, " >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c:" >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >> $IN
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, " >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, " >> $IN
+		echo "2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B" >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, " >> $IN
+		echo "2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ," >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c: C, callType: c:" >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+		echo "2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, " >> $IN
+	done
+}
+
+function assert_file_contains {
+	COUNT=$(cat $2 | grep "$1" | wc -l)
+
+	if [ "$COUNT" != "1" ]; then
+		echo "expected to find '$1' in file but not found: $COUNT" 
+		if [ -f "$ERR" ]; then
+			cat $ERR
+		fi
+		cat $2
+		exit 1;
+	fi
+}

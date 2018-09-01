@@ -12,9 +12,7 @@
 #include <slab/slab.h>
 
 #include "../src/log.h"
-#include "../src/parser.h"
 #include "../src/util.h"
-#include "fixture.h"
 
 typedef struct test_ctx_s {
 	char* test_expr;
@@ -64,24 +62,6 @@ typedef struct test_ctx_s {
 
 static slab_t* pslab;
 
-#define LEN1 strlen(LOG1)
-#define LEN2 strlen(LOG2)
-#define LEN3 strlen(LOG3)
-#define LEN4 strlen(LOG4)
-#define LEN5 strlen(LOG5)
-#define LEN6 strlen(LOG6)
-#define LEN7 strlen(LOG7)
-#define LEN8 strlen(LOG8)
-
-char* BUF1;
-char* BUF2;
-char* BUF3;
-char* BUF4;
-char* BUF5;
-char* BUF6;
-char* BUF7;
-char* BUF8;
-
 log_t EXPECTED1;
 log_t EXPECTED2;
 log_t EXPECTED3;
@@ -91,24 +71,8 @@ log_t EXPECTED6;
 log_t EXPECTED7;
 log_t EXPECTED8;
 
-static void init_test_data()
+void init_test_data()
 {
-	BUF1 = rcmalloc(LEN1);
-	BUF2 = rcmalloc(LEN2);
-	BUF3 = rcmalloc(LEN3);
-	BUF4 = rcmalloc(LEN4);
-	BUF5 = rcmalloc(LEN5);
-	BUF6 = rcmalloc(LEN6);
-	BUF7 = rcmalloc(LEN7);
-	BUF8 = malloc(LEN8);
-	memcpy(BUF1, LOG1, LEN1);
-	memcpy(BUF2, LOG2, LEN2);
-	memcpy(BUF3, LOG3, LEN3);
-	memcpy(BUF4, LOG4, LEN4);
-	memcpy(BUF5, LOG5, LEN5);
-	memcpy(BUF6, LOG6, LEN6);
-	memcpy(BUF7, LOG7, LEN7);
-	memcpy(BUF8, LOG8, LEN8);
 
 	log_set(&EXPECTED1, slab_get(pslab), KEY_TIME, "14:54:39,474");
 	log_set(&EXPECTED1, slab_get(pslab), KEY_DATE, "2017-09-07");
@@ -126,7 +90,7 @@ static void init_test_data()
 	log_set(&EXPECTED2, slab_get(pslab), KEY_DATE, "2017-09-07");
 	log_set(&EXPECTED2, slab_get(pslab), KEY_TIME, "14:54:39,474");
 	log_set(&EXPECTED2, slab_get(pslab), KEY_LEVEL, "DEBUG");
-	log_set(&EXPECTED2, slab_get(pslab), KEY_THREAD, "pool-5-thread-6");
+	log_set(&EXPECTED2, slab_get(pslab), KEY_THREAD, "pool-\"5-thread-6");
 	log_set(&EXPECTED2, slab_get(pslab), KEY_CLASS, "control.RaptorHandler");
 	log_set(&EXPECTED2, slab_get(pslab), "sessionId",
 	  "1_MX4xMDB-fjE1MDQ4MjEyNzAxMjR-WThtTVpEN0J2c1Z2TlJGcndTN1lpTExGfn4");
@@ -144,7 +108,8 @@ static void init_test_data()
 	  "Publish:Rumor:112ae1a5-3416-4458-b0c1-6eb3e0ab4c80");
 	log_set(&EXPECTED2, slab_get(pslab), "streamId",
 	  "b4da82c4-cac5-4e13-b1dc-bb1f42b475dd");
-	log_set(&EXPECTED2, slab_get(pslab), "remoteIpAddress", "127.0.0.1");
+	log_set(&EXPECTED2, slab_get(pslab), "remoteIpAddress",
+	  "{{{\"}ip\":\"127.\\\"}}0.0.1\"     }}}");
 	log_set(&EXPECTED2, slab_get(pslab), "correlationId",
 	  "b90232b5-3ee5-4c65-bb4e-29286d6a2771");
 
@@ -253,7 +218,6 @@ static int __test_release(test_ctx_t* ctx)
 {
 	int failures = ctx->failure;
 	free(ctx->test_expr);
-	free(BUF8);
 	rcmalloc_deinit();
 	slab_free(pslab);
 	if (failures != 0)
@@ -277,8 +241,6 @@ static int __test_ctx_init(test_ctx_t* ctx, int argc, char* argv[])
 	pslab = slab_create(10000, sizeof(prop_t));
 	if (!pslab)
 		perror("slab_create()");
-
-	init_test_data();
 
 	while (1) {
 		static struct option long_options[] = {

@@ -6,6 +6,7 @@ BUILD_LIBS= @BUILD_LIBS@
 DEVELOP_BUILD=@DEVELOP_BUILD@
 ROOT_DIR=@ROOT_DIR@
 INSTALL_DIR=@bindir@
+BUILTIN_PARSER=@BUILTIN_PARSER@
 
 LIBDEPS=$(ROOT_DIR)/deps/lib
 INCDIR=$(ROOT_DIR)/include
@@ -15,17 +16,18 @@ LIBDIR =$(ROOT_DIR)/lib
 EXEC_SRC = logd.c logctl.c
 EXEC_OBJ = $(patsubst %.c,%.o,$(EXEC_SRC))
 SRCS = $(wildcard *.c)
+PARSERS_SRC = $(wildcard *parser.c)
+BUILTIN_PARSER_OBJ=$(patsubst %.c,%.o,$(BUILTIN_PARSER))
 LUA_SRCS = $(wildcard *.lua)
-OBJS = $(filter-out $(EXEC_OBJ), $(patsubst %.c,%.o,$(SRCS)))
+OBJS = $(filter-out $(EXEC_OBJ) $(patsubst %.c, %.o,$(PARSERS_SRC)), $(patsubst %.c,%.o,$(SRCS))) $(BUILTIN_PARSER_OBJ)
 LUAMOD = $(patsubst %.lua,%.lua.h,$(LUA_SRCS))
 EXEC = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(EXEC_SRC)))
 INSTALLED_EXEC = $(addprefix $(INSTALL_DIR)/,$(patsubst %.c,%,$(EXEC_SRC)))
 STATIC_LIBS = $(LIBDEPS)/libslab.a $(LIBDEPS)/liblssl.a $(LIBDEPS)/libluv.a $(LIBDEPS)/liblpeg.a $(LIBDEPS)/liblzlib.a $(BUILD_LIBS)
 CMOD = $(LIBDIR)/logd.so
 CMOD_DEPS=log.c util.c
-PARSER_SO = $(LIBDIR)/logd_parser.so
+SO_PARSERS = $(patsubst %.c,$(LIBDIR)/logd_%.so,$(PARSERS_SRC))
 PARSER_DEPS=log.c util.c
-LIBLUAHEX = $(LIBDIR)/liblogdjit.a
 LIB = $(LIBDIR)/liblogd.a
 
 listobj = $(shell nm -A $(1) | awk -F':' '{print "$(2)/"$$2}' | sort | uniq | xargs echo)
@@ -38,9 +40,9 @@ default: src
 install: $(INSTALLED_EXEC)
 
 ifeq ($(DEVELOP_BUILD),yes)
-src: $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(PARSER_SO)
+src: $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(SO_PARSERS)
 else
-src: $(LIB) $(LUAMOD) $(EXEC)
+src: $(LIB) $(LUAMOD) $(EXEC) $(SO_PARSERS)
 endif
 
 lua.c: $(LUAMOD)
@@ -66,8 +68,8 @@ $(BINDIR)/%: %.c $(LIB)
 $(INSTALL_DIR)/%: $(BINDIR)/%
 	@ install -m 0755 $< $@
 
-$(PARSER_SO): parser.h parser.c $(PARSER_DEPS)
-	$(CC) -o $(PARSER_SO) $(CFLAGS) -shared -fPIC parser.c $(PARSER_DEPS) $(LIBS)
+$(LIBDIR)/logd_%.so: %.c parser.h $(PARSER_DEPS)
+	$(CC) -o $@ $(CFLAGS) -shared -fPIC $(patsubst $(LIBDIR)/logd_%.so,%.c,$@) $(PARSER_DEPS) $(LIBS)
 
 $(CMOD): logd_module.h logd_module.c $(CMOD_DEPS)
 	$(CC) -o $(CMOD) $(CFLAGS) -shared -fPIC logd_module.c $(CMOD_DEPS) $(LIBS)
@@ -83,5 +85,5 @@ clean:
 	@- rm -f $(LIB)
 	@- rm -f $(LUAMOD)
 	@- rm -f $(SO)
-	@- rm -f $(OBJS)
+	@- rm -f $(wildcard *.o)
 	@ rm -f *.profraw

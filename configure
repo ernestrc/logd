@@ -633,10 +633,11 @@ BUILD_LIBS
 DEVELOP_BUILD
 BUILD_OPENSSL
 BUILD_ZLIB
+BUILTIN_PARSER
 BUILD_LUAJIT
 BUILD_LIBUV
 LUAJITBIN
-LIBTOOLIZE
+LIBTOOLIZEPROG
 AUTOMAKEPROG
 AUTOCONFPROG
 OBJDUMP_CHECK
@@ -661,7 +662,9 @@ LOGD_BUF_INIT_CAP
 LOGD_SLAB_CAP
 PATCHPGR
 GITPRG
+TRPROG
 XXDPROG
+TRUNCPROG
 PKGCFG
 target_alias
 host_alias
@@ -711,9 +714,10 @@ enable_build_libuv
 enable_build_luajit
 enable_build_zlib
 enable_build_openssl
-enable_zlib
-enable_openssl
-enable_lpeg
+with_zlib
+with_openssl
+with_lpeg
+with_builtin_parser
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1343,11 +1347,17 @@ Optional Features:
   --enable-build-luajit   build local luajit
   --enable-build-zlib     build local zlib
   --enable-build-openssl  build local openssl
-  --disable-zlib          do not include zlib as system or local dependency.
+
+Optional Packages:
+  --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
+  --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
+  --without-zlib          do not include zlib as system or local dependency.
                           This overrides --enable-build-zlib
-  --disable-openssl       do not include openssl as system or local
+  --without-openssl       do not include openssl as system or local
                           dependency. This overrides --enable-build-openssl
-  --disable-lpeg          do not include lpeg module.
+  --without-lpeg          do not include lpeg module.
+  --with-builtin-parser   Build with given source file parser as builtin
+                          parser.
 
 Some influential environment variables:
   CC          C compiler command
@@ -2140,25 +2150,37 @@ else
 fi
 
 
-# Check whether --enable-zlib was given.
-if test "${enable_zlib+set}" = set; then :
-  enableval=$enable_zlib; include_libz=no
+
+# Check whether --with-zlib was given.
+if test "${with_zlib+set}" = set; then :
+  withval=$with_zlib; include_libz=no
 else
   include_libz=yes
 fi
 
-# Check whether --enable-openssl was given.
-if test "${enable_openssl+set}" = set; then :
-  enableval=$enable_openssl; include_libopenssl=no
+
+# Check whether --with-openssl was given.
+if test "${with_openssl+set}" = set; then :
+  withval=$with_openssl; include_libopenssl=no
 else
   include_libopenssl=yes
 fi
 
-# Check whether --enable-lpeg was given.
-if test "${enable_lpeg+set}" = set; then :
-  enableval=$enable_lpeg; include_lpeg=no
+
+# Check whether --with-lpeg was given.
+if test "${with_lpeg+set}" = set; then :
+  withval=$with_lpeg; include_lpeg=no
 else
   include_lpeg=yes
+fi
+
+
+
+# Check whether --with-builtin-parser was given.
+if test "${with_builtin_parser+set}" = set; then :
+  withval=$with_builtin_parser; builtin_parser="$with_builtin_parser"
+else
+  builtin_parser=default_parser.c
 fi
 
 
@@ -2203,6 +2225,47 @@ if test x"$PKGCFG" != x"yes" ; then
     as_fn_error $? "Please install pkg-config before building logd." "$LINENO" 5
 fi
 
+# Extract the first word of "truncate", so it can be a program name with args.
+set dummy truncate; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_TRUNCPROG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$TRUNCPROG"; then
+  ac_cv_prog_TRUNCPROG="$TRUNCPROG" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_TRUNCPROG="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+TRUNCPROG=$ac_cv_prog_TRUNCPROG
+if test -n "$TRUNCPROG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $TRUNCPROG" >&5
+$as_echo "$TRUNCPROG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+if test x"$TRUNCPROG" != x"yes" ; then
+    as_fn_error $? "Please install GNU coreutils (or just truncate) truncate before building logd." "$LINENO" 5
+fi
+
 # Extract the first word of "xxd", so it can be a program name with args.
 set dummy xxd; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -2242,6 +2305,47 @@ fi
 
 if test x"$XXDPROG" != x"yes" ; then
     as_fn_error $? "Please install xxd before building logd." "$LINENO" 5
+fi
+
+# Extract the first word of "tr", so it can be a program name with args.
+set dummy tr; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_prog_TRPROG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if test -n "$TRPROG"; then
+  ac_cv_prog_TRPROG="$TRPROG" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_TRPROG="yes"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+fi
+fi
+TRPROG=$ac_cv_prog_TRPROG
+if test -n "$TRPROG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $TRPROG" >&5
+$as_echo "$TRPROG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+if test x"$TRPROG" != x"yes" ; then
+    as_fn_error $? "Please install GNU coreutils (or just tr) before building logd." "$LINENO" 5
 fi
 
 # Extract the first word of "git", so it can be a program name with args.
@@ -3322,6 +3426,7 @@ fi
 
 test -z "$LIBS" && LIBS=""$system_libs"";
 test -z "$BUILD_LIBS" && BUILD_LIBS=""$build_libs"";
+test -z "$LIBTOOLIZE" && LIBTOOLIZE=""libtoolize"";
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -4795,6 +4900,31 @@ $as_echo "$ac_cv_safe_to_define___extensions__" >&6; }
 
 
 
+as_ac_File=`$as_echo "ac_cv_file_"src/$builtin_parser"" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for \"src/$builtin_parser\"" >&5
+$as_echo_n "checking for \"src/$builtin_parser\"... " >&6; }
+if eval \${$as_ac_File+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  test "$cross_compiling" = yes &&
+  as_fn_error $? "cannot check for file existence when cross compiling" "$LINENO" 5
+if test -r ""src/$builtin_parser""; then
+  eval "$as_ac_File=yes"
+else
+  eval "$as_ac_File=no"
+fi
+fi
+eval ac_res=\$$as_ac_File
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+if eval test \"x\$"$as_ac_File"\" = x"yes"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: compiling logd with builtin parser: $builtin_parser" >&5
+$as_echo "$as_me: compiling logd with builtin parser: $builtin_parser" >&6;}
+else
+  as_fn_error $? "could not find parser implementation 'src/$builtin_parser'. Please copy the source file to src folder." "$LINENO" 5
+fi
+
+
 # Extract the first word of "nm", so it can be a program name with args.
 set dummy nm; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -4975,15 +5105,15 @@ fi
 			as_fn_error $? "Please install automake before building libuv." "$LINENO" 5
 		fi
 
-		# Extract the first word of "libtoolize", so it can be a program name with args.
-set dummy libtoolize; ac_word=$2
+		# Extract the first word of "$LIBTOOLIZE", so it can be a program name with args.
+set dummy $LIBTOOLIZE; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
 $as_echo_n "checking for $ac_word... " >&6; }
-if ${ac_cv_prog_LIBTOOLIZE+:} false; then :
+if ${ac_cv_prog_LIBTOOLIZEPROG+:} false; then :
   $as_echo_n "(cached) " >&6
 else
-  if test -n "$LIBTOOLIZE"; then
-  ac_cv_prog_LIBTOOLIZE="$LIBTOOLIZE" # Let the user override the test.
+  if test -n "$LIBTOOLIZEPROG"; then
+  ac_cv_prog_LIBTOOLIZEPROG="$LIBTOOLIZEPROG" # Let the user override the test.
 else
 as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
 for as_dir in $PATH
@@ -4992,7 +5122,7 @@ do
   test -z "$as_dir" && as_dir=.
     for ac_exec_ext in '' $ac_executable_extensions; do
   if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
-    ac_cv_prog_LIBTOOLIZE="yes"
+    ac_cv_prog_LIBTOOLIZEPROG="yes"
     $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
     break 2
   fi
@@ -5002,18 +5132,18 @@ IFS=$as_save_IFS
 
 fi
 fi
-LIBTOOLIZE=$ac_cv_prog_LIBTOOLIZE
-if test -n "$LIBTOOLIZE"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LIBTOOLIZE" >&5
-$as_echo "$LIBTOOLIZE" >&6; }
+LIBTOOLIZEPROG=$ac_cv_prog_LIBTOOLIZEPROG
+if test -n "$LIBTOOLIZEPROG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LIBTOOLIZEPROG" >&5
+$as_echo "$LIBTOOLIZEPROG" >&6; }
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 fi
 
 
-		if test x"$LIBTOOLIZE" != x"yes" ; then
-			as_fn_error $? "Please install libtoolize before building libuv." "$LINENO" 5
+		if test x"$LIBTOOLIZEPROG" != x"yes" ; then
+			as_fn_error $? "Please install $LIBTOOLIZE before building libuv." "$LINENO" 5
 		fi
 
 	fi
@@ -5455,6 +5585,8 @@ BUILD_LIBUV="$build_libuv"
 
 BUILD_LUAJIT="$build_libluajit"
 
+BUILTIN_PARSER="$builtin_parser"
+
 BUILD_ZLIB="$build_libz"
 
 BUILD_OPENSSL="$build_libopenssl"
@@ -5510,10 +5642,16 @@ $as_echo "$as_me: using include_lpeg=$include_lpeg" >&6;}
 $as_echo "$as_me: using include_libuv=$include_libuv" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using include_libluajit=$include_libluajit" >&5
 $as_echo "$as_me: using include_libluajit=$include_libluajit" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using builtin_parser=$builtin_parser" >&5
+$as_echo "$as_me: using builtin_parser=$builtin_parser" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using BUILD_LIBS=$BUILD_LIBS" >&5
 $as_echo "$as_me: using BUILD_LIBS=$BUILD_LIBS" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using LIBS=$LIBS" >&5
 $as_echo "$as_me: using LIBS=$LIBS" >&6;}
+
+cat >>confdefs.h <<_ACEOF
+#define LOGD_BUILTIN_PARSER "$builtin_parser"
+_ACEOF
 
 cat >>confdefs.h <<_ACEOF
 #define LOGD_VERSION "$version"
@@ -5522,7 +5660,7 @@ _ACEOF
 LOGD_VERSION="$version"
 
 
-ac_config_files="$ac_config_files Makefile src/Makefile src/logdconfig.lua deps/Makefile test/Makefile"
+ac_config_files="$ac_config_files Makefile src/Makefile src/logdconfig.lua test/helper.sh deps/Makefile test/Makefile"
 
 
 ac_config_headers="$ac_config_headers src/config.h"
@@ -6221,6 +6359,7 @@ do
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "src/logdconfig.lua") CONFIG_FILES="$CONFIG_FILES src/logdconfig.lua" ;;
+    "test/helper.sh") CONFIG_FILES="$CONFIG_FILES test/helper.sh" ;;
     "deps/Makefile") CONFIG_FILES="$CONFIG_FILES deps/Makefile" ;;
     "test/Makefile") CONFIG_FILES="$CONFIG_FILES test/Makefile" ;;
     "src/config.h") CONFIG_HEADERS="$CONFIG_HEADERS src/config.h" ;;
