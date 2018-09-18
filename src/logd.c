@@ -220,9 +220,13 @@ void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
 
 void close_lua_uv_handles() { uv_walk(loop, uv_walk_close_lua_handles, NULL); }
 
-void close_logd_uv_handles()
+void close_logd_uv_handles(enum exit_reason reason, const char* reason_str)
 {
 	DEBUG_LOG("closing logd libuv handles, handles: %d", loop->active_handles);
+
+	if (lua_on_exit_defined(lstate)) {
+		lua_call_on_exit(lstate, reason, reason_str);
+	}
 
 	input_close();
 	uv_signal_stop(&sigusr1);
@@ -230,12 +234,12 @@ void close_logd_uv_handles()
 	uv_signal_stop(&sigint);
 }
 
-void close_all(int exit_status)
+void close_all(int exit_status, enum exit_reason reason, const char* reason_str)
 {
 	DEBUG_LOG("closing all libuv handles, handles: %d", loop->active_handles);
 
 	close_lua_uv_handles();
-	close_logd_uv_handles();
+	close_logd_uv_handles(reason, reason_str);
 
 	pret = exit_status;
 	input_state = EXIT_ISTATE;
@@ -274,7 +278,7 @@ static void input_reopen_open()
 						  args.reopen_delay, curr_reopen_retries, backoff),
 			  input_reopen);
 		} else {
-			close_logd_uv_handles();
+			close_logd_uv_handles(REASON_EOF, "exhausted reopen retries");
 		}
 	}
 }
@@ -337,7 +341,8 @@ void input_reopen_attempt(int exit_status)
 		  next_attempt_backoff(args.reopen_delay, curr_reopen_retries, backoff),
 		  open_func);
 	} else {
-		close_logd_uv_handles();
+		close_logd_uv_handles(
+		  REASON_EOF, "reached EOF and reopen retries is configured to 0");
 	}
 }
 
@@ -460,25 +465,20 @@ void call_on_error(lua_t* l, const char* err, log_t* partial, const char* at)
 	logd_reset_parser();                                                       \
 	res.log->is_safe = false;
 
-void on_eof()
-{
-	if (lua_on_eof_defined(lstate)) {
-		lua_call_on_eof(lstate);
-	}
-	input_reopen_attempt(0);
-}
+void on_eof() { input_reopen_attempt(0); }
 
 void on_poll_err(int ret)
 {
 	errno = -ret;
 	perror("uv_poll");
-	close_all(1);
+
+	close_all(1, REASON_ERROR, uv_strerror(ret));
 }
 
-void on_read_err()
+void on_read_err(int ret)
 {
 	perror("input read");
-	close_all(1);
+	close_all(1, REASON_ERROR, uv_strerror(ret));
 }
 
 void on_read_eof()
@@ -524,7 +524,7 @@ parse:
 			DEBUG_LOG("input not ready: %d", infd);                            \
 			return;                                                            \
 		}                                                                      \
-		on_read_err();                                                         \
+		on_read_err(-errno);                                                   \
 		return;                                                                \
 	}                                                                          \
                                                                                \
@@ -570,7 +570,6 @@ void on_read(uv_poll_t* req, int status, int events)
 
 	READ(req, status, buf_writable(b), on_read_eof);
 
-	// TODO optimize
 	curr_reopen_retries = 0;
 	input_state = READING_ISTATE;
 
@@ -654,7 +653,19 @@ void rel_log_sig_h(uv_signal_t* handle, int signum)
 void shutdown_sig_h(uv_signal_t* handle, int signum)
 {
 	DEBUG_LOG("Received signal %d. Shutdown ...", signum);
-	close_all(signum + 128);
+	char* strsig = strsignal(signum);
+	int exit_code = signum + 128;
+	int need = snprintf(NULL, 0, "received signal %s", strsig);
+	char* reason = malloc(need);
+	if (reason == NULL) {
+		perror("malloc");
+		reason = "received signal";
+		close_all(exit_code, REASON_SIGNAL, reason);
+	} else {
+		sprintf(reason, "received signal %s", strsig);
+		close_all(exit_code, REASON_SIGNAL, reason);
+		free(reason);
+	}
 }
 
 int signals_init(uv_loop_t* loop)

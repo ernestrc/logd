@@ -97,8 +97,10 @@ function logd.on_error(msg, logptr, at)
 	})
 end
 
-function logd.on_eof()
+function logd.on_exit(code, reason)
 	logd.print({
+		reason_code = code,
+		reason = reason,
 		level = 'INFO',
 		msg = string.format('parsed %d logs and found %d errors parsing', logs, errors),
 	})

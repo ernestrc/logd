@@ -47,7 +47,7 @@ function logd.on_error(error, logptr, at)
 	assert(error == error_expected, string.format("error was '%s' instead of '%s'", error, error_expected))
 	assert(at == at_expected, string.format("at was '%s' instead of '%s'", at, at_expected))
 end
-function logd.on_eof()
+function logd.on_exit()
 	assert(errors == 1, string.format("expected 1 errors but found %d", errors))
 	assert(logs == 2, string.format("expected 2 logs but found %d", logs))
 end

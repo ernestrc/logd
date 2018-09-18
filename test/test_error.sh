@@ -36,7 +36,7 @@ local errors = 0
 function logd.on_log(logptr)
 	logs = logs + 1
 end
-function logd.on_eof()
+function logd.on_exit()
 	assert(logs == 3)
 end
 function logd.on_error(error, logptr, at)

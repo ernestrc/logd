@@ -66,7 +66,7 @@ function logd.on_log(logptr)
 	end
 	counter = counter + 1
 end
-function logd.on_eof()
+function logd.on_exit()
 	assert(counter == 5)
 end
 EOF

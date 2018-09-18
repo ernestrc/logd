@@ -33,7 +33,7 @@ function logd.on_log(logptr)
 	  counter = counter + 1
   end
 end
-function logd.on_eof()
+function logd.on_exit()
 	assert(counter == expected,
 		string.format("expected counter to be %d but found %d", expected, counter))
 end

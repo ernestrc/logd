@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "log.h"
+#include "logd_module.h"
 #include <lua.h>
 #include <uv.h>
 
@@ -18,8 +19,9 @@ void lua_call_on_log(lua_t*, log_t* log);
 bool lua_on_error_defined(lua_t*);
 void lua_call_on_error(
   lua_t*, const char* err, log_t* partial, const char* remaining);
-bool lua_on_eof_defined(lua_t*);
-void lua_call_on_eof(lua_t*);
+bool lua_on_exit_defined(lua_t*);
+void lua_call_on_exit(
+  lua_t* l, enum exit_reason reason, const char* reason_str);
 void lua_free(lua_t* l);
 
 #endif

@@ -17,7 +17,7 @@ Logd is a log processor daemon that exposes a lua API to run arbitrary logic on 
 | Hook | Description |
 | --- | --- |
 | `function logd.on_log (logptr)` | Logs are parsed and supplied to this handler. Use `logd.log_*` set of functions to manipulate them. |
-| `function logd.on_eof ()` | Called when collector has reached EOF reading the input file. |
+| `function logd.on_exit (code, reason)` | Called when collector is gracefully terminating. |
 | `function logd.on_error (error, logptr, at)` | Called when collector failed to parse a log line. Parsing will resume after this function returns. |
 
 ## Preloaded Lua modules
