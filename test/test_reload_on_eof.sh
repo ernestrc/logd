@@ -51,6 +51,7 @@ function pushdata() {
 2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
 2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
 EOF
+sleep $TESTS_SLEEP
 }
 
 touch $OUT

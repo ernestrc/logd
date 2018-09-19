@@ -52,6 +52,7 @@ function pushdata() {
 2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
 2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
 EOF
+sleep $TESTS_SLEEP
 }
 
 touch $OUT
@@ -60,7 +61,7 @@ WRITER_PID=$!
 makescript
 $LOGD_EXEC $SCRIPT -f $IN 2> $ERR 1> $OUT & 
 PID=$!
-sleep 1
+sleep $TESTS_SLEEP
 
 pushdata
 assert_file_content "loglog" $OUT
