@@ -23,13 +23,23 @@ trap finish EXIT
 function makescript() {
 	truncate -s 0 $SCRIPT
 	cat >$SCRIPT << EOF
-local logd = require("logd")
+local logd = require('logd')
+local uv = require('uv')
+
+local timer = uv.new_timer()
+uv.timer_start(timer, 1000000, 0, function ()
+	uv.timer_stop(timer)
+	uv.close(timer)
+end)
+
 function logd.on_log(logptr)
 	io.write("log")
 	io.flush()
 end
 function logd.on_exit(code, reason)
-    io.write(code)
+	-- check that we can still operate on the timer
+	uv.close(timer)
+	io.write(code)
 	io.write(reason)
 	io.flush()
 end

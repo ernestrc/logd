@@ -238,8 +238,8 @@ void close_all(int exit_status, enum exit_reason reason, const char* reason_str)
 {
 	DEBUG_LOG("closing all libuv handles, handles: %d", loop->active_handles);
 
-	close_lua_uv_handles();
 	close_logd_uv_handles(reason, reason_str);
+	close_lua_uv_handles();
 
 	pret = exit_status;
 	input_state = EXIT_ISTATE;
