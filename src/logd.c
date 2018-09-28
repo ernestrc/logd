@@ -275,6 +275,7 @@ static void input_reopen_open()
 						  args.reopen_delay, curr_reopen_retries, backoff),
 			  input_reopen);
 		} else {
+			pret = 1;
 			close_logd_uv_handles();
 		}
 	}
