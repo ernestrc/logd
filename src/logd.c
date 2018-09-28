@@ -160,6 +160,11 @@ char* args_init(int argc, char* argv[])
 		}
 	}
 
+	DEBUG_LOG("parsed args, reopen_delay: %d, reopen_backoff: %d, "
+			  "reopen_retries: %d, input_file: %s, dlparser: %s ",
+	  args.reopen_delay, backoff, args.reopen_retries, args.input_file,
+	  args.dlparser);
+
 	return argv[optind];
 }
 
