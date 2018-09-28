@@ -100,6 +100,7 @@ char* args_init(int argc, char* argv[])
 	args.help = 0;
 	args.dlparser = NULL;
 	args.reopen_backoff = LINEAL_BACKOFF;
+	backoff = 1;
 	args.reopen_retries = 0;
 	args.reopen_delay = 100; /* milliseconds */
 
@@ -278,6 +279,7 @@ static void input_reopen_open()
 						  args.reopen_delay, curr_reopen_retries, backoff),
 			  input_reopen);
 		} else {
+			pret = 1;
 			close_logd_uv_handles(REASON_EOF, "exhausted reopen retries");
 		}
 	}
@@ -784,7 +786,11 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	if ((pret = input_open(loop, tail, args.input_file)) != 0) {
+	input_state = CLOSED_ISTATE;
+	curr_reopen_retries = 0;
+	if (args.reopen_retries != 0) {
+		input_reopen_open();
+	} else if ((pret = input_open(loop, tail, args.input_file)) != 0) {
 		perror("input_open");
 		goto exit;
 	}
