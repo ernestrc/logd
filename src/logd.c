@@ -160,6 +160,11 @@ char* args_init(int argc, char* argv[])
 		}
 	}
 
+	DEBUG_LOG("parsed args, reopen_delay: %d, reopen_backoff: %d, "
+			  "reopen_retries: %d, input_file: %s, dlparser: %s ",
+	  args.reopen_delay, backoff, args.reopen_retries, args.input_file,
+	  args.dlparser);
+
 	return argv[optind];
 }
 
@@ -221,7 +226,8 @@ void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
 
 void close_lua_uv_handles() { uv_walk(loop, uv_walk_close_lua_handles, NULL); }
 
-void close_logd_uv_handles(enum exit_reason reason, const char* reason_str)
+void close_logd_uv_handles(
+  int status_code, enum exit_reason reason, const char* reason_str)
 {
 	DEBUG_LOG("closing logd libuv handles, handles: %d", loop->active_handles);
 
@@ -229,20 +235,20 @@ void close_logd_uv_handles(enum exit_reason reason, const char* reason_str)
 		lua_call_on_exit(lstate, reason, reason_str);
 	}
 
+	pret = status_code;
 	input_close();
 	uv_signal_stop(&sigusr1);
 	uv_signal_stop(&sigusr2);
 	uv_signal_stop(&sigint);
 }
 
-void close_all(int exit_status, enum exit_reason reason, const char* reason_str)
+void close_all(int status_code, enum exit_reason reason, const char* reason_str)
 {
 	DEBUG_LOG("closing all libuv handles, handles: %d", loop->active_handles);
 
-	close_logd_uv_handles(reason, reason_str);
+	close_logd_uv_handles(status_code, reason, reason_str);
 	close_lua_uv_handles();
 
-	pret = exit_status;
 	input_state = EXIT_ISTATE;
 }
 
@@ -279,8 +285,7 @@ static void input_reopen_open()
 						  args.reopen_delay, curr_reopen_retries, backoff),
 			  input_reopen);
 		} else {
-			pret = 1;
-			close_logd_uv_handles(REASON_EOF, "exhausted reopen retries");
+			close_logd_uv_handles(1, REASON_EOF, "exhausted reopen retries");
 		}
 	}
 }
@@ -344,7 +349,7 @@ void input_reopen_attempt(int exit_status)
 		  open_func);
 	} else {
 		close_logd_uv_handles(
-		  REASON_EOF, "reached EOF and reopen retries is configured to 0");
+		  1, REASON_EOF, "reached EOF and reopen retries is configured to 0");
 	}
 }
 
