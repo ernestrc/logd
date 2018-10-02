@@ -40,7 +40,7 @@ end
 EOF
 
 # using SO scanner
-cat $IN | $LOGD_EXEC $SCRIPT --scanner="$DIR/../lib/logd_default_scanner.so" 2> $OUT 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT --scanner="$DIR/../lib/logd_default_scanner.so" 2>> $OUT 1>> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
 	echo "error processing file with dynamic scanner"

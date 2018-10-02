@@ -53,7 +53,7 @@ function logd.on_exit()
 end
 EOF
 
-cat $IN | $LOGD_EXEC $SCRIPT 2> $OUT 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT 2>> $OUT 1>> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
 	exit 1

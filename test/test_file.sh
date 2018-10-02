@@ -40,7 +40,7 @@ end
 EOF
 
 # stdin
-cat $IN | $LOGD_EXEC $SCRIPT 2> $OUT 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT 2>> $OUT 1>> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
 	echo "error processing file via stdin"

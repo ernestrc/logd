@@ -63,7 +63,7 @@ function logd.on_error(error, logptr, at)
 end
 EOF
 
-cat $IN | $LOGD_EXEC $SCRIPT 2> $OUT 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT 2>> $OUT 1>> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
 	exit 1
