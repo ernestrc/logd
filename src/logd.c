@@ -240,6 +240,8 @@ void close_logd_uv_handles(
 	uv_signal_stop(&sigusr1);
 	uv_signal_stop(&sigusr2);
 	uv_signal_stop(&sigint);
+
+	DEBUG_LOG("closed logd libuv handles, handles: %d", loop->active_handles);
 }
 
 void close_all(int status_code, enum exit_reason reason, const char* reason_str)
@@ -250,6 +252,8 @@ void close_all(int status_code, enum exit_reason reason, const char* reason_str)
 	close_lua_uv_handles();
 
 	input_state = EXIT_ISTATE;
+
+	DEBUG_LOG("closed all libuv handles, handles: %d", loop->active_handles);
 }
 
 // NOTE: only used one at a time during input reopening mechanism
@@ -318,6 +322,8 @@ void input_close()
 	uv_poll_stop(&uv_poll_in_req);
 
 	input_state = CLOSED_ISTATE;
+
+	DEBUG_LOG("closed input, fd: %d", infd);
 }
 
 void input_reopen_attempt(int exit_status)
@@ -818,6 +824,8 @@ int main(int argc, char* argv[])
 	} while (uv_run(loop, UV_RUN_DEFAULT));
 
 	DEBUG_ASSERT(uv_loop_alive(loop) == 0);
+
+	DEBUG_LOG("loop exit; uv_loop_alive: %d", uv_loop_alive(loop));
 
 exit:
 	free_all();
