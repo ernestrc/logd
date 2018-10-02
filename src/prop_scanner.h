@@ -1,7 +1,7 @@
-#ifndef LOGD_PROP_PARSER_H
-#define LOGD_PROP_PARSER_H
+#ifndef LOGD_PROP_SCANNER_H
+#define LOGD_PROP_SCANNER_H
 
-#include "parser.h"
+#include "scanner.h"
 
 /*
  * Expects data to be in one of the following formats:
@@ -11,7 +11,7 @@
  * { "key1": "value2", "key2": "value2", ... }
  *
  * Note that if the logs are in JSON format, only the top level key-value pairs
- * are parsed. For example, if a log looks like this:
+ * are scanned. For example, if a log looks like this:
  *
  * { "date": "2018-08-30", "count": 4, "lang": { "sucks": "java", "rocks": ["golang", "c", "lua"] }, "frameworks": []}
  *
@@ -22,7 +22,7 @@
  * logd.log_get(logptr, "languages") -- '{ "sucks": "java", "rocks": ["golang", "c", "lua"] }' 
  * logd.log_get(logptr, "frameworks") -- '[]' 
  *
- * Therefore, anything other than JSON strings is ready to be parsed by a regular JSON parser:
+ * Therefore, anything other than JSON strings is ready to be parsed by a regular JSON scanner:
  *
  * local JSON = require('json')
  *
@@ -48,9 +48,9 @@ typedef enum jstate_s {
 	ERROR_JSTATE,
 } jstate_t;
 
-typedef struct prop_parser_s {
+typedef struct prop_scanner_s {
 	jstate_t state;
-	LOGD_PARSER_FIELDS
-} prop_parser_t;
+	LOGD_SCANNER_FIELDS
+} prop_scanner_t;
 
 #endif

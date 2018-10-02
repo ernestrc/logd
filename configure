@@ -633,7 +633,7 @@ BUILD_LIBS
 DEVELOP_BUILD
 BUILD_OPENSSL
 BUILD_ZLIB
-BUILTIN_PARSER
+BUILTIN_SCANNER
 BUILD_LUAJIT
 BUILD_LIBUV
 LUAJITBIN
@@ -717,7 +717,7 @@ enable_build_openssl
 with_zlib
 with_openssl
 with_lpeg
-with_builtin_parser
+with_builtin_scanner
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1356,8 +1356,8 @@ Optional Packages:
   --without-openssl       do not include openssl as system or local
                           dependency. This overrides --enable-build-openssl
   --without-lpeg          do not include lpeg module.
-  --with-builtin-parser   Build with given source file parser as builtin
-                          parser.
+  --with-builtin-scanner  Build with given source file scanner as builtin
+                          scanner.
 
 Some influential environment variables:
   CC          C compiler command
@@ -2176,11 +2176,11 @@ fi
 
 
 
-# Check whether --with-builtin-parser was given.
-if test "${with_builtin_parser+set}" = set; then :
-  withval=$with_builtin_parser; builtin_parser="$with_builtin_parser"
+# Check whether --with-builtin-scanner was given.
+if test "${with_builtin_scanner+set}" = set; then :
+  withval=$with_builtin_scanner; builtin_scanner="$with_builtin_scanner"
 else
-  builtin_parser=default_parser.c
+  builtin_scanner=default_scanner.c
 fi
 
 
@@ -4900,15 +4900,15 @@ $as_echo "$ac_cv_safe_to_define___extensions__" >&6; }
 
 
 
-as_ac_File=`$as_echo "ac_cv_file_"src/$builtin_parser"" | $as_tr_sh`
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for \"src/$builtin_parser\"" >&5
-$as_echo_n "checking for \"src/$builtin_parser\"... " >&6; }
+as_ac_File=`$as_echo "ac_cv_file_"src/$builtin_scanner"" | $as_tr_sh`
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for \"src/$builtin_scanner\"" >&5
+$as_echo_n "checking for \"src/$builtin_scanner\"... " >&6; }
 if eval \${$as_ac_File+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   test "$cross_compiling" = yes &&
   as_fn_error $? "cannot check for file existence when cross compiling" "$LINENO" 5
-if test -r ""src/$builtin_parser""; then
+if test -r ""src/$builtin_scanner""; then
   eval "$as_ac_File=yes"
 else
   eval "$as_ac_File=no"
@@ -4918,10 +4918,10 @@ eval ac_res=\$$as_ac_File
 	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
 $as_echo "$ac_res" >&6; }
 if eval test \"x\$"$as_ac_File"\" = x"yes"; then :
-  { $as_echo "$as_me:${as_lineno-$LINENO}: compiling logd with builtin parser: $builtin_parser" >&5
-$as_echo "$as_me: compiling logd with builtin parser: $builtin_parser" >&6;}
+  { $as_echo "$as_me:${as_lineno-$LINENO}: compiling logd with builtin scanner: $builtin_scanner" >&5
+$as_echo "$as_me: compiling logd with builtin scanner: $builtin_scanner" >&6;}
 else
-  as_fn_error $? "could not find parser implementation 'src/$builtin_parser'. Please copy the source file to src folder." "$LINENO" 5
+  as_fn_error $? "could not find scanner implementation 'src/$builtin_scanner'. Please copy the source file to src folder." "$LINENO" 5
 fi
 
 
@@ -5585,7 +5585,7 @@ BUILD_LIBUV="$build_libuv"
 
 BUILD_LUAJIT="$build_libluajit"
 
-BUILTIN_PARSER="$builtin_parser"
+BUILTIN_SCANNER="$builtin_scanner"
 
 BUILD_ZLIB="$build_libz"
 
@@ -5642,15 +5642,15 @@ $as_echo "$as_me: using include_lpeg=$include_lpeg" >&6;}
 $as_echo "$as_me: using include_libuv=$include_libuv" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using include_libluajit=$include_libluajit" >&5
 $as_echo "$as_me: using include_libluajit=$include_libluajit" >&6;}
-{ $as_echo "$as_me:${as_lineno-$LINENO}: using builtin_parser=$builtin_parser" >&5
-$as_echo "$as_me: using builtin_parser=$builtin_parser" >&6;}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using builtin_scanner=$builtin_scanner" >&5
+$as_echo "$as_me: using builtin_scanner=$builtin_scanner" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using BUILD_LIBS=$BUILD_LIBS" >&5
 $as_echo "$as_me: using BUILD_LIBS=$BUILD_LIBS" >&6;}
 { $as_echo "$as_me:${as_lineno-$LINENO}: using LIBS=$LIBS" >&5
 $as_echo "$as_me: using LIBS=$LIBS" >&6;}
 
 cat >>confdefs.h <<_ACEOF
-#define LOGD_BUILTIN_PARSER "$builtin_parser"
+#define LOGD_BUILTIN_SCANNER "$builtin_scanner"
 _ACEOF
 
 cat >>confdefs.h <<_ACEOF

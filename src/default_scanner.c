@@ -4,8 +4,8 @@
 #include <string.h>
 
 #include "./config.h"
-#include "./default_parser.h"
-#include "./parser.h"
+#include "./default_scanner.h"
+#include "./scanner.h"
 #include "./util.h"
 
 #define TRIM_SPACES(p, SET_MACRO, label, END_MACRO)                            \
@@ -23,26 +23,26 @@
 		goto label;                                                            \
 	}
 
-#define PARSE_END_MESSAGE(p)                                                   \
+#define SCAN_END_MESSAGE(p)                                                   \
 	SET_KEY((p), KEY_MESSAGE);                                                 \
 	SET_VALUE(p, (p)->chunk);                                                  \
 	COMMIT(p);                                                                 \
-	(p)->res.type = PARSE_COMPLETE;
+	(p)->res.type = SCAN_COMPLETE;
 
-#define PARSE_END(p)                                                           \
+#define SCAN_END(p)                                                           \
 	SET_VALUE(p, (p)->chunk);                                                  \
 	COMMIT(p);                                                                 \
-	(p)->res.type = PARSE_COMPLETE;
+	(p)->res.type = SCAN_COMPLETE;
 
-#define PARSER_END_ERROR_INCOMPLETE(p)                                         \
-	PARSER_SET_ERROR(p, "incomplete header", ERROR_PSTATE);                    \
+#define SCANNER_END_ERROR_INCOMPLETE(p)                                         \
+	SCANNER_SET_ERROR(p, "incomplete header", ERROR_PSTATE);                    \
 	SET_VALUE((p), "");                                                        \
-	PARSER_END_ERROR(p);
+	SCANNER_END_ERROR(p);
 
-#define PARSER_PARSE_NEXT_KEY(p)                                               \
+#define SCANNER_SCAN_NEXT_KEY(p)                                               \
 	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
-		PARSE_END_MESSAGE(p);                                                  \
+		SCAN_END_MESSAGE(p);                                                  \
 		return (p)->res;                                                       \
 	case ':':                                                                  \
 	case '\x00': /* re-submitted partial data */                               \
@@ -54,10 +54,10 @@
 		break;                                                                 \
 	}
 
-#define PARSER_PARSE_NEXT_VALUE(p)                                             \
+#define SCANNER_SCAN_NEXT_VALUE(p)                                             \
 	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
-		PARSE_END(p);                                                          \
+		SCAN_END(p);                                                          \
 		return (p)->res;                                                       \
 	case ',':                                                                  \
 	case '\x00':                                                               \
@@ -70,10 +70,10 @@
 		break;                                                                 \
 	}
 
-#define PARSER_PARSE_NEXT_DATE(p, next_key)                                    \
+#define SCANNER_SCAN_NEXT_DATE(p, next_key)                                    \
 	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
-		PARSER_END_ERROR_INCOMPLETE(p);                                        \
+		SCANNER_END_ERROR_INCOMPLETE(p);                                        \
 		return (p)->res;                                                       \
 	case '[':                                                                  \
 		SKIP(p);                                                               \
@@ -109,17 +109,17 @@
 		(p)->state++;                                                          \
 		break;                                                                 \
 	default:                                                                   \
-		PARSER_SET_ERROR(                                                      \
+		SCANNER_SET_ERROR(                                                      \
 		  p, "invalid date or time in log header", ERROR_PSTATE);              \
 		REMOVE_PROP(p);                                                        \
 		(p)->blen++;                                                           \
 		break;                                                                 \
 	}
 
-#define PARSER_PARSE_NEXT_HEADER(p, next_key)                                  \
+#define SCANNER_SCAN_NEXT_HEADER(p, next_key)                                  \
 	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
-		PARSER_END_ERROR_INCOMPLETE(p);                                        \
+		SCANNER_END_ERROR_INCOMPLETE(p);                                        \
 		return (p)->res;                                                       \
 	case '[':                                                                  \
 		SKIP(p);                                                               \
@@ -139,10 +139,10 @@
 		break;                                                                 \
 	}
 
-#define PARSE_PARSE_NEXT_THREAD_BRACKET(p)                                     \
+#define SCANNER_SCAN_NEXT_THREAD_BRACKET(p)                                     \
 	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
-		PARSER_END_ERROR_INCOMPLETE(p);                                        \
+		SCANNER_END_ERROR_INCOMPLETE(p);                                        \
 		return (p)->res;                                                       \
 	case ']':                                                                  \
 	case '\t':                                                                 \
@@ -157,10 +157,10 @@
 		break;                                                                 \
 	}
 
-#define PARSER_PARSE_NEXT_THREAD(p)                                            \
+#define SCANNER_SCAN_NEXT_THREAD(p)                                            \
 	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
-		PARSER_END_ERROR_INCOMPLETE(p);                                        \
+		SCANNER_END_ERROR_INCOMPLETE(p);                                        \
 		return (p)->res;                                                       \
 	case '[':                                                                  \
 		(p)->state = THREADBRACKET_PSTATE;                                     \
@@ -169,14 +169,14 @@
 		break;                                                                 \
 	default:                                                                   \
 		(p)->state = THREADNOBRACKET_PSTATE;                                   \
-		PARSER_PARSE_NEXT_HEADER(p, KEY_CLASS);                                \
+		SCANNER_SCAN_NEXT_HEADER(p, KEY_CLASS);                                \
 		break;                                                                 \
 	}
 
-#define PARSER_PARSE_NEXT_CALLTYPE(p)                                          \
+#define SCANNER_SCAN_NEXT_CALLTYPE(p)                                          \
 	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
-		PARSE_END_MESSAGE(p);                                                  \
+		SCAN_END_MESSAGE(p);                                                  \
 		return (p)->res;                                                       \
 	case ':':                                                                  \
 	case '\x00':                                                               \
@@ -189,34 +189,34 @@
 		break;                                                                 \
 	}
 
-#define PARSER_PARSE_VERIFY_CALLTYPE(p)                                        \
+#define SCANNER_SCAN_VERIFY_CALLTYPE(p)                                        \
 	switch ((p)->token) {                                                      \
 	case '\n':                                                                 \
-		PARSE_END_MESSAGE(p);                                                  \
+		SCAN_END_MESSAGE(p);                                                  \
 		return (p)->res;                                                       \
 	case ',':                                                                  \
 		(p)->result.props->next->key = (p)->result.props->next->value;         \
 		(p)->result.props->next->value = (p)->chunk;                           \
 		REMOVE_PROP(p);                                                        \
-		PARSER_PARSE_NEXT_VALUE(p);                                            \
+		SCANNER_SCAN_NEXT_VALUE(p);                                            \
 		break;                                                                 \
 	default:                                                                   \
-		PARSER_PARSE_NEXT_KEY(p);                                              \
+		SCANNER_SCAN_NEXT_KEY(p);                                              \
 		break;                                                                 \
 	}
 
-void* parser_create()
+void* scanner_create()
 {
-	parser_t* p = NULL;
+	scanner_t* p = NULL;
 	prop_t* slab = NULL;
 
-	if ((p = calloc(1, sizeof(parser_t))) == NULL ||
+	if ((p = calloc(1, sizeof(scanner_t))) == NULL ||
 	  (slab = calloc(LOGD_SLAB_CAP, sizeof(prop_t))) == NULL) {
 		perror("calloc");
 		goto error;
 	}
 
-	parser_init(p, slab);
+	scanner_init(p, slab);
 
 	return (void*)p;
 
@@ -228,31 +228,31 @@ error:
 	return NULL;
 }
 
-void parser_reset(void* _p)
+void scanner_reset(void* _p)
 {
-	parser_t* p = (parser_t*)_p;
+	scanner_t* p = (scanner_t*)_p;
 
 	DEBUG_ASSERT(p != NULL);
 
 	p->state = INIT_PSTATE;
 
-	LOGD_PARSER_RESET(p);
+	LOGD_SCANNER_RESET(p);
 
 	ADD_PROP(p);
 	SET_KEY(p, KEY_DATE);
 }
 
-void parser_init(void* _p, prop_t* pslab)
+void scanner_init(void* _p, prop_t* pslab)
 {
-	parser_t* p = (parser_t*)_p;
+	scanner_t* p = (scanner_t*)_p;
 
 	DEBUG_ASSERT(p != NULL);
-	LOGD_PARSER_INIT(p, pslab);
+	LOGD_SCANNER_INIT(p, pslab);
 }
 
-void parser_free(void* _p)
+void scanner_free(void* _p)
 {
-	parser_t* p = (parser_t*)_p;
+	scanner_t* p = (scanner_t*)_p;
 
 	if (p == NULL)
 		return;
@@ -261,9 +261,9 @@ void parser_free(void* _p)
 	free(p);
 }
 
-parse_res_t parser_parse(void* _p, char* chunk, size_t clen)
+scan_res_t scanner_scan(void* _p, char* chunk, size_t clen)
 {
-	parser_t* p = (parser_t*)_p;
+	scanner_t* p = (scanner_t*)_p;
 
 	DEBUG_ASSERT(p != NULL);
 	DEBUG_ASSERT(chunk != NULL);
@@ -276,73 +276,73 @@ parse_res_t parser_parse(void* _p, char* chunk, size_t clen)
 		p->token = chunk[p->res.consumed++];
 		switch (p->state) {
 		case INIT_PSTATE:
-			TRIM_SPACES(p, SET_VALUE, date, PARSER_END_ERROR_INCOMPLETE);
+			TRIM_SPACES(p, SET_VALUE, date, SCANNER_END_ERROR_INCOMPLETE);
 			break;
 		case DATE_PSTATE:
 		date:
-			PARSER_PARSE_NEXT_DATE(p, KEY_TIME);
+			SCANNER_SCAN_NEXT_DATE(p, KEY_TIME);
 			break;
 		case TIME_PSTATE:
-			PARSER_PARSE_NEXT_DATE(p, KEY_LEVEL);
+			SCANNER_SCAN_NEXT_DATE(p, KEY_LEVEL);
 			break;
 		case LEVEL_PSTATE:
 		level:
-			PARSER_PARSE_NEXT_HEADER(p, KEY_THREAD);
+			SCANNER_SCAN_NEXT_HEADER(p, KEY_THREAD);
 			break;
 		case THREAD_PSTATE:
 		thread:
-			PARSER_PARSE_NEXT_THREAD(p);
+			SCANNER_SCAN_NEXT_THREAD(p);
 			break;
 		case THREADBRACKET_PSTATE:
-			PARSE_PARSE_NEXT_THREAD_BRACKET(p);
+			SCANNER_SCAN_NEXT_THREAD_BRACKET(p);
 			break;
 		case THREADNOBRACKET_PSTATE:
-			PARSER_PARSE_NEXT_HEADER(p, KEY_CLASS);
+			SCANNER_SCAN_NEXT_HEADER(p, KEY_CLASS);
 			break;
 		case CLASS_PSTATE:
 		clazz:
-			PARSER_PARSE_NEXT_HEADER(p, KEY_CALLTYPE);
+			SCANNER_SCAN_NEXT_HEADER(p, KEY_CALLTYPE);
 			break;
 		case CALLTYPE_PSTATE:
 		calltype:
-			PARSER_PARSE_NEXT_CALLTYPE(p);
+			SCANNER_SCAN_NEXT_CALLTYPE(p);
 			break;
 		case VERIFYCALLTYPE_PSTATE:
 		verifycalltype:
-			PARSER_PARSE_VERIFY_CALLTYPE(p);
+			SCANNER_SCAN_VERIFY_CALLTYPE(p);
 			break;
 		case TRANSITIONVERIFYCALLTYPE_PSTATE:
-			TRIM_SPACES(p, SET_KEY, verifycalltype, PARSE_END_MESSAGE);
+			TRIM_SPACES(p, SET_KEY, verifycalltype, SCAN_END_MESSAGE);
 			break;
 		case TRANSITIONKEY_PSTATE:
-			TRIM_SPACES(p, SET_KEY, key, PARSE_END_MESSAGE);
+			TRIM_SPACES(p, SET_KEY, key, SCAN_END_MESSAGE);
 			break;
 		key:
 		case KEY_PSTATE:
-			PARSER_PARSE_NEXT_KEY(p);
+			SCANNER_SCAN_NEXT_KEY(p);
 			break;
 		case VALUE_PSTATE:
 		value:
-			PARSER_PARSE_NEXT_VALUE(p);
+			SCANNER_SCAN_NEXT_VALUE(p);
 			break;
 		case TRANSITIONLEVEL_PSTATE:
-			TRIM_SPACES(p, SET_VALUE, level, PARSER_END_ERROR_INCOMPLETE);
+			TRIM_SPACES(p, SET_VALUE, level, SCANNER_END_ERROR_INCOMPLETE);
 			break;
 		case TRANSITIONTHREAD_PSTATE:
-			TRIM_SPACES(p, SET_VALUE, thread, PARSER_END_ERROR_INCOMPLETE);
+			TRIM_SPACES(p, SET_VALUE, thread, SCANNER_END_ERROR_INCOMPLETE);
 			break;
 		case TRANSITIONCALLTYPE_PSTATE:
-			TRIM_SPACES(p, SET_VALUE, calltype, PARSE_END_MESSAGE);
+			TRIM_SPACES(p, SET_VALUE, calltype, SCAN_END_MESSAGE);
 			break;
 		case TRANSITIONCLASS_PSTATE:
-			TRIM_SPACES(p, SET_VALUE, clazz, PARSER_END_ERROR_INCOMPLETE);
+			TRIM_SPACES(p, SET_VALUE, clazz, SCANNER_END_ERROR_INCOMPLETE);
 			break;
 		case TRANSITIONVALUE_PSTATE:
-			TRIM_SPACES(p, SET_VALUE, value, PARSE_END);
+			TRIM_SPACES(p, SET_VALUE, value, SCAN_END);
 			break;
 		/* skip input until newline is found and state is reset */
 		case ERROR_PSTATE:
-			PARSER_PARSE_ERROR(p);
+			SCANNER_SCAN_ERROR(p);
 			break;
 		}
 	}

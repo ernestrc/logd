@@ -102,6 +102,6 @@ function logd.on_exit(code, reason)
 		reason_code = code,
 		reason = reason,
 		level = 'INFO',
-		msg = string.format('parsed %d logs and found %d errors parsing', logs, errors),
+		msg = string.format('scanned %d logs and found %d errors parsing', logs, errors),
 	})
 end

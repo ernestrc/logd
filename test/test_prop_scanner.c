@@ -2,7 +2,7 @@
 
 #include "../src/config.h"
 #include "../src/log.h"
-#include "../src/prop_parser.h"
+#include "../src/prop_scanner.h"
 #include "../src/util.h"
 #include "test.h"
 
@@ -133,19 +133,19 @@ static void init_data()
 	init_test_data();
 }
 
-int test_parser_create()
+int test_scanner_create()
 {
-	prop_parser_t* p = parser_create();
+	prop_scanner_t* p = scanner_create();
 	ASSERT_NEQ(p->pslab, NULL);
-	parser_free(p);
+	scanner_free(p);
 
 	return 0;
 }
 
-int test_parse_partial2()
+int test_scan_partial2()
 {
-	parse_res_t res;
-	prop_parser_t* p = parser_create();
+	scan_res_t res;
+	prop_scanner_t* p = scanner_create();
 
 	char* chunk1 = BUF8;
 	size_t len1 = 212;
@@ -153,12 +153,12 @@ int test_parse_partial2()
 	char* chunk2 = BUF8 + len1;
 	size_t len2 = LEN8 - len1;
 
-	res = parser_parse(p, chunk1, len1);
-	ASSERT_EQ(res.type, PARSE_PARTIAL);
+	res = scanner_scan(p, chunk1, len1);
+	ASSERT_EQ(res.type, SCAN_PARTIAL);
 	ASSERT_EQ(res.consumed, len1);
 
-	res = parser_parse(p, chunk2, len2);
-	ASSERT_EQ(res.type, PARSE_COMPLETE);
+	res = scanner_scan(p, chunk2, len2);
+	ASSERT_EQ(res.type, SCAN_COMPLETE);
 	ASSERT_EQ(res.consumed, 310);
 
 	ASSERT_LOG_EQ(res.log, &EXPECTED8);
@@ -166,11 +166,11 @@ int test_parse_partial2()
 	return 0;
 }
 
-int test_parse_partial1()
+int test_scan_partial1()
 {
 
-	parse_res_t res;
-	prop_parser_t* p = parser_create();
+	scan_res_t res;
+	prop_scanner_t* p = scanner_create();
 
 	char* chunk1 = BUF1;
 	size_t len1 = 8;
@@ -189,29 +189,29 @@ int test_parse_partial1()
 
 	ASSERT_EQ(len5 + len4 + len3 + len2 + len1, LEN1);
 
-	// printf("parse: '%.*s'\n", (int)len1, chunk1);
-	res = parser_parse(p, chunk1, len1);
-	ASSERT_EQ(res.type, PARSE_PARTIAL);
+	// printf("scan: '%.*s'\n", (int)len1, chunk1);
+	res = scanner_scan(p, chunk1, len1);
+	ASSERT_EQ(res.type, SCAN_PARTIAL);
 	ASSERT_EQ(res.consumed, len1);
 
-	// printf("parse: '%.*s'\n", (int)len2, chunk2);
-	res = parser_parse(p, chunk2, len2);
-	ASSERT_EQ(res.type, PARSE_PARTIAL);
+	// printf("scan: '%.*s'\n", (int)len2, chunk2);
+	res = scanner_scan(p, chunk2, len2);
+	ASSERT_EQ(res.type, SCAN_PARTIAL);
 	ASSERT_EQ(res.consumed, len2);
 
-	// printf("parse: '%.*s'\n", (int)len3, chunk3);
-	res = parser_parse(p, chunk3, len3);
-	ASSERT_EQ(res.type, PARSE_PARTIAL);
+	// printf("scan: '%.*s'\n", (int)len3, chunk3);
+	res = scanner_scan(p, chunk3, len3);
+	ASSERT_EQ(res.type, SCAN_PARTIAL);
 	ASSERT_EQ(res.consumed, len3);
 
-	// printf("parse: '%.*s'\n", (int)len4, chunk4);
-	res = parser_parse(p, chunk4, len4);
-	ASSERT_EQ(res.type, PARSE_PARTIAL);
+	// printf("scan: '%.*s'\n", (int)len4, chunk4);
+	res = scanner_scan(p, chunk4, len4);
+	ASSERT_EQ(res.type, SCAN_PARTIAL);
 	ASSERT_EQ(res.consumed, len4);
 
-	// printf("parse: '%.*s'\n", (int)len5, chunk5);
-	res = parser_parse(p, chunk5, len5);
-	ASSERT_EQ(res.type, PARSE_COMPLETE);
+	// printf("scan: '%.*s'\n", (int)len5, chunk5);
+	res = scanner_scan(p, chunk5, len5);
+	ASSERT_EQ(res.type, SCAN_COMPLETE);
 	ASSERT_EQ(res.consumed, len5);
 
 	ASSERT_LOG_EQ(res.log, &EXPECTED1);
@@ -224,7 +224,7 @@ int test_parse_partial1()
 
 #define ELOG3 "\"hey\" \n"
 #define ELEN3 strlen(ELOG3)
-int test_parse_error()
+int test_scan_error()
 {
 
 	char* ERR1 = malloc(ELEN1 + 1);
@@ -235,11 +235,11 @@ int test_parse_error()
 	ASSERT_NEQ(ERR3, NULL);
 	memcpy(ERR3, ELOG3, ELEN3);
 
-	prop_parser_t* p = parser_create();
-	parse_res_t res;
+	prop_scanner_t* p = scanner_create();
+	scan_res_t res;
 
-	res = parser_parse(p, ERR1, ELEN1);
-	ASSERT_EQ(res.type, PARSE_ERROR);
+	res = scanner_scan(p, ERR1, ELEN1);
+	ASSERT_EQ(res.type, SCAN_ERROR);
 	ASSERT_EQ(res.consumed, ELEN1);
 	ASSERT_EQ(res.error.msg, "invalid log");
 	ASSERT_STR_EQ(res.error.at, "hee");
@@ -248,50 +248,50 @@ int test_parse_error()
 	log_set(log1, slab_get(pslab), "msg", "value");
 
 	ASSERT_LOG_EQ(res.log, log1);
-	parser_reset(p);
+	scanner_reset(p);
 
-	res = parser_parse(p, ERR3, ELEN3);
-	ASSERT_EQ(res.type, PARSE_ERROR);
+	res = scanner_scan(p, ERR3, ELEN3);
+	ASSERT_EQ(res.type, SCAN_ERROR);
 	ASSERT_EQ(res.consumed, ELEN3);
 	ASSERT_STR_EQ(res.error.msg, "invalid log value");
 	ASSERT_STR_EQ(res.error.at, "");
-	parser_reset(p);
+	scanner_reset(p);
 
-	// check that we're able to parse after errors have been consumed
-	res = parser_parse(p, BUF6, LEN6);
-	ASSERT_EQ(res.type, PARSE_COMPLETE);
+	// check that we're able to scan after errors have been consumed
+	res = scanner_scan(p, BUF6, LEN6);
+	ASSERT_EQ(res.type, SCAN_COMPLETE);
 	ASSERT_LOG_EQ(res.log, &EXPECTED6);
-	parser_reset(p);
+	scanner_reset(p);
 
 	free(ERR1);
 
 	return 0;
 }
 
-int test_parse_multiple()
+int test_scan_multiple()
 {
-	prop_parser_t* p = parser_create();
-	parse_res_t res;
+	prop_scanner_t* p = scanner_create();
+	scan_res_t res;
 
 	/* feed partial data */
-	res = parser_parse(p, BUF7, LEN7 - 2);
-	ASSERT_EQ(res.type, PARSE_PARTIAL);
+	res = scanner_scan(p, BUF7, LEN7 - 2);
+	ASSERT_EQ(res.type, SCAN_PARTIAL);
 	ASSERT_EQ(res.consumed, LEN7 - 2);
-	parser_reset(p);
+	scanner_reset(p);
 
-	/* check that we are able to re-parse the data */
-	res = parser_parse(p, BUF7, LEN7);
-	ASSERT_NEQ(res.type, PARSE_ERROR);
-	ASSERT_EQ(res.type, PARSE_COMPLETE);
+	/* check that we are able to re-scan the data */
+	res = scanner_scan(p, BUF7, LEN7);
+	ASSERT_NEQ(res.type, SCAN_ERROR);
+	ASSERT_EQ(res.type, SCAN_COMPLETE);
 	ASSERT_EQ(res.consumed, LEN7);
 	ASSERT_LOG_EQ(res.log, &EXPECTED7);
 
 	return 0;
 }
 
-int test_parse_reset()
+int test_scan_reset()
 {
-	prop_parser_t* p = parser_create();
+	prop_scanner_t* p = scanner_create();
 	static const size_t CASES_LEN = 4;
 	struct tcase CASES[CASES_LEN];
 	CASES[0] = (struct tcase){BUF3, LEN3, &EXPECTED3};
@@ -301,10 +301,10 @@ int test_parse_reset()
 
 	for (int i = 0; i < CASES_LEN; i++) {
 		struct tcase test = CASES[i];
-		parse_res_t res = parser_parse(p, test.input, test.ilen);
-		ASSERT_EQ(res.type, PARSE_COMPLETE);
+		scan_res_t res = scanner_scan(p, test.input, test.ilen);
+		ASSERT_EQ(res.type, SCAN_COMPLETE);
 		ASSERT_LOG_EQ(res.log, test.expected);
-		parser_reset(p);
+		scanner_reset(p);
 	}
 
 	return 0;
@@ -317,12 +317,12 @@ int main(int argc, char* argv[])
 
 	init_data();
 
-	TEST_RUN(ctx, test_parser_create);
-	TEST_RUN(ctx, test_parse_partial1);
-	TEST_RUN(ctx, test_parse_partial2);
-	TEST_RUN(ctx, test_parse_reset);
-	TEST_RUN(ctx, test_parse_multiple);
-	TEST_RUN(ctx, test_parse_error);
+	TEST_RUN(ctx, test_scanner_create);
+	TEST_RUN(ctx, test_scan_partial1);
+	TEST_RUN(ctx, test_scan_partial2);
+	TEST_RUN(ctx, test_scan_reset);
+	TEST_RUN(ctx, test_scan_multiple);
+	TEST_RUN(ctx, test_scan_error);
 
 	TEST_RELEASE(ctx);
 	free(BUF8);

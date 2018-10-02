@@ -1,5 +1,5 @@
 # Logd [![Build Status](https://travis-ci.org/ernestrc/logd.svg)](https://travis-ci.org/ernestrc/logd)
-Logd is a log processor daemon that exposes a lua API to run arbitrary logic on structured logs.
+Logd is a log scanner daemon that exposes a Lua API to run arbitrary logic on structured logs.
 
 ## Logd module API
 | Builtin | Description |
@@ -16,9 +16,9 @@ Logd is a log processor daemon that exposes a lua API to run arbitrary logic on 
 
 | Hook | Description |
 | --- | --- |
-| `function logd.on_log (logptr)` | Logs are parsed and supplied to this handler. Use `logd.log_*` set of functions to manipulate them. |
+| `function logd.on_log (logptr)` | Logs are scanned and supplied to this handler. Use `logd.log_*` set of functions to manipulate them. |
 | `function logd.on_exit (code, reason)` | Called when collector is gracefully terminating. |
-| `function logd.on_error (error, logptr, at)` | Called when collector failed to parse a log line. Parsing will resume after this function returns. |
+| `function logd.on_error (error, logptr, at)` | Called when collector failed to scan a log line. Parsing will resume after this function returns. |
 
 ## Preloaded Lua modules
 - [logd](#logd-module-api)
@@ -70,16 +70,16 @@ $ make && make install
 Please refer to MacOS section in [.travis.yml](.travis.yml) to see the latest build options.
 
 ## Parsing
-The builtin parser expects logs to be in the following format:
+The builtin scanner expects logs to be in the following format:
 ```
 YYYY-MM-dd hh:mm:ss	LEVEL	[Thread]	Class	key: value...
 ```
-If you need to parse logs in a different format, you can load a dynamic shared object that implements [src/parser.h](src/parser.h) via the `--parser` flag. For static builds (if dlopen is disabled) or if you simply want to build the project with a different builtin parser, you can configure so with:
+If you need to scan logs in a different format, you can load a dynamic shared object that implements [src/scanner.h](src/scanner.h) via the `--scanner` flag. For static builds (if dlopen is disabled) or if you simply want to build the project with a different builtin scanner, you can configure so with:
 ```
-$ ./configure --with-builtin-parser=my_parser.c
+$ ./configure --with-builtin-scanner=my_scanner.c
 ```
 
-For a list of available parsers look for the source files in [src](src) that end in \_parser.c.
+For a list of available scanners look for the source files in [src](src) that end in \_scanner.c.
 
 ## Running tests
 Configure and enable the development build:

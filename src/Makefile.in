@@ -5,7 +5,7 @@ LIBS=@LIBS@
 BUILD_LIBS= @BUILD_LIBS@
 DEVELOP_BUILD=@DEVELOP_BUILD@
 ROOT_DIR=@ROOT_DIR@
-BUILTIN_PARSER=@BUILTIN_PARSER@
+BUILTIN_SCANNER=@BUILTIN_SCANNER@
 
 LIBDEPS=$(ROOT_DIR)/deps/lib
 INCDIR=$(ROOT_DIR)/include
@@ -15,17 +15,17 @@ LIBDIR =$(ROOT_DIR)/lib
 EXEC_SRC = logd.c
 EXEC_OBJ = logd.o
 SRCS = $(wildcard *.c)
-PARSERS_SRC = $(wildcard *parser.c)
-BUILTIN_PARSER_OBJ=$(patsubst %.c,%.o,$(BUILTIN_PARSER))
+SCANNERS_SRC = $(wildcard *scanner.c)
+BUILTIN_SCANNER_OBJ=$(patsubst %.c,%.o,$(BUILTIN_SCANNER))
 LUA_SRCS = $(wildcard *.lua)
-OBJS = $(filter-out $(EXEC_OBJ) $(patsubst %.c, %.o,$(PARSERS_SRC)), $(patsubst %.c,%.o,$(SRCS))) $(BUILTIN_PARSER_OBJ)
+OBJS = $(filter-out $(EXEC_OBJ) $(patsubst %.c, %.o,$(SCANNERS_SRC)), $(patsubst %.c,%.o,$(SRCS))) $(BUILTIN_SCANNER_OBJ)
 LUAMOD = $(patsubst %.lua,%.lua.h,$(LUA_SRCS))
 EXEC = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(EXEC_SRC)))
 STATIC_LIBS = $(LIBDEPS)/libslab.a $(LIBDEPS)/liblssl.a $(LIBDEPS)/libluv.a $(LIBDEPS)/liblpeg.a $(LIBDEPS)/liblzlib.a $(BUILD_LIBS)
 CMOD = $(LIBDIR)/logd.so
 CMOD_DEPS=log.c util.c
-SO_PARSERS = $(patsubst %.c,$(LIBDIR)/logd_%.so,$(PARSERS_SRC))
-PARSER_DEPS=log.c util.c
+SO_SCANNERS = $(patsubst %.c,$(LIBDIR)/logd_%.so,$(SCANNERS_SRC))
+SCANNER_DEPS=log.c util.c
 LIB = $(LIBDIR)/liblogd.a
 
 listobj = $(shell nm -A $(1) | awk -F':' '{print "$(2)/"$$2}' | sort | uniq | xargs echo)
@@ -36,9 +36,9 @@ EXTOBJS = $(addprefix $(LIBDIR)/objs/, $(foreach lib,$(STATIC_LIBS),$(call listo
 default: src
 
 ifeq ($(DEVELOP_BUILD),yes)
-src: $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(SO_PARSERS)
+src: $(LIB) $(LUAMOD) $(EXEC) $(CMOD) $(SO_SCANNERS)
 else
-src: $(LIB) $(LUAMOD) $(EXEC) $(SO_PARSERS)
+src: $(LIB) $(LUAMOD) $(EXEC) $(SO_SCANNERS)
 endif
 
 lua.c: $(LUAMOD)
@@ -61,8 +61,8 @@ $(LIB): $(OBJS)
 $(BINDIR)/%: %.c $(LIB)
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< $(LIB) $(LIBS)
 
-$(LIBDIR)/logd_%.so: %.c parser.h $(PARSER_DEPS)
-	$(CC) -o $@ $(CFLAGS) -shared -fPIC $(patsubst $(LIBDIR)/logd_%.so,%.c,$@) $(PARSER_DEPS) $(LIBS)
+$(LIBDIR)/logd_%.so: %.c scanner.h $(SCANNER_DEPS)
+	$(CC) -o $@ $(CFLAGS) -shared -fPIC $(patsubst $(LIBDIR)/logd_%.so,%.c,$@) $(SCANNER_DEPS) $(LIBS)
 
 $(CMOD): logd_module.h logd_module.c $(CMOD_DEPS)
 	$(CC) -o $(CMOD) $(CFLAGS) -shared -fPIC logd_module.c $(CMOD_DEPS) $(LIBS)
