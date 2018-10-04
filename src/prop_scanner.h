@@ -15,7 +15,7 @@
  *
  * { "date": "2018-08-30", "count": 4, "lang": { "sucks": "java", "rocks": ["golang", "c", "lua"] }, "frameworks": []}
  *
- * After parsing is complete, calls to logd.log_get(logptr, <key>) will return the following lua strings:
+ * After scanning is complete, calls to logd.log_get(logptr, <key>) will return the following lua strings:
  *
  * logd.log_get(logptr, "date") -- '2018-08-30'
  * logd.log_get(logptr, "count") -- '4'

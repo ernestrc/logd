@@ -122,7 +122,7 @@ void scanner_free(void* p);
  * and the behaviour is undefined if the log pointer is accessed after this
  * function returns a partial result.
  *
- * If an error is encountered while parsing, the scanner takes care of skipping
+ * If an error is encountered while scanning, the scanner takes care of skipping
  * until the beginning of the next log and returning the appropriate number of
  * bytes consumed so scan can be resumed after handling the error. The return
  * value will contain an error message, the remaining of the line,
@@ -134,7 +134,7 @@ void scanner_free(void* p);
  * Scanner requirements:
  *
  * - Should return a log pointer that is valid until scanner_reset is called
- * - Should skip until next log if error is encountered while parsing
+ * - Should skip until next log if error is encountered while scanning
  * - Should scan partial logs and return the appropriate consumed bytes
  * - Should be able to scan data multiple times except after a complete result
  */

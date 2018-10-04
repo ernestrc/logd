@@ -18,7 +18,7 @@ Logd is a log scanner daemon that exposes a Lua API to run arbitrary logic on st
 | --- | --- |
 | `function logd.on_log (logptr)` | Logs are scanned and supplied to this handler. Use `logd.log_*` set of functions to manipulate them. |
 | `function logd.on_exit (code, reason)` | Called when collector is gracefully terminating. |
-| `function logd.on_error (error, logptr, at)` | Called when collector failed to scan a log line. Parsing will resume after this function returns. |
+| `function logd.on_error (error, logptr, at)` | Called when collector failed to scan a log line. Scanning will resume after this function returns. |
 
 ## Preloaded Lua modules
 - [logd](#logd-module-api)
@@ -69,7 +69,7 @@ $ make && make install
 
 Please refer to MacOS section in [.travis.yml](.travis.yml) to see the latest build options.
 
-## Parsing
+## Scanning
 The builtin scanner expects logs to be in the following format:
 ```
 YYYY-MM-dd hh:mm:ss	LEVEL	[Thread]	Class	key: value...
