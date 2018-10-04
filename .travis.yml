@@ -9,7 +9,7 @@ matrix:
     # develop build
     - os: linux
       env:
-        - MATRIX_SCRIPT="docker build . -t logd-build:develop -f utils/Dockerfile.develop && docker run --env-file env.list --rm -ti -v /tmp/logd_develop:/opt/logd/bin logd-build:develop sh -c 'make && env && make test && make install'"
+        - MATRIX_SCRIPT="docker build . -t logd-build:develop -f utils/Dockerfile.develop && docker run --cap-add=SYS_PTRACE --env-file env.list --rm -ti -v /tmp/logd_develop:/opt/logd/bin logd-build:develop sh -c 'make && env && make test && make install'"
 
     # check that we can build on Ubuntu
     - os: linux
