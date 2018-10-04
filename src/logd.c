@@ -265,6 +265,7 @@ static void set_timeout(int timeout, void (*func)(uv_timer_t*))
 	uv_timer_start(&timer, func, timeout, 0);
 }
 
+// TODO should clean timer
 static void input_reopen()
 {
 	DEBUG_LOG(
@@ -475,7 +476,7 @@ void call_on_error(lua_t* l, const char* err, log_t* partial, const char* at)
 	res.log->is_safe = true;                                                   \
 	lua_call_on_log(lstate, res.log);                                          \
 	buf_consume(b, res.consumed);                                              \
-	logd_reset_scanner();                                                       \
+	logd_reset_scanner();                                                      \
 	res.log->is_safe = false;
 
 void on_eof() { input_reopen_attempt(0); }
@@ -669,7 +670,7 @@ void shutdown_sig_h(uv_signal_t* handle, int signum)
 	char* strsig = strsignal(signum);
 	int exit_code = signum + 128;
 	int need = snprintf(NULL, 0, "received signal %s", strsig);
-	char* reason = malloc(need);
+	char* reason = malloc(need + 1);
 	if (reason == NULL) {
 		perror("malloc");
 		reason = "received signal";
@@ -741,14 +742,14 @@ error:
 
 void free_all()
 {
-	lua_free(lstate);
-	tail_free(tail);
-	buf_free(b);
-	free_scanner(scanner);
 	if (loop) {
 		uv_loop_close(loop);
 		free(loop);
 	}
+	lua_free(lstate);
+	tail_free(tail);
+	buf_free(b);
+	free_scanner(scanner);
 	if (dlscanner_handle) {
 		dlclose(dlscanner_handle);
 	}
@@ -763,7 +764,8 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	if (args.dlscanner != NULL && (pret = scanner_dlload(args.dlscanner)) != 0) {
+	if (args.dlscanner != NULL &&
+	  (pret = scanner_dlload(args.dlscanner)) != 0) {
 		perror("scanner_dlload");
 		goto exit;
 	}
