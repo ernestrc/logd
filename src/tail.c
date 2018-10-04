@@ -284,7 +284,7 @@ void tail_free(tail_t* tail)
 	switch (tail->state) {
 	case INIT_TSTATE:
 		free(tail);
-		break;
+		return;
 	case OPEN_TSTATE:
 		tail_kill_tail(tail);
 		/* fallthrough */
