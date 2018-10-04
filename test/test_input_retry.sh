@@ -36,7 +36,7 @@ EOF
 touch $OUT
 makescript
 # start consuming even when input file is not created yet
-$LOGD_EXEC $SCRIPT -r 3 -d $TESTS_SLEEP_MS -f $IN 2> $ERR 1> $OUT & 
+$LOGD_EXEC $SCRIPT -r 5 -d $TESTS_SLEEP_MS -f $IN 2> $ERR 1> $OUT &
 PID=$!
 sleep $TESTS_SLEEP
 
