@@ -147,6 +147,8 @@ int test_scan_partial2()
 
 	ASSERT_LOG_EQ(res.log, &EXPECTED8);
 
+	scanner_free(p);
+
 	return 0;
 }
 
@@ -200,6 +202,8 @@ int test_scan_partial1()
 
 	ASSERT_LOG_EQ(res.log, &EXPECTED1);
 
+	scanner_free(p);
+
 	return 0;
 }
 
@@ -247,7 +251,7 @@ int test_scan_error()
 	res = scanner_scan(p, ERR1, ELEN1);
 	ASSERT_EQ(res.type, SCAN_ERROR);
 	ASSERT_EQ(res.consumed, ELEN1);
-	ASSERT_EQ(res.error.msg, "invalid date or time in log header");
+	ASSERT_STR_EQ(res.error.msg, "invalid date or time in log header");
 	ASSERT_STR_EQ(
 	  res.error.at, "msg: this log does not have a header, subject: idiot");
 	log_t* log1 = log_create();
@@ -308,6 +312,11 @@ int test_scan_error()
 
 	free(ERR1);
 	free(ERR2);
+	free(ERR3);
+	scanner_free(p);
+	log_free(log1);
+	log_free(big_log);
+
 
 	return 0;
 }
@@ -328,6 +337,8 @@ int test_scan_multiple()
 	ASSERT_EQ(res.type, SCAN_COMPLETE);
 	ASSERT_EQ(res.consumed, LEN7);
 	ASSERT_LOG_EQ(res.log, &EXPECTED7);
+
+	scanner_free(p);
 
 	return 0;
 }
@@ -350,6 +361,8 @@ int test_scan_reset()
 		ASSERT_LOG_EQ(res.log, test.expected);
 		scanner_reset(p);
 	}
+
+	scanner_free(p);
 
 	return 0;
 }

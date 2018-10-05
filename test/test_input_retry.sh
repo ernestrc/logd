@@ -23,7 +23,6 @@ function finish {
 trap finish EXIT
 
 function makescript() {
-	truncate -s 0 $SCRIPT
 	cat >$SCRIPT << EOF
 local logd = require("logd")
 function logd.on_log(logptr)
@@ -36,13 +35,23 @@ EOF
 touch $OUT
 makescript
 # start consuming even when input file is not created yet
-$LOGD_EXEC $SCRIPT -r 5 -d $TESTS_SLEEP_MS -f $IN 2> $ERR 1> $OUT &
+# retry is lineal with 5 retries and T delay => 5T
+$LOGD_EXEC $SCRIPT -b 'lineal' -r 5 -d $TESTS_SLEEP_MS -f $IN 2> $ERR 1> $OUT &
 PID=$!
+# .t
+
 sleep $TESTS_SLEEP
+# 1.tT
+
+sleep $TESTS_SLEEP
+# 2.tT
 
 touch $IN
 sleep $TESTS_SLEEP
+# 3.tT
+
 sleep $TESTS_SLEEP # twice guarantees logd wins race
+# 4.tT
 
 pushdata
 assert_file_content "loglog" $OUT

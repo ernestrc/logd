@@ -163,6 +163,7 @@ int test_scan_partial2()
 
 	ASSERT_LOG_EQ(res.log, &EXPECTED8);
 
+	scanner_free(p);
 	return 0;
 }
 
@@ -216,6 +217,7 @@ int test_scan_partial1()
 
 	ASSERT_LOG_EQ(res.log, &EXPECTED1);
 
+	scanner_free(p);
 	return 0;
 }
 
@@ -241,7 +243,7 @@ int test_scan_error()
 	res = scanner_scan(p, ERR1, ELEN1);
 	ASSERT_EQ(res.type, SCAN_ERROR);
 	ASSERT_EQ(res.consumed, ELEN1);
-	ASSERT_EQ(res.error.msg, "invalid log");
+	ASSERT_STR_EQ(res.error.msg, "invalid log");
 	ASSERT_STR_EQ(res.error.at, "hee");
 	log_t* log1 = log_create();
 	ASSERT_EQ(log1->props, NULL);
@@ -264,6 +266,9 @@ int test_scan_error()
 	scanner_reset(p);
 
 	free(ERR1);
+	free(ERR3);
+	scanner_free(p);
+	log_free(log1);
 
 	return 0;
 }
@@ -286,6 +291,7 @@ int test_scan_multiple()
 	ASSERT_EQ(res.consumed, LEN7);
 	ASSERT_LOG_EQ(res.log, &EXPECTED7);
 
+	scanner_free(p);
 	return 0;
 }
 
@@ -307,6 +313,7 @@ int test_scan_reset()
 		scanner_reset(p);
 	}
 
+	scanner_free(p);
 	return 0;
 }
 
