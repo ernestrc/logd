@@ -1,6 +1,6 @@
 FROM alpine:3.7
 
-RUN apk update && apk add alpine-sdk coreutils libtool automake m4 autoconf linux-headers vim
+RUN apk update && apk add alpine-sdk coreutils libtool automake m4 autoconf linux-headers vim sed
 
 WORKDIR /opt/logd
 VOLUME /opt/logd/bin

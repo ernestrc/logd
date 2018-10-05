@@ -174,6 +174,11 @@ then
 	SET_DEFLAG(CFLAGS,[$libs_cflags -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -ggdb])
 	SET_DEFLAG_DEFINE(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
 	AC_DEFINE(LOGD_DEBUG)
+	AC_CHECK_PROG(SED_CHECK,sed,yes)
+	if test x"$SED_CHECK" != x"yes" ; then
+		AC_MSG_ERROR([Please make sure that GNU sed is installed before building logd.])
+	fi
+
 else
 	SET_DEFLAG_DEFINE(LOGD_SLAB_CAP, 256)
 	SET_DEFLAG_DEFINE(LOGD_BUF_INIT_CAP, 1638400)
@@ -205,6 +210,11 @@ AC_CHECK_FILE("src/$builtin_scanner", [AC_MSG_NOTICE([compiling logd with builti
 AC_CHECK_PROG(OBJDUMP_CHECK,nm,yes)
 if test x"$OBJDUMP_CHECK" != x"yes" ; then
     AC_MSG_ERROR([Please make sure that GNU nm is installed before building logd.])
+fi
+
+AC_CHECK_PROG(TAIL_CHECK,tail,yes)
+if test x"$TAIL_CHECK" != x"yes" ; then
+    AC_MSG_ERROR([Please make sure that GNU tail is installed before building logd.])
 fi
 
 CHECK_LIB(libuv, [
