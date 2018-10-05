@@ -2568,7 +2568,7 @@ then
 
 
 	test -z "$CC" && CC="clang";
-	test -z "$EXTRA_CFLAGS" && EXTRA_CFLAGS="-fsanitize=undefined,address -Wall";
+	test -z "$EXTRA_CFLAGS" && EXTRA_CFLAGS="-fsanitize=undefined -Wall";
 	test -z "$CFLAGS" && CFLAGS="$libs_cflags -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -ggdb";
 	test -z "$FUZZFLAGS" && FUZZFLAGS="-max_total_time=60"; $as_echo "#define FUZZFLAGS -max_total_time=60" >>confdefs.h
  FUZZFLAGS=-max_total_time=60

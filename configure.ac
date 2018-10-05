@@ -170,7 +170,7 @@ then
 	SET_DEFLAG_DEFINE(LOGD_PRINT_MAX_KEYS, 50)
 
 	SET_DEFLAG(CC, [clang])
-	SET_DEFLAG(EXTRA_CFLAGS,[-fsanitize=undefined,address -Wall])
+	SET_DEFLAG(EXTRA_CFLAGS,[-fsanitize=undefined -Wall])
 	SET_DEFLAG(CFLAGS,[$libs_cflags -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -ggdb])
 	SET_DEFLAG_DEFINE(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
 	AC_DEFINE(LOGD_DEBUG)
