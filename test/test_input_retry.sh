@@ -42,6 +42,7 @@ sleep $TESTS_SLEEP
 
 touch $IN
 sleep $TESTS_SLEEP
+sleep $TESTS_SLEEP # twice guarantees logd wins race
 
 pushdata
 assert_file_content "loglog" $OUT
