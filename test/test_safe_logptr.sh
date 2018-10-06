@@ -43,9 +43,11 @@ EOF
 }
 
 function pushdata() {
-	cat >$IN << EOF
+	cat >>$IN << EOF
 2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
 EOF
+	sync $IN
+	sleep $TESTS_SLEEP
 }
 
 touch $OUT

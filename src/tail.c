@@ -9,19 +9,13 @@ static void tail_kill_tail(tail_t* tail);
 static void tail_close_pipes(tail_t* tail);
 static void tail_spawn(uv_timer_t*);
 
-static uv_timer_t* set_inmediate(uv_loop_t* loop, void* data, uv_timer_cb cb)
+static void set_inmediate(uv_loop_t* loop, void* data, uv_timer_cb cb)
 {
-	uv_timer_t* timer = calloc(1, sizeof(uv_timer_t));
-	if (timer == NULL) {
-		errno = ENOMEM;
-		return NULL;
-	}
-	uv_timer_init(loop, timer);
+	static uv_timer_t timer;
+	uv_timer_init(loop, &timer);
 
-	timer->data = data;
-	uv_timer_start(timer, cb, 0, 0);
-
-	return timer;
+	timer.data = data;
+	uv_timer_start(&timer, cb, 0, 0);
 }
 
 static void on_tail_stderr(uv_poll_t* req, int status, int events)
@@ -76,11 +70,7 @@ static void on_tail_exit(
 		free(tail);
 		return;
 	case CLOSING_OPENING_TSTATE:
-		if (set_inmediate(tail->loop, tail, tail_spawn) == NULL) {
-			tail_close_pipes(tail);
-			perror("set_inmediate");
-			return;
-		}
+		set_inmediate(tail->loop, tail, tail_spawn);
 		break;
 	case OPEN_TSTATE:
 		tail_close_pipes(tail);
@@ -165,7 +155,6 @@ static int tail_open_pipes(tail_t* tail)
 static void tail_spawn(uv_timer_t* timer)
 {
 	tail_t* tail = (tail_t*)timer->data;
-	free(timer);
 
 	tail->proc_child_stdio[0].flags = UV_IGNORE;
 	tail->proc_child_stdio[1].flags = UV_INHERIT_FD;
@@ -224,10 +213,7 @@ int tail_open(tail_t* tail, void (*exit_cb)(int))
 
 	// we need to spawn asynchronously because libuv calls uv__finish_close even
 	// after calling proc exit callback so we run into some assertion failures
-	if (set_inmediate(tail->loop, tail, tail_spawn) == NULL) {
-		perror("set_inmediate");
-		return -1;
-	}
+	set_inmediate(tail->loop, tail, tail_spawn);
 
 	return tail->read_data_fd;
 }
@@ -284,7 +270,7 @@ void tail_free(tail_t* tail)
 	switch (tail->state) {
 	case INIT_TSTATE:
 		free(tail);
-		break;
+		return;
 	case OPEN_TSTATE:
 		tail_kill_tail(tail);
 		/* fallthrough */

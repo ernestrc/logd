@@ -53,7 +53,7 @@ end
 function logd.on_log(logptr)
 end
 
-function logd.on_eof()
+function logd.on_exit()
 	setTimeout(100, function()
 		logd.print({ legowelt = 'dark days' })
 	end)

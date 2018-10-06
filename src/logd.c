@@ -8,7 +8,7 @@
 #include <slab/buf.h>
 
 #include "./lua.h"
-#include "./parser.h"
+#include "./scanner.h"
 #include "./tail.h"
 #include "./util.h"
 
@@ -26,7 +26,7 @@ struct args_s {
 	int reopen_retries;
 	char* input_file;
 	int help;
-	const char* dlparser;
+	const char* dlscanner;
 } args;
 
 enum input_state_e {
@@ -39,8 +39,8 @@ enum input_state_e {
 int pret;
 char* script;
 char* log_start;
-void* parser;
-void* dlparser_handle;
+void* scanner;
+void* dlscanner_handle;
 lua_t* lstate;
 buf_t* b;
 uv_file infd;
@@ -53,11 +53,11 @@ int input_is_reg;
 uv_signal_t sigusr1, sigusr2, sigint;
 uv_fs_t uv_open_in_req;
 
-parse_res_t (*parse_parser)(
-  void*, char*, size_t) = (parse_res_t(*)(void*, char*, size_t))(&parser_parse);
-void (*free_parser)(void*) = (void (*)(void*))(&parser_free);
-void* (*create_parser)() = (void* (*)())(&parser_create);
-void (*reset_parser)(void*) = (void (*)(void*))(&parser_reset);
+scan_res_t (*scan_scanner)(
+  void*, char*, size_t) = (scan_res_t(*)(void*, char*, size_t))(&scanner_scan);
+void (*free_scanner)(void*) = (void (*)(void*))(&scanner_free);
+void* (*create_scanner)() = (void* (*)())(&scanner_create);
+void (*reset_scanner)(void*) = (void (*)(void*))(&scanner_reset);
 
 void on_read_skip(uv_poll_t* req, int status, int events);
 void on_read(uv_poll_t* req, int status, int events);
@@ -75,10 +75,10 @@ void print_usage(const char* exe)
 	printf(
 	  "  -f, --file=<path>		File to ingest appended data from [default: "
 	  "/dev/stdin]\n");
-	printf("  -p, --parser=<parser_so>	Load shared object "
-		   "parser via dlopen [default: "
+	printf("  -p, --scanner=<scanner_so>	Load shared object "
+		   "scanner via dlopen [default: "
 		   "%s]\n",
-	  LOGD_BUILTIN_PARSER);
+	  LOGD_BUILTIN_SCANNER);
 	printf("  -r, --reopen-retries		Reopen retries on EOF before giving up "
 		   "[default: %d]\n",
 	  args.reopen_retries);
@@ -98,7 +98,7 @@ char* args_init(int argc, char* argv[])
 	/* set defaults for arguments */
 	args.input_file = STDIN_INPUT_FILE;
 	args.help = 0;
-	args.dlparser = NULL;
+	args.dlscanner = NULL;
 	args.reopen_backoff = LINEAL_BACKOFF;
 	backoff = 1;
 	args.reopen_retries = 0;
@@ -109,7 +109,7 @@ char* args_init(int argc, char* argv[])
 	  {"reopen-retries", required_argument, 0, 'r'},
 	  {"reopen-delay", required_argument, 0, 'd'},
 	  {"file", required_argument, 0, 'f'}, {"help", no_argument, 0, 'h'},
-	  {"parser", required_argument, 0, 'p'}, {"version", no_argument, 0, 'v'},
+	  {"scanner", required_argument, 0, 'p'}, {"version", no_argument, 0, 'v'},
 	  {0, 0, 0, 0}};
 
 	int option_index = 0;
@@ -122,7 +122,7 @@ char* args_init(int argc, char* argv[])
 			exit(0);
 			break;
 		case 'p':
-			args.dlparser = optarg;
+			args.dlscanner = optarg;
 			break;
 		case 'f':
 			args.input_file = optarg;
@@ -160,40 +160,45 @@ char* args_init(int argc, char* argv[])
 		}
 	}
 
+	DEBUG_LOG("parsed args, reopen_delay: %d, reopen_backoff: %d, "
+			  "reopen_retries: %d, input_file: %s, dlscanner: %s ",
+	  args.reopen_delay, backoff, args.reopen_retries, args.input_file,
+	  args.dlscanner);
+
 	return argv[optind];
 }
 
-int parser_dlload(const char* dlpath)
+int scanner_dlload(const char* dlpath)
 {
 	const char* error;
 
-	if ((dlparser_handle = dlopen(dlpath, RTLD_LAZY)) == NULL) {
+	if ((dlscanner_handle = dlopen(dlpath, RTLD_LAZY)) == NULL) {
 		fprintf(stderr, "dlopen: %s\n", dlerror());
 		goto err;
 	}
 	dlerror();
 
-	parse_parser = dlsym(dlparser_handle, "parser_parse");
+	scan_scanner = dlsym(dlscanner_handle, "scanner_scan");
 	if ((error = dlerror()) != NULL) {
-		fprintf(stderr, "dlsym(parser_parse): %s\n", error);
+		fprintf(stderr, "dlsym(scanner_scan): %s\n", error);
 		goto err;
 	}
 
-	free_parser = dlsym(dlparser_handle, "parser_free");
+	free_scanner = dlsym(dlscanner_handle, "scanner_free");
 	if ((error = dlerror()) != NULL) {
-		fprintf(stderr, "dlsym(parser_free): %s\n", error);
+		fprintf(stderr, "dlsym(scanner_free): %s\n", error);
 		goto err;
 	}
 
-	create_parser = dlsym(dlparser_handle, "parser_create");
+	create_scanner = dlsym(dlscanner_handle, "scanner_create");
 	if ((error = dlerror()) != NULL) {
-		fprintf(stderr, "dlsym(parser_create): %s\n", error);
+		fprintf(stderr, "dlsym(scanner_create): %s\n", error);
 		goto err;
 	}
 
-	reset_parser = dlsym(dlparser_handle, "parser_reset");
+	reset_scanner = dlsym(dlscanner_handle, "scanner_reset");
 	if ((error = dlerror()) != NULL) {
-		fprintf(stderr, "dlsym(parser_reset): %s\n", error);
+		fprintf(stderr, "dlsym(scanner_reset): %s\n", error);
 		goto err;
 	}
 	return 0;
@@ -221,25 +226,34 @@ void uv_walk_close_lua_handles(uv_handle_t* handle, void* arg)
 
 void close_lua_uv_handles() { uv_walk(loop, uv_walk_close_lua_handles, NULL); }
 
-void close_logd_uv_handles()
+void close_logd_uv_handles(
+  int status_code, enum exit_reason reason, const char* reason_str)
 {
 	DEBUG_LOG("closing logd libuv handles, handles: %d", loop->active_handles);
 
+	if (lua_on_exit_defined(lstate)) {
+		lua_call_on_exit(lstate, reason, reason_str);
+	}
+
+	pret = status_code;
 	input_close();
 	uv_signal_stop(&sigusr1);
 	uv_signal_stop(&sigusr2);
 	uv_signal_stop(&sigint);
+
+	DEBUG_LOG("closed logd libuv handles, handles: %d", loop->active_handles);
 }
 
-void close_all(int exit_status)
+void close_all(int status_code, enum exit_reason reason, const char* reason_str)
 {
 	DEBUG_LOG("closing all libuv handles, handles: %d", loop->active_handles);
 
+	close_logd_uv_handles(status_code, reason, reason_str);
 	close_lua_uv_handles();
-	close_logd_uv_handles();
 
-	pret = exit_status;
 	input_state = EXIT_ISTATE;
+
+	DEBUG_LOG("closed all libuv handles, handles: %d", loop->active_handles);
 }
 
 // NOTE: only used one at a time during input reopening mechanism
@@ -251,6 +265,7 @@ static void set_timeout(int timeout, void (*func)(uv_timer_t*))
 	uv_timer_start(&timer, func, timeout, 0);
 }
 
+// TODO should clean timer
 static void input_reopen()
 {
 	DEBUG_LOG(
@@ -275,8 +290,7 @@ static void input_reopen_open()
 						  args.reopen_delay, curr_reopen_retries, backoff),
 			  input_reopen);
 		} else {
-			pret = 1;
-			close_logd_uv_handles();
+			close_logd_uv_handles(1, REASON_EOF, "exhausted reopen retries");
 		}
 	}
 }
@@ -309,6 +323,8 @@ void input_close()
 	uv_poll_stop(&uv_poll_in_req);
 
 	input_state = CLOSED_ISTATE;
+
+	DEBUG_LOG("closed input, fd: %d", infd);
 }
 
 void input_reopen_attempt(int exit_status)
@@ -339,7 +355,8 @@ void input_reopen_attempt(int exit_status)
 		  next_attempt_backoff(args.reopen_delay, curr_reopen_retries, backoff),
 		  open_func);
 	} else {
-		close_logd_uv_handles();
+		close_logd_uv_handles(
+		  0, REASON_EOF, "reached EOF and reopen retries is configured to 0");
 	}
 }
 
@@ -422,15 +439,15 @@ int logd_buf_reserve()
 	int ret;
 	int offset = log_start - b->buf;
 	ret = buf_reserve(b, LOGD_BUF_INIT_CAP);
-	reset_parser(parser);
+	reset_scanner(scanner);
 	log_start = b->buf + offset;
 
 	return ret;
 }
 
-void logd_reset_parser()
+void logd_reset_scanner()
 {
-	reset_parser(parser);
+	reset_scanner(scanner);
 	log_start = b->next_read;
 }
 
@@ -459,50 +476,45 @@ void call_on_error(lua_t* l, const char* err, log_t* partial, const char* at)
 	res.log->is_safe = true;                                                   \
 	lua_call_on_log(lstate, res.log);                                          \
 	buf_consume(b, res.consumed);                                              \
-	logd_reset_parser();                                                       \
+	logd_reset_scanner();                                                      \
 	res.log->is_safe = false;
 
-void on_eof()
-{
-	if (lua_on_eof_defined(lstate)) {
-		lua_call_on_eof(lstate);
-	}
-	input_reopen_attempt(0);
-}
+void on_eof() { input_reopen_attempt(0); }
 
 void on_poll_err(int ret)
 {
 	errno = -ret;
 	perror("uv_poll");
-	close_all(1);
+
+	close_all(1, REASON_ERROR, uv_strerror(ret));
 }
 
-void on_read_err()
+void on_read_err(int ret)
 {
 	perror("input read");
-	close_all(1);
+	close_all(1, REASON_ERROR, uv_strerror(ret));
 }
 
 void on_read_eof()
 {
-	parse_res_t res;
+	scan_res_t res;
 	DEBUG_LOG("EOF while reading input file %d", infd);
 
-parse:
-	res = parse_parser(parser, b->next_read, buf_readable(b));
+scan:
+	res = scan_scanner(scanner, b->next_read, buf_readable(b));
 	switch (res.type) {
-	case PARSE_COMPLETE:
+	case SCAN_COMPLETE:
 		CALL_ON_LOG(lstate, res);
-		goto parse;
-	case PARSE_ERROR:
-		DEBUG_LOG("EOF parse error: %s", res.error.msg);
+		goto scan;
+	case SCAN_ERROR:
+		DEBUG_LOG("EOF scan error: %s", res.error.msg);
 		buf_ack(b, res.consumed);
 		if (lua_on_error_defined(lstate)) {
 			call_on_error(lstate, res.error.msg, res.log, res.error.at);
 		}
-		logd_reset_parser();
-		goto parse;
-	case PARSE_PARTIAL:
+		logd_reset_scanner();
+		goto scan;
+	case SCAN_PARTIAL:
 		on_eof();
 		break;
 	}
@@ -526,7 +538,7 @@ parse:
 			DEBUG_LOG("input not ready: %d", infd);                            \
 			return;                                                            \
 		}                                                                      \
-		on_read_err();                                                         \
+		on_read_err(-errno);                                                   \
 		return;                                                                \
 	}                                                                          \
                                                                                \
@@ -538,12 +550,12 @@ parse:
 
 void on_read_skip(uv_poll_t* req, int status, int events)
 {
-	parse_res_t res;
+	scan_res_t res;
 
 	READ(req, status, buf_writable(b), on_eof);
 
-	res = parse_parser(parser, b->next_read, buf_readable(b));
-	if (res.type == PARSE_PARTIAL) {
+	res = scan_scanner(scanner, b->next_read, buf_readable(b));
+	if (res.type == SCAN_PARTIAL) {
 		buf_reset_offsets(b);
 		return;
 	}
@@ -558,7 +570,7 @@ void on_read_skip(uv_poll_t* req, int status, int events)
 	DEBUG_LOG("successfully skipped line: buffer has now %zu readable bytes "
 			  "and %zu writable bytes",
 	  buf_readable(b), buf_writable(b));
-	logd_reset_parser();
+	logd_reset_scanner();
 
 	if ((ret = uv_poll_stop(&uv_poll_in_req)) < 0 ||
 	  (ret = uv_poll_start(&uv_poll_in_req, UV_READABLE, &on_read)) < 0) {
@@ -568,33 +580,32 @@ void on_read_skip(uv_poll_t* req, int status, int events)
 
 void on_read(uv_poll_t* req, int status, int events)
 {
-	parse_res_t res;
+	scan_res_t res;
 
 	READ(req, status, buf_writable(b), on_read_eof);
 
-	// TODO optimize
 	curr_reopen_retries = 0;
 	input_state = READING_ISTATE;
 
-parse:
-	res = parse_parser(parser, b->next_read, buf_readable(b));
+scan:
+	res = scan_scanner(scanner, b->next_read, buf_readable(b));
 	switch (res.type) {
 
-	case PARSE_COMPLETE:
-		// DEBUG_LOG("parsed new log: %p", &res.log);
+	case SCAN_COMPLETE:
+		// DEBUG_LOG("scanned new log: %p", &res.log);
 		CALL_ON_LOG(lstate, res);
-		goto parse;
+		goto scan;
 
-	case PARSE_ERROR:
-		DEBUG_LOG("parse error: %s", res.error.msg);
+	case SCAN_ERROR:
+		DEBUG_LOG("scan error: %s", res.error.msg);
 		buf_ack(b, res.consumed);
 		if (lua_on_error_defined(lstate)) {
 			call_on_error(lstate, res.error.msg, res.log, res.error.at);
 		}
-		logd_reset_parser();
-		goto parse;
+		logd_reset_scanner();
+		goto scan;
 
-	case PARSE_PARTIAL:
+	case SCAN_PARTIAL:
 		if (!buf_full(b)) {
 			buf_ack(b, res.consumed);
 			goto read;
@@ -604,7 +615,7 @@ parse:
 		if (logd_buf_compact()) {
 			DEBUG_LOG(
 			  "compacted buffer: now writable %zd bytes", buf_writable(b));
-			reset_parser(parser);
+			reset_scanner(scanner);
 			goto read;
 		}
 
@@ -617,7 +628,7 @@ parse:
 		}
 
 		/* complete log doesn't fit buffer so reserve more space */
-		/* do not ack so we re-parse with the re-allocated buffer */
+		/* do not ack so we re-scan with the re-allocated buffer */
 		if (logd_buf_reserve() != 0) {
 			perror("buf_reserve");
 			fprintf(stderr, "error reserving more space in input buffer\n");
@@ -656,7 +667,19 @@ void rel_log_sig_h(uv_signal_t* handle, int signum)
 void shutdown_sig_h(uv_signal_t* handle, int signum)
 {
 	DEBUG_LOG("Received signal %d. Shutdown ...", signum);
-	close_all(signum + 128);
+	char* strsig = strsignal(signum);
+	int exit_code = signum + 128;
+	int need = snprintf(NULL, 0, "received signal %s", strsig);
+	char* reason = malloc(need + 1);
+	if (reason == NULL) {
+		perror("malloc");
+		reason = "received signal";
+		close_all(exit_code, REASON_SIGNAL, reason);
+	} else {
+		sprintf(reason, "received signal %s", strsig);
+		close_all(exit_code, REASON_SIGNAL, reason);
+		free(reason);
+	}
 }
 
 int signals_init(uv_loop_t* loop)
@@ -719,16 +742,16 @@ error:
 
 void free_all()
 {
-	lua_free(lstate);
-	tail_free(tail);
-	buf_free(b);
-	free_parser(parser);
 	if (loop) {
 		uv_loop_close(loop);
 		free(loop);
 	}
-	if (dlparser_handle) {
-		dlclose(dlparser_handle);
+	lua_free(lstate);
+	tail_free(tail);
+	buf_free(b);
+	free_scanner(scanner);
+	if (dlscanner_handle) {
+		dlclose(dlscanner_handle);
 	}
 }
 
@@ -741,13 +764,14 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	if (args.dlparser != NULL && (pret = parser_dlload(args.dlparser)) != 0) {
-		perror("parser_dlload");
+	if (args.dlscanner != NULL &&
+	  (pret = scanner_dlload(args.dlscanner)) != 0) {
+		perror("scanner_dlload");
 		goto exit;
 	}
 
-	if ((parser = create_parser()) == NULL) {
-		perror("parser_create");
+	if ((scanner = create_scanner()) == NULL) {
+		perror("scanner_create");
 		pret = 1;
 		goto exit;
 	}
@@ -758,7 +782,7 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	logd_reset_parser();
+	logd_reset_scanner();
 
 	if ((pret = loop_create()) != 0) {
 		perror("loop_create");
@@ -802,6 +826,8 @@ int main(int argc, char* argv[])
 	} while (uv_run(loop, UV_RUN_DEFAULT));
 
 	DEBUG_ASSERT(uv_loop_alive(loop) == 0);
+
+	DEBUG_LOG("loop exit; uv_loop_alive: %d", uv_loop_alive(loop));
 
 exit:
 	free_all();

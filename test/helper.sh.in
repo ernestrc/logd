@@ -107,6 +107,19 @@ function push_file() {
 	done
 }
 
+
+function pushdata() {
+	cat >>$IN << EOF
+2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
+2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
+EOF
+	sleep $TESTS_SLEEP
+	STAT=$(stat $IN | grep 'fifo')
+	if [[ "$STAT" == "" ]]; then
+		sync $IN
+	fi
+}
+
 function assert_file_contains {
 	COUNT=$(cat $2 | grep "$1" | wc -l)
 

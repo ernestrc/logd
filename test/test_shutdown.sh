@@ -59,6 +59,7 @@ PID=$!
 
 sleep $TESTS_SLEEP
 kill -s SIGINT $PID
+sleep $TESTS_SLEEP
 
 if [ "$(cat $OUT | grep 'such grace')" == "" ]; then
 	echo "we did not gracefully shut down process:"

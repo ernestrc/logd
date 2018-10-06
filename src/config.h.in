@@ -12,7 +12,7 @@
 #undef LOGD_VERSION
 #undef LOGD_PRINT_MAX_KEYS
 #undef LOGD_INLINE
-#undef LOGD_BUILTIN_PARSER
+#undef LOGD_BUILTIN_SCANNER
 
 #ifdef LOGD_INLINE
 #define INLINE inline

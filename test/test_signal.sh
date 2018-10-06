@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-IN="$DIR/tail_input.in"
-IN_MOVED="$DIR/tail_input_moved.in"
-SCRIPT="$DIR/tail_input.lua"
-OUT="$DIR/tail_input.out"
-ERR="$DIR/tail_input.err"
+IN="$DIR/signal.in"
+SCRIPT="$DIR/signal.lua"
+OUT="$DIR/signal.out"
+ERR="$DIR/signal.err"
 LOGD_EXEC="$DIR/../bin/logd"
 PID=
 
@@ -16,8 +15,6 @@ function finish {
 	rm -f $OUT
 	rm -f $ERR
 	rm -f $IN
-	rm -f $IN_MOVED
-	kill $PID
 	exit $CODE;
 }
 
@@ -26,10 +23,25 @@ trap finish EXIT
 function makescript() {
 	truncate -s 0 $SCRIPT
 	cat >$SCRIPT << EOF
-local logd = require("logd")
+local logd = require('logd')
+local uv = require('uv')
+
+local timer = uv.new_timer()
+uv.timer_start(timer, 1000000, 0, function ()
+	uv.timer_stop(timer)
+	uv.close(timer)
+end)
+
 function logd.on_log(logptr)
 	io.write("log")
-	io.flush() -- setvbuf default is line
+	io.flush()
+end
+function logd.on_exit(code, reason)
+	-- check that we can still operate on the timer
+	uv.close(timer)
+	io.write(code)
+	io.write(reason)
+	io.flush()
 end
 EOF
 }
@@ -44,23 +56,12 @@ sleep $TESTS_SLEEP
 pushdata
 assert_file_content "loglog" $OUT
 
-# move input file
-mv $IN $IN_MOVED
-touch $IN
-
-# send SIGUSR2 to re-open pipe
-kill -s 12 $PID
-sleep $TESTS_SLEEP
-
 pushdata
 assert_file_content "loglogloglog" $OUT
 
-# truncate test
-truncate -s 0 $IN
+kill -s 2 $PID
 sleep $TESTS_SLEEP
- 
-pushdata
-assert_file_content "loglogloglogloglog" $OUT
 
+assert_file_content "loglogloglog1received signal Interrupt" $OUT
 
 exit 0
