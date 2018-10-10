@@ -36,7 +36,7 @@ touch $OUT
 makescript
 # start consuming even when input file is not created yet
 # retry is lineal with 5 retries and T delay => 5T
-$LOGD_EXEC $SCRIPT -b 'lineal' -r 5 -d $TESTS_SLEEP_MS -f $IN 2> $ERR 1> $OUT &
+$LOGD_EXEC $SCRIPT -b 'linear' -r 5 -d $TESTS_SLEEP_MS -f $IN 2> $ERR 1> $OUT &
 PID=$!
 # .t
 
