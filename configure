@@ -2567,7 +2567,7 @@ fi
 	then
 		if test "$build_libuv" == yes
 		then
-			link_build_deps="$link_build_deps -luv -lrt -lpthread -ldl"
+			link_build_deps="$link_build_deps -luv -lpthread -ldl"
 		else
 			link_build_deps="$link_build_deps $(pkg-config libuv --libs-only-l)"
 		fi

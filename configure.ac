@@ -163,7 +163,7 @@ fi
 
 CHECK_LINK(zlib, libz, -lz)
 CHECK_LINK(openssl, libopenssl, -lssl -lcrypto)
-CHECK_LINK(libuv, libuv, -luv -lrt -lpthread -ldl)
+CHECK_LINK(libuv, libuv, -luv -lpthread -ldl)
 CHECK_LINK(luajit, libluajit, -lluajit-5.1)
 
 lto=
