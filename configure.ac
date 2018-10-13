@@ -8,18 +8,29 @@ libs_ldflags="-L$root_dir/deps/lib"
 libs_cflags="-I$root_dir/deps/include"
 include_libluajit=yes
 include_libuv=yes
+link_build_deps="-lslab -llssl -lluv -llpeg -llzlib"
 
 AC_DEFUN([SET_DEFLAG],[test -z "$$1" && $1="$2";])
 AC_DEFUN([CHECK_BUILD],[
-	if test "$build_$2" == yes
+	if test "$include_$2" == yes
 	then
-		build_libs="$build_libs $root_dir/deps/lib/$2$3.a"
-		libs_ldflags="$libs_ldflags $4"
-	else 
-		if test "$include_$2" == yes
+		if test "$build_$2" == yes
 		then
-			system_libs="$(pkg-config $1 --libs-only-l) $system_libs"
+			build_libs="$build_libs $root_dir/deps/lib/$2$3.a"
+			libs_ldflags="$libs_ldflags $4"
+		else
 			libs_ldflags="$(pkg-config $1 --libs-only-L) $(pkg-config $1 --libs-only-other) $libs_ldflags"
+		fi
+	fi
+])
+AC_DEFUN([CHECK_LINK],[
+	if test "$include_$2" == yes
+	then
+		if test "$build_$2" == yes
+		then
+			link_build_deps="$link_build_deps $3"
+		else
+			link_build_deps="$link_build_deps $(pkg-config $1 --libs-only-l)"
 		fi
 	fi
 ])
@@ -134,16 +145,10 @@ fi
 CHECK_BUILD(zlib, libz)
 CHECK_BUILD(libuv, libuv)
 CHECK_BUILD(luajit, libluajit, -5.1, $extra_luajit_ldflags)
-
 # openssl builds two separate .a files
 if test "$build_libopenssl" == yes
 then
 	build_libs="$root_dir/deps/lib/libssl.a $root_dir/deps/lib/libcrypto.a $build_libs"
-else
-	if test "$include_libopenssl" == yes
-	then
-		system_libs="$(pkg-config openssl --libs-only-l) $system_libs"
-	fi
 fi
 
 # add -I/usr/local/include/luajit
@@ -155,6 +160,11 @@ else
 	libs_cflags="$libs_cflags -I$root_dir/deps/include/luajit-2.0"
 	luajit="$root_dir/deps/luajit/src/luajit"
 fi
+
+CHECK_LINK(zlib, libz, -lz)
+CHECK_LINK(openssl, libopenssl, -lssl -lcrypto)
+CHECK_LINK(libuv, libuv, -luv -lpthread -ldl)
+CHECK_LINK(luajit, libluajit, -lluajit-5.1)
 
 lto=
 if test "$enable_lto" == yes
@@ -189,12 +199,11 @@ else
 fi
 
 SET_DEFLAG(LDFLAGS,[$libs_ldflags])
-
-AC_CHECK_LIB(lua, lua_getglobal, [AC_MSG_ERROR([Please uninstall lua before compiling and make sure luajit is installed.])])
-
-SET_DEFLAG(LIBS,["$system_libs"])
+SET_DEFLAG(LIBS,[$system_libs])
 SET_DEFLAG(BUILD_LIBS,["$build_libs"])
 SET_DEFLAG(LIBTOOLIZE,["libtoolize"])
+
+AC_CHECK_LIB(lua, lua_getglobal, [AC_MSG_ERROR([Please uninstall lua before compiling and make sure luajit is installed.])])
 
 AC_LANG(C)
 AC_PROG_AWK
@@ -261,6 +270,7 @@ AC_SUBST([BUILD_ZLIB], ["$build_libz"])
 AC_SUBST([BUILD_OPENSSL], ["$build_libopenssl"])
 AC_SUBST([DEVELOP_BUILD], ["$enable_develop"])
 AC_SUBST([LIBS], ["$LIBS"])
+AC_SUBST([EXTRA_LIBS], ["$link_build_deps"])
 AC_SUBST([BUILD_LIBS], ["$BUILD_LIBS"])
 AC_SUBST([EXTRA_CFLAGS], ["$EXTRA_CFLAGS"])
 AC_SUBST([CFLAGS], ["$CFLAGS"])
