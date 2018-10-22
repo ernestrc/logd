@@ -347,8 +347,8 @@ static int logd_log_reset(lua_State* L)
 	return 0;
 }
 
-static const struct luaL_Reg logd_functions[] = {{LUA_NAME_ON_LOG, NULL},
-  {LUA_NAME_PRINT, &logd_print}, {LUA_LEGACY_NAME_DEBUG, &logd_print},
+static const struct luaL_Reg logd_functions[] = {{LUA_NAME_PRINT, &logd_print},
+  {LUA_LEGACY_NAME_DEBUG, &logd_print},
   {LUA_NAME_TABLE_TO_LOGPTR, &logd_table_to_logptr},
   {LUA_NAME_LOG_TO_STR, &logd_log_to_str},
   {LUA_NAME_LOG_TO_TABLE, &logd_log_to_table},
