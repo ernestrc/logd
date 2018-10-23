@@ -9,6 +9,11 @@ LOGD_EXEC="$DIR/../bin/logd"
 PID=
 WRITER_PID=0
 WRITER_PID2=0
+SIGUSR2=12
+
+if [[ "Darwin" == $(uname) ]]; then
+	SIGUSR2=31
+fi
 
 source $DIR/helper.sh
 
@@ -64,7 +69,7 @@ makepipe
 WRITER_PID2=$!
 
 # send SIGUSR2 to re-open pipe
-kill -s 12 $PID
+kill -s $SIGUSR2 $PID
 
 pushdata
 assert_file_content "loglogloglog" $OUT
