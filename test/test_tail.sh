@@ -7,6 +7,11 @@ OUT="$DIR/tail_input.out"
 ERR="$DIR/tail_input.err"
 LOGD_EXEC="$DIR/../bin/logd"
 PID=
+SIGUSR2=12
+
+if [[ "Darwin" == $(uname) ]]; then
+	SIGUSR2=31
+fi
 
 source $DIR/helper.sh
 
@@ -49,7 +54,7 @@ mv $IN $IN_MOVED
 touch $IN
 
 # send SIGUSR2 to re-open pipe
-kill -s 12 $PID
+kill -s $SIGUSR2 $PID
 sleep $TESTS_SLEEP
 
 pushdata
