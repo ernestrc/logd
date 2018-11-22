@@ -62,6 +62,10 @@ assert_file_content "loglogloglog" $OUT
 kill -s 2 $PID
 sleep $TESTS_SLEEP
 
-assert_file_content "loglogloglog1received signal Interrupt" $OUT
+if [[ "Darwin" == $(uname) ]]; then
+	assert_file_content "loglogloglog1received signal Interrupt: 2" $OUT
+else
+	assert_file_content "loglogloglog1received signal Interrupt" $OUT
+fi
 
 exit 0

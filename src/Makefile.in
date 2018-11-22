@@ -42,7 +42,7 @@ lua.c: $(LUAMOD)
 	@ echo "  XXD	$@"
 	@ xxd -i $< > $@
 
-%.o: %.c
+%.o: %.c %.h
 	$(CC) $(CFLAGS) -c $<
 
 $(LIB): $(OBJS)

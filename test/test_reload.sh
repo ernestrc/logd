@@ -7,6 +7,11 @@ ERR="$DIR/reload.err"
 LOGD_EXEC="$DIR/../bin/logd"
 PID=
 WRITER_PID=0
+SIGUSR1=10
+
+if [[ "Darwin" == $(uname) ]]; then
+	SIGUSR1=30
+fi
 
 source $DIR/helper.sh
 
@@ -61,7 +66,7 @@ assert_file_content "load" $OUT
 
 updatescript
 truncate -s 0 $OUT
-kill -s 10 $PID
+kill -s $SIGUSR1 $PID
 sleep $TESTS_SLEEP
 assert_file_content "reload" $OUT
 
