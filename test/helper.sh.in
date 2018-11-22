@@ -125,7 +125,7 @@ EOF
 }
 
 function assert_file_contains {
-	COUNT=$(cat $2 | grep "$1" | wc -l)
+	COUNT=$(cat $2 | grep "$1" -c)
 
 	if [ "$COUNT" != "1" ]; then
 		echo "expected to find '$1' in file but not found: $COUNT" 

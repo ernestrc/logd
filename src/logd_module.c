@@ -30,7 +30,7 @@
 		if (!var->is_safe) {                                                   \
 			luaL_error(L,                                                      \
 			  "it is not safe to use a logptr outside of logd.on_log's "       \
-			  "calling thead's context. Clone first with `logd.clone`'");      \
+			  "calling thread's context. Clone first with `logd.clone`'");      \
 		}                                                                      \
 		break;                                                                 \
 	default:                                                                   \
