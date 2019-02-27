@@ -36,7 +36,7 @@ local errors = 0
 function logd.on_log(logptr)
 	logs = logs + 1
 end
-function logd.on_eof()
+function logd.on_exit()
 	assert(logs == 3)
 end
 function logd.on_error(error, logptr, at)
@@ -63,7 +63,7 @@ function logd.on_error(error, logptr, at)
 end
 EOF
 
-cat $IN | $LOGD_EXEC $SCRIPT 2> $OUT 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT 2>> $OUT 1>> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
 	exit 1

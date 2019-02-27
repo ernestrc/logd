@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-IN="$DIR/file.in"
-SCRIPT="$DIR/file.lua"
-OUT="$DIR/file.out"
+IN="$DIR/so_scanner.in"
+SCRIPT="$DIR/so_scanner.lua"
+OUT="$DIR/so_scanner.out"
 LOGD_EXEC="$DIR/../bin/logd"
 PUSH_FILE_ITER=1000
 
@@ -33,17 +33,17 @@ function logd.on_log(logptr)
 	  counter = counter + 1
   end
 end
-function logd.on_eof()
+function logd.on_exit()
 	assert(counter == expected,
 		string.format("expected counter to be %d but found %d", expected, counter))
 end
 EOF
 
-# using SO parser
-cat $IN | $LOGD_EXEC $SCRIPT --parser="$DIR/../lib/logd_default_parser.so" 2> $OUT 1> $OUT
+# using SO scanner
+cat $IN | $LOGD_EXEC $SCRIPT --scanner="$DIR/../lib/logd_default_scanner.so" 2>> $OUT 1>> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
-	echo "error processing file with dynamic parser"
+	echo "error processing file with dynamic scanner"
 	exit 1
 fi
 

@@ -43,9 +43,11 @@ EOF
 }
 
 function pushdata() {
-	cat >$IN << EOF
+	cat >>$IN << EOF
 2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
 EOF
+	sync $IN
+	sleep $TESTS_SLEEP
 }
 
 touch $OUT
@@ -64,6 +66,6 @@ cat $IN | $LOGD_EXEC $SCRIPT 2> $ERR 1> $OUT
 # 	exit 1
 # fi
 
-assert_file_contains "it is not safe to use a logptr outside of logd.on_log's calling thead's context" $ERR
+assert_file_contains "it is not safe to use a logptr" $ERR
 
 exit 0

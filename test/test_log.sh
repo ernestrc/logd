@@ -66,12 +66,12 @@ function logd.on_log(logptr)
 	end
 	counter = counter + 1
 end
-function logd.on_eof()
+function logd.on_exit()
 	assert(counter == 5)
 end
 EOF
 
-cat $IN | $LOGD_EXEC $SCRIPT 2> $OUT 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT 2>> $OUT 1>> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
 	exit 1

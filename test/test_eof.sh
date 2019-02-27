@@ -3,21 +3,21 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 IN="$DIR/eof.in"
 SCRIPT="$DIR/eof.lua"
 OUT="$DIR/eof.out"
+ERR="$DIR/eof.err"
 LOGD_EXEC="$DIR/../bin/logd"
 
 source $DIR/helper.sh
 
 function finish {
 	CODE=$?
-	rm -f $SCRIPT
-	rm -f $OUT
-	rm -f $IN
+	rm -f $SCRIPT $OUT $ERR $IN
 	exit $CODE;
 }
 
 trap finish EXIT
 
 touch $OUT
+touch $ERR
 touch $IN
 
 cat >$IN << EOF
@@ -31,13 +31,15 @@ local counter = 0
 function logd.on_log(logptr)
 	counter = counter + 1
 end
-function logd.on_eof()
+function logd.on_exit(code, reason)
+	assert(code == 2);
+	assert(string.match(reason, 'EOF'));
 	io.write(counter)
 	io.flush()
 end
 EOF
 
-cat $IN | $LOGD_EXEC $SCRIPT 2> /dev/null 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT 2> $ERR 1> $OUT
 assert_file_content "2" $OUT
 
 exit 0

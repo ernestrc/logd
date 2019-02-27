@@ -1,7 +1,7 @@
 CC=@CC@
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
 LDFLAGS=@LDFLAGS@ @EXTRA_LDFLAGS@
-LIBS=@LIBS@
+LIBS=@EXTRA_LIBS@ @LIBS@
 FUZZFLAGS=@FUZZFLAGS@ # fuzzer flags
 LUAJIT= @LUAJITBIN@
 ROOT_DIR=@ROOT_DIR@
@@ -10,7 +10,7 @@ BINDIR = $(ROOT_DIR)/bin
 LIBDIR=$(ROOT_DIR)/lib
 SRCDIR=$(ROOT_DIR)/src
 
-COVERAGE_SRC_OBJ=$(SRCDIR)/log.o $(SRCDIR)/prop_parser.o $(SRCDIR)/default_parser.o $(SRCDIR)/logd_module.o $(SRCDIR)/util.o $(SRCDIR)/lua.o
+COVERAGE_SRC_OBJ=$(SRCDIR)/log.o $(SRCDIR)/prop_scanner.o $(SRCDIR)/default_scanner.o $(SRCDIR)/logd_module.o $(SRCDIR)/util.o $(SRCDIR)/lua.o
 COVERAGE_OBJ=$(addprefix -object , $(COVERAGE_SRC_OBJ))
 TESTS=$(filter-out $(SKIP_C_TESTS), $(wildcard test_*.c))
 LUA_TESTS=$(filter-out $(SKIP_LUA_TESTS), $(wildcard test_*.lua))
@@ -50,16 +50,16 @@ $(LINK_SO):
 	@ ln -s $(SO) $(LINK_SO)
 
 unit_test: $(TARGET_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" $$f --silent; done
+	@ set -e; for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$$f.profraw" $$f --silent; done
 
 int_test: $(INT_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" ./$$f; done
+	@ set -e; for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" ./$$f; done
 
 lua_test: $(LUA_TESTS)
-	@ for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LUA_PATH="$(LUA_PATH)" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
+	@ set -e; for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LUA_PATH="$(LUA_PATH)" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
 
 $(BINDIR)/test_%: test_%.c $(LIB)
-	$(CC) $(LDFLAGS) $(CFLAGS) $(addprefix ../src/,$(patsubst test_%.c, %.c, $<)) $< -o $@ $(LIB)
+	$(CC) $(LDFLAGS) $(CFLAGS) $(addprefix ../src/,$(patsubst test_%.c, %.c, $<)) $< -o $@ $(LIB) $(LIBS)
 
 $(TESTPROFDATA): $(LINK_SO) int_test lua_test unit_test
 	llvm-profdata merge -sparse $(TARGET_TPROFILES) -o $(TESTPROFDATA)

@@ -8,18 +8,29 @@ libs_ldflags="-L$root_dir/deps/lib"
 libs_cflags="-I$root_dir/deps/include"
 include_libluajit=yes
 include_libuv=yes
+link_build_deps="-lslab -llssl -lluv -llpeg -llzlib"
 
 AC_DEFUN([SET_DEFLAG],[test -z "$$1" && $1="$2";])
 AC_DEFUN([CHECK_BUILD],[
-	if test "$build_$2" == yes
+	if test "$include_$2" == yes
 	then
-		build_libs="$build_libs $root_dir/deps/lib/$2$3.a"
-		libs_ldflags="$libs_ldflags $4"
-	else 
-		if test "$include_$2" == yes
+		if test "$build_$2" == yes
 		then
-			system_libs="$(pkg-config $1 --libs-only-l) $system_libs"
+			build_libs="$build_libs $root_dir/deps/lib/$2$3.a"
+			libs_ldflags="$libs_ldflags $4"
+		else
 			libs_ldflags="$(pkg-config $1 --libs-only-L) $(pkg-config $1 --libs-only-other) $libs_ldflags"
+		fi
+	fi
+])
+AC_DEFUN([CHECK_LINK],[
+	if test "$include_$2" == yes
+	then
+		if test "$build_$2" == yes
+		then
+			link_build_deps="$link_build_deps $3"
+		else
+			link_build_deps="$link_build_deps $(pkg-config $1 --libs-only-l)"
 		fi
 	fi
 ])
@@ -49,7 +60,7 @@ AC_ARG_WITH(zlib, [AS_HELP_STRING([--without-zlib], [do not include zlib as syst
 AC_ARG_WITH(openssl, [AS_HELP_STRING([--without-openssl], [do not include openssl as system or local dependency. This overrides --enable-build-openssl])], [include_libopenssl=no], [include_libopenssl=yes])
 AC_ARG_WITH(lpeg, [AS_HELP_STRING([--without-lpeg], [do not include lpeg module.])], [include_lpeg=no], [include_lpeg=yes])
 
-AC_ARG_WITH(builtin-parser, [AS_HELP_STRING([--with-builtin-parser], [Build with given source file parser as builtin parser.])], [builtin_parser="$with_builtin_parser"], [builtin_parser=default_parser.c])
+AC_ARG_WITH(builtin-scanner, [AS_HELP_STRING([--with-builtin-scanner], [Build with given source file scanner as builtin scanner.])], [builtin_scanner="$with_builtin_scanner"], [builtin_scanner=default_scanner.c])
 
 AC_CHECK_PROG(PKGCFG,pkg-config,yes)
 if test x"$PKGCFG" != x"yes" ; then
@@ -134,16 +145,10 @@ fi
 CHECK_BUILD(zlib, libz)
 CHECK_BUILD(libuv, libuv)
 CHECK_BUILD(luajit, libluajit, -5.1, $extra_luajit_ldflags)
-
 # openssl builds two separate .a files
 if test "$build_libopenssl" == yes
 then
 	build_libs="$root_dir/deps/lib/libssl.a $root_dir/deps/lib/libcrypto.a $build_libs"
-else
-	if test "$include_libopenssl" == yes
-	then
-		system_libs="$(pkg-config openssl --libs-only-l) $system_libs"
-	fi
 fi
 
 # add -I/usr/local/include/luajit
@@ -155,6 +160,11 @@ else
 	libs_cflags="$libs_cflags -I$root_dir/deps/include/luajit-2.0"
 	luajit="$root_dir/deps/luajit/src/luajit"
 fi
+
+CHECK_LINK(zlib, libz, -lz)
+CHECK_LINK(openssl, libopenssl, -lssl -lcrypto)
+CHECK_LINK(libuv, libuv, -luv -lpthread -ldl)
+CHECK_LINK(luajit, libluajit, -lluajit-5.1)
 
 lto=
 if test "$enable_lto" == yes
@@ -171,9 +181,14 @@ then
 
 	SET_DEFLAG(CC, [clang])
 	SET_DEFLAG(EXTRA_CFLAGS,[-fsanitize=undefined -Wall])
-	SET_DEFLAG(CFLAGS,[$libs_cflags -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping])
+	SET_DEFLAG(CFLAGS,[$libs_cflags -fsanitize-coverage=trace-cmp,trace-pc-guard -fprofile-instr-generate -fcoverage-mapping -ggdb])
 	SET_DEFLAG_DEFINE(FUZZFLAGS,[-max_total_time=60]) # fuzzer flags
 	AC_DEFINE(LOGD_DEBUG)
+	AC_CHECK_PROG(SED_CHECK,sed,yes)
+	if test x"$SED_CHECK" != x"yes" ; then
+		AC_MSG_ERROR([Please make sure that GNU sed is installed before building logd.])
+	fi
+
 else
 	SET_DEFLAG_DEFINE(LOGD_SLAB_CAP, 256)
 	SET_DEFLAG_DEFINE(LOGD_BUF_INIT_CAP, 1638400)
@@ -184,12 +199,11 @@ else
 fi
 
 SET_DEFLAG(LDFLAGS,[$libs_ldflags])
-
-AC_CHECK_LIB(lua, lua_getglobal, [AC_MSG_ERROR([Please uninstall lua before compiling and make sure luajit is installed.])])
-
-SET_DEFLAG(LIBS,["$system_libs"])
+SET_DEFLAG(LIBS,[$system_libs])
 SET_DEFLAG(BUILD_LIBS,["$build_libs"])
 SET_DEFLAG(LIBTOOLIZE,["libtoolize"])
+
+AC_CHECK_LIB(lua, lua_getglobal, [AC_MSG_ERROR([Please uninstall lua before compiling and make sure luajit is installed.])])
 
 AC_LANG(C)
 AC_PROG_AWK
@@ -200,11 +214,16 @@ AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 AC_USE_SYSTEM_EXTENSIONS
 
-AC_CHECK_FILE("src/$builtin_parser", [AC_MSG_NOTICE([compiling logd with builtin parser: $builtin_parser])], [AC_MSG_ERROR([could not find parser implementation 'src/$builtin_parser'. Please copy the source file to src folder.])])
+AC_CHECK_FILE("src/$builtin_scanner", [AC_MSG_NOTICE([compiling logd with builtin scanner: $builtin_scanner])], [AC_MSG_ERROR([could not find scanner implementation 'src/$builtin_scanner'. Please copy the source file to src folder.])])
 
 AC_CHECK_PROG(OBJDUMP_CHECK,nm,yes)
 if test x"$OBJDUMP_CHECK" != x"yes" ; then
     AC_MSG_ERROR([Please make sure that GNU nm is installed before building logd.])
+fi
+
+AC_CHECK_PROG(TAIL_CHECK,tail,yes)
+if test x"$TAIL_CHECK" != x"yes" ; then
+    AC_MSG_ERROR([Please make sure that GNU tail is installed before building logd.])
 fi
 
 CHECK_LIB(libuv, [
@@ -246,11 +265,12 @@ AC_CONFIG_SRCDIR(src/logd_module.c)
 AC_SUBST(LUAJITBIN, ["$luajit"])
 AC_SUBST([BUILD_LIBUV], ["$build_libuv"])
 AC_SUBST([BUILD_LUAJIT], ["$build_libluajit"])
-AC_SUBST([BUILTIN_PARSER], ["$builtin_parser"])
+AC_SUBST([BUILTIN_SCANNER], ["$builtin_scanner"])
 AC_SUBST([BUILD_ZLIB], ["$build_libz"])
 AC_SUBST([BUILD_OPENSSL], ["$build_libopenssl"])
 AC_SUBST([DEVELOP_BUILD], ["$enable_develop"])
 AC_SUBST([LIBS], ["$LIBS"])
+AC_SUBST([EXTRA_LIBS], ["$link_build_deps"])
 AC_SUBST([BUILD_LIBS], ["$BUILD_LIBS"])
 AC_SUBST([EXTRA_CFLAGS], ["$EXTRA_CFLAGS"])
 AC_SUBST([CFLAGS], ["$CFLAGS"])
@@ -275,11 +295,11 @@ AC_MSG_NOTICE([using include_libopenssl=$include_libopenssl])
 AC_MSG_NOTICE([using include_lpeg=$include_lpeg])
 AC_MSG_NOTICE([using include_libuv=$include_libuv])
 AC_MSG_NOTICE([using include_libluajit=$include_libluajit])
-AC_MSG_NOTICE([using builtin_parser=$builtin_parser])
+AC_MSG_NOTICE([using builtin_scanner=$builtin_scanner])
 AC_MSG_NOTICE([using BUILD_LIBS=$BUILD_LIBS])
 AC_MSG_NOTICE([using LIBS=$LIBS])
 
-AC_DEFINE_UNQUOTED([LOGD_BUILTIN_PARSER], ["$builtin_parser"])
+AC_DEFINE_UNQUOTED([LOGD_BUILTIN_SCANNER], ["$builtin_scanner"])
 AC_DEFINE_UNQUOTED(LOGD_VERSION, ["$version"])
 AC_SUBST(LOGD_VERSION, ["$version"])
 

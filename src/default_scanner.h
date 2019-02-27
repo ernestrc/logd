@@ -1,7 +1,7 @@
-#ifndef LOGD_DEFAULT_PARSER_H
-#define LOGD_DEFAULT_PARSER_H
+#ifndef LOGD_DEFAULT_SCANNER_H
+#define LOGD_DEFAULT_SCANNER_H
 
-#include "parser.h"
+#include "scanner.h"
 
 /*
  * Expects data to be in the following format:
@@ -31,9 +31,9 @@ typedef enum pstate_s {
 	ERROR_PSTATE = 19,
 } pstate_t;
 
-typedef struct parser_s {
+typedef struct scanner_s {
 	pstate_t state;
-	LOGD_PARSER_FIELDS
-} parser_t;
+	LOGD_SCANNER_FIELDS
+} scanner_t;
 
 #endif

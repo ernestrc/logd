@@ -17,13 +17,11 @@ DEPS=$(PWD)/deps
 
 default: build
 
-prepare:
-	@ git submodule update --init --recursive
-	@ mkdir -p $(LIB)
-	@ mkdir -p $(BIN)
-	@ mkdir -p $(INCLUDE)
+$(LIB) $(BIN) $(INCLUDE):
+	@ mkdir -p $@
 
-build-deps: prepare
+build-deps: $(LIB) $(BIN) $(INCLUDE)
+	@ git submodule update --init --recursive
 	@ $(MAKE) -C $(DEPS)
 
 build: build-deps

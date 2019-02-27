@@ -27,7 +27,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sed -i ':a;N;$!ba;s/\n/***************/g' $IN
+$SED -i ':a;N;$!ba;s/\n/***************/g' $IN
 
 echo "" >> $IN
 echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	callType: so: cool  " >> $IN
@@ -47,13 +47,13 @@ function logd.on_error(error, logptr, at)
 	assert(error == error_expected, string.format("error was '%s' instead of '%s'", error, error_expected))
 	assert(at == at_expected, string.format("at was '%s' instead of '%s'", at, at_expected))
 end
-function logd.on_eof()
+function logd.on_exit()
 	assert(errors == 1, string.format("expected 1 errors but found %d", errors))
 	assert(logs == 2, string.format("expected 2 logs but found %d", logs))
 end
 EOF
 
-cat $IN | $LOGD_EXEC $SCRIPT 2> $OUT 1> $OUT
+cat $IN | $LOGD_EXEC $SCRIPT 2>> $OUT 1>> $OUT
 if [ $? -ne 0 ]; then
 	cat $OUT
 	exit 1

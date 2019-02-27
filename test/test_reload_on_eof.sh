@@ -46,18 +46,11 @@ function makepipe() {
 	makewriter
 }
 
-function pushdata() {
-	cat >$IN << EOF
-2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
-2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
-EOF
-}
-
 touch $OUT
 makepipe
 WRITER_PID=$!
 makescript
-$LOGD_EXEC $SCRIPT --reopen-retries=10 --reopen-delay=10 --reopen-backoff=lineal -f $IN 2> $ERR 1> $OUT & 
+$LOGD_EXEC $SCRIPT --reopen-retries=10 --reopen-delay=10 --reopen-backoff=linear -f $IN 2> $ERR 1> $OUT & 
 PID=$!
 sleep $TESTS_SLEEP
 

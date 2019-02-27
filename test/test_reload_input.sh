@@ -9,6 +9,11 @@ LOGD_EXEC="$DIR/../bin/logd"
 PID=
 WRITER_PID=0
 WRITER_PID2=0
+SIGUSR2=12
+
+if [[ "Darwin" == $(uname) ]]; then
+	SIGUSR2=31
+fi
 
 source $DIR/helper.sh
 
@@ -47,20 +52,13 @@ function makepipe() {
 	while sleep 1; do :; done >$IN &
 }
 
-function pushdata() {
-	cat >$IN << EOF
-2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
-2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
-EOF
-}
-
 touch $OUT
 makepipe
 WRITER_PID=$!
 makescript
 $LOGD_EXEC $SCRIPT -f $IN 2> $ERR 1> $OUT & 
 PID=$!
-sleep 1
+sleep $TESTS_SLEEP
 
 pushdata
 assert_file_content "loglog" $OUT
@@ -71,7 +69,7 @@ makepipe
 WRITER_PID2=$!
 
 # send SIGUSR2 to re-open pipe
-kill -s 12 $PID
+kill -s $SIGUSR2 $PID
 
 pushdata
 assert_file_content "loglogloglog" $OUT

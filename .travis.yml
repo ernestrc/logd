@@ -9,7 +9,7 @@ matrix:
     # develop build
     - os: linux
       env:
-        - MATRIX_SCRIPT="docker build . -t logd-build:develop -f utils/Dockerfile.develop && docker run --env-file env.list --rm -ti -v /tmp/logd_develop:/opt/logd/bin logd-build:develop sh -c 'make && env && make test && make install'"
+        - MATRIX_SCRIPT="docker build . -t logd-build:develop -f utils/Dockerfile.develop && docker run --cap-add=SYS_PTRACE --env-file env.list --rm -ti -v /tmp/logd_develop:/opt/logd/bin logd-build:develop sh -c 'make && env && make test && make install'"
 
     # check that we can build on Ubuntu
     - os: linux
@@ -29,26 +29,27 @@ matrix:
     # check that we can build with musl-libc and link statically
     - os: linux
       env:
-        - MATRIX_EVAL="export SKIP_INT_TESTS=test_so_parser.sh"
+        # loading SO is disabled with static musl libc
+        - MATRIX_EVAL="export SKIP_INT_TESTS=test_so_scanner.sh"
         - MATRIX_SCRIPT="docker build . -t logd-build:static -f utils/Dockerfile.static && docker run --env-file env.list --rm -ti -v /tmp/logd_static:/opt/logd/bin logd-build:static sh -c 'make && env && make test && make install'"
 
     # check that we can build on OSX 10.11
     - os: osx
       osx_image: xcode8
       env:
-        - MATRIX_EVAL="export LIBTOOLIZE=glibtoolize && export LIBTOOL=glibtool"
-        - MATRIX_SCRIPT="env && brew update && brew bundle --file=utils/Brewfile && ./configure --enable-build-all && make"
+        - MATRIX_EVAL="export LIBTOOLIZE=glibtoolize && export LIBTOOL=glibtool && export SED=gsed"
+        - MATRIX_SCRIPT="env && brew update && brew bundle --file=utils/Brewfile && ./configure --enable-build-all && make && make test"
 
     # check that we can build on OSX 10.12
     - os: osx
       osx_image: xcode9
       env:
-        - MATRIX_EVAL="export LIBTOOLIZE=glibtoolize && export LIBTOOL=glibtool"
-        - MATRIX_SCRIPT="env && brew update && brew bundle --file=utils/Brewfile && ./configure --enable-build-all && make"
+        - MATRIX_EVAL="export LIBTOOLIZE=glibtoolize && export LIBTOOL=glibtool && export SED=gsed"
+        - MATRIX_SCRIPT="env && brew update && brew bundle --file=utils/Brewfile && ./configure --enable-build-all && make && make test"
 
 before_install:
     - eval "${MATRIX_EVAL}"
-    - env | grep -v UTF > env.list && cat env.list
+    - env | grep -v UTF | grep '=' > env.list && cat env.list
     - echo "${MATRIX_SCRIPT}" > script.sh
 
 script:

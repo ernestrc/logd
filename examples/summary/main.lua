@@ -12,7 +12,7 @@ function logd.on_log(logptr)
 	local date = logd.log_get(logptr, "date")
 	local time = logd.log_get(logptr, "time")
 
-	logd.print(string.format('parsed log with date %s and time %s', date, time))
+	logd.print(string.format('scanned log with date %s and time %s', date, time))
 end
 
 function logd.on_error(msg, logptr, at)
@@ -25,9 +25,11 @@ function logd.on_error(msg, logptr, at)
 	})
 end
 
-function logd.on_eof()
+function logd.on_exit(code, reason)
 	logd.print({
+		reason_code = code,
+		reason = reason,
 		level = 'INFO',
-		msg = string.format('parsed %d logs and found %d errors parsing', logs, errors),
+		msg = string.format('scanned %d logs and found %d errors', logs, errors),
 	})
 end

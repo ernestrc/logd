@@ -7,6 +7,11 @@ OUT="$DIR/tail_input.out"
 ERR="$DIR/tail_input.err"
 LOGD_EXEC="$DIR/../bin/logd"
 PID=
+SIGUSR2=12
+
+if [[ "Darwin" == $(uname) ]]; then
+	SIGUSR2=31
+fi
 
 source $DIR/helper.sh
 
@@ -34,13 +39,6 @@ end
 EOF
 }
 
-function pushdata() {
-	cat >$IN << EOF
-2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
-2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B
-EOF
-}
-
 touch $OUT
 touch $IN
 makescript
@@ -56,7 +54,7 @@ mv $IN $IN_MOVED
 touch $IN
 
 # send SIGUSR2 to re-open pipe
-kill -s 12 $PID
+kill -s $SIGUSR2 $PID
 sleep $TESTS_SLEEP
 
 pushdata
@@ -64,6 +62,7 @@ assert_file_content "loglogloglog" $OUT
 
 # truncate test
 truncate -s 0 $IN
+sleep $TESTS_SLEEP
  
 pushdata
 assert_file_content "loglogloglogloglog" $OUT
