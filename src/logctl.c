@@ -54,16 +54,16 @@ void print_usage(int argc, char* argv[])
 }
 
 /* returns NULL if cmd is not available */
-const char* validate_cmd(const char* cmd)
+int is_invalid_cmd(const char* cmd)
 {
 	if (cmd == NULL)
-		return NULL;
+		return 1;
 
 	for (int i = 0; i < AVAIL_CMDS_LEN; i++)
 		if (strncmp(AVAIL_CMDS[i], cmd, strlen(AVAIL_CMDS[i])) == 0)
-			return cmd;
+			return 0;
 
-	return NULL;
+	return 1;
 }
 
 int args_init(int argc, char* argv[])
@@ -71,11 +71,11 @@ int args_init(int argc, char* argv[])
 	bool version = false;
 	bool help = false;
 
-	/* default args */
-	args.command = NULL;
+	args.command = argv[1];
 
-	/* first check if argv1 is a valid command */
-	if ((args.command = validate_cmd(argv[1])) != NULL)
+	// if valid cmd, then flags should be checked by subprocess
+	// otherwise check if argv[1] is one of the flags permitted
+	if (is_invalid_cmd(args.command) == 0)
 		return 0;
 
 	static struct option long_options[] = {{"help", no_argument, 0, 'h'},
@@ -88,6 +88,7 @@ int args_init(int argc, char* argv[])
 		switch (c) {
 		case 'v':
 			version = true;
+			break;
 		case 'h':
 			help = true;
 			break;
@@ -106,7 +107,7 @@ int args_init(int argc, char* argv[])
 		exit(0);
 	}
 
-	abort();
+	return 1;
 }
 
 char** make_argv(int argc, char* argv[])

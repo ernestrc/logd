@@ -62,7 +62,7 @@ $(INSTALL_DIR)/%: $(BINDIR)/%
 	@ install -m 0755 $< $@
 
 $(LIBDIR)/logd_%.so: %.c scanner.h $(SCANNER_DEPS)
-	$(CC) -o $@ $(CFLAGS) -shared -fPIC $(patsubst $(LIBDIR)/logd_%.so,%.c,$@) $(SCANNER_DEPS) $(LIBS)
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) -shared -fPIC $(patsubst $(LIBDIR)/logd_%.so,%.c,$@) $(SCANNER_DEPS) $(LIBS)
 
 $(CMOD): logd_module.h logd_module.c $(CMOD_DEPS)
 	$(CC) -o $(CMOD) $(CFLAGS) -shared -fPIC logd_module.c $(CMOD_DEPS)
