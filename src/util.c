@@ -119,17 +119,23 @@ const char* util_get_date()
 
 const char* util_get_time()
 {
-#define MAX_TIME_LEN 9 /* 8 + null terminator */
-	static char time_buf[MAX_TIME_LEN];
+#define MAX_STRFTIME_LEN 8
+#define MAX_STRFTIME_LEN_TERM 9
+#define MILLIS_COMP_LEN 4
+#define TOTAL_TIME_LEN (MAX_STRFTIME_LEN + MILLIS_COMP_LEN + 1) // + null term
+	static char time_buf[TOTAL_TIME_LEN];
+	struct timespec tp;
 
-	time_t raw_time = time(NULL);
-	struct tm* local_time = localtime(&raw_time);
+	clock_gettime(CLOCK_REALTIME, &tp);
+	struct tm* local_time = localtime(&tp.tv_sec);
 
 #ifdef LOGD_DEBUG
 	int needs =
 #endif
-	  strftime(time_buf, MAX_TIME_LEN, "%X", local_time);
-	DEBUG_ASSERT(needs + 1 <= MAX_TIME_LEN);
+	  strftime(time_buf, MAX_STRFTIME_LEN_TERM, "%X", local_time);
+	DEBUG_ASSERT(needs <= MAX_STRFTIME_LEN_TERM);
+
+	sprintf(time_buf + MAX_STRFTIME_LEN, ".%03d", tp.tv_nsec / 1000000);
 
 	return time_buf;
 }
