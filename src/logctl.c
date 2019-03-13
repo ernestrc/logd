@@ -19,7 +19,6 @@ char* AVAIL_CMDS[AVAIL_CMDS_LEN] = {CMD_RUN};
 int pret;
 
 struct args_s {
-	bool debug;
 	const char* command;
 } args;
 
@@ -38,6 +37,8 @@ void print_version() { printf("logctl %s\n", LOGD_VERSION); }
 // logctl-<cmd> except logctl help <cmd> which calls logctl-<cmd> --help and
 // logctl start <script> which is an alias for logd <script>
 
+// TODO logq should be the query that uses loggen and this process under the
+// hood.
 void print_usage(int argc, char* argv[])
 {
 	printf("usage: %s <cmd> [options]\n", argv[0]);

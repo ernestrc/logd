@@ -12,7 +12,7 @@ INCDIR=$(ROOT_DIR)/include
 BINDIR =$(ROOT_DIR)/bin
 LIBDIR =$(ROOT_DIR)/lib
 
-EXEC_SRC = logd.c logctl.c
+EXEC_SRC = logd.c logctl.c logmr.c
 EXEC_OBJ = $(patsubst %.c,%.o,$(EXEC_SRC))
 SRCS = $(wildcard *.c)
 SCANNERS_SRC = $(wildcard *scanner.c)

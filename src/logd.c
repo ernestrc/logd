@@ -75,7 +75,7 @@ void print_usage(const char* exe)
 	printf(
 	  "  -f, --file=<path>		File to ingest appended data from [default: "
 	  "/dev/stdin]\n");
-	printf("  -p, --scanner=<scanner_so>	Load shared object "
+	printf("  -s, --scanner=<scanner_so>	Load shared object "
 		   "scanner via dlopen [default: "
 		   "%s]\n",
 	  LOGD_BUILTIN_SCANNER);
@@ -115,13 +115,13 @@ char* args_init(int argc, char* argv[])
 	int option_index = 0;
 	int c = 0;
 	while ((c = getopt_long(
-			  argc, argv, "vp:f:hb:d:r:", long_options, &option_index)) != -1) {
+			  argc, argv, "vs:f:hb:d:r:", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'v':
 			print_version();
 			exit(0);
 			break;
-		case 'p':
+		case 's':
 			args.dlscanner = optarg;
 			break;
 		case 'f':
