@@ -133,7 +133,7 @@ const char* util_get_time()
 	int needs =
 #endif
 	  strftime(time_buf, MAX_STRFTIME_LEN_TERM, "%X", local_time);
-	DEBUG_ASSERT(needs <= MAX_STRFTIME_LEN_TERM);
+	DEBUG_ASSERT(needs <= MAX_STRFTIME_LEN);
 
 	sprintf(time_buf + MAX_STRFTIME_LEN, ".%03ld", tp.tv_nsec / 1000000);
 
