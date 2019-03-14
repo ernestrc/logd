@@ -8,6 +8,11 @@
 
 #include "util.h"
 
+#ifdef __APPLE__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
+
 static const char* util_log_get(log_t* l, const char* key)
 {
 	const char* value = log_get(l, key);
@@ -125,8 +130,20 @@ const char* util_get_time()
 #define TOTAL_TIME_LEN (MAX_STRFTIME_LEN + MILLIS_COMP_LEN + 1) // + null term
 	static char time_buf[TOTAL_TIME_LEN];
 	struct timespec tp;
+#ifdef __APPLE__
+	clock_serv_t cclock;
+	mach_timespec_t mts;
 
+
+	host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+	clock_get_time(cclock, &mts);
+	mach_port_deallocate(mach_task_self(), cclock);
+	tp.tv_sec = mts.tv_sec;
+	tp.tv_nsec = mts.tv_nsec;
+#else
 	clock_gettime(CLOCK_REALTIME, &tp);
+#endif
+
 	struct tm* local_time = localtime(&tp.tv_sec);
 
 #ifdef LOGD_DEBUG
