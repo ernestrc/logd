@@ -135,7 +135,7 @@ const char* util_get_time()
 	  strftime(time_buf, MAX_STRFTIME_LEN_TERM, "%X", local_time);
 	DEBUG_ASSERT(needs <= MAX_STRFTIME_LEN_TERM);
 
-	sprintf(time_buf + MAX_STRFTIME_LEN, ".%03d", tp.tv_nsec / 1000000);
+	sprintf(time_buf + MAX_STRFTIME_LEN, ".%03ld", tp.tv_nsec / 1000000);
 
 	return time_buf;
 }
