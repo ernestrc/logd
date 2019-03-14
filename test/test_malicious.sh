@@ -27,7 +27,7 @@ if [ $? -ne 0 ]; then
 	exit 1
 fi
 
-sed -i ':a;N;$!ba;s/\n/***************/g' $IN
+$SED -i ':a;N;$!ba;s/\n/***************/g' $IN
 
 echo "" >> $IN
 echo "2018-05-12 12:51:28 ERROR	[thread1]	clazz	callType: so: cool  " >> $IN

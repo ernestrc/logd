@@ -2,7 +2,7 @@ local lunit = require('lunit')
 local helper = {}
 
 helper.trim_ts = function(str)
-	local sample_ts = "2018-05-12 12:52:28"
+	local sample_ts = "2018-05-12 12:52:28.111"
 	return string.sub(str, string.len(sample_ts) + 2, string.len(str))
 end
 

@@ -630,6 +630,7 @@ ROOT_DIR
 EXTRA_LDFLAGS
 EXTRA_CFLAGS
 BUILD_LIBS
+EXTRA_LIBS
 DEVELOP_BUILD
 BUILD_OPENSSL
 BUILD_ZLIB
@@ -2095,6 +2096,8 @@ libs_ldflags="-L$root_dir/deps/lib"
 libs_cflags="-I$root_dir/deps/include"
 include_libluajit=yes
 include_libuv=yes
+link_build_deps="-lslab -llssl -lluv -llpeg -llzlib"
+
 
 
 
@@ -2486,54 +2489,45 @@ then
 fi
 
 
-	if test "$build_libz" == yes
+	if test "$include_libz" == yes
 	then
-		build_libs="$build_libs $root_dir/deps/lib/libz.a"
-		libs_ldflags="$libs_ldflags "
-	else
-		if test "$include_libz" == yes
+		if test "$build_libz" == yes
 		then
-			system_libs="$(pkg-config zlib --libs-only-l) $system_libs"
+			build_libs="$build_libs $root_dir/deps/lib/libz.a"
+			libs_ldflags="$libs_ldflags "
+		else
 			libs_ldflags="$(pkg-config zlib --libs-only-L) $(pkg-config zlib --libs-only-other) $libs_ldflags"
 		fi
 	fi
 
 
-	if test "$build_libuv" == yes
+	if test "$include_libuv" == yes
 	then
-		build_libs="$build_libs $root_dir/deps/lib/libuv.a"
-		libs_ldflags="$libs_ldflags "
-	else
-		if test "$include_libuv" == yes
+		if test "$build_libuv" == yes
 		then
-			system_libs="$(pkg-config libuv --libs-only-l) $system_libs"
+			build_libs="$build_libs $root_dir/deps/lib/libuv.a"
+			libs_ldflags="$libs_ldflags "
+		else
 			libs_ldflags="$(pkg-config libuv --libs-only-L) $(pkg-config libuv --libs-only-other) $libs_ldflags"
 		fi
 	fi
 
 
-	if test "$build_libluajit" == yes
+	if test "$include_libluajit" == yes
 	then
-		build_libs="$build_libs $root_dir/deps/lib/libluajit-5.1.a"
-		libs_ldflags="$libs_ldflags $extra_luajit_ldflags"
-	else
-		if test "$include_libluajit" == yes
+		if test "$build_libluajit" == yes
 		then
-			system_libs="$(pkg-config luajit --libs-only-l) $system_libs"
+			build_libs="$build_libs $root_dir/deps/lib/libluajit-5.1.a"
+			libs_ldflags="$libs_ldflags $extra_luajit_ldflags"
+		else
 			libs_ldflags="$(pkg-config luajit --libs-only-L) $(pkg-config luajit --libs-only-other) $libs_ldflags"
 		fi
 	fi
-
 
 # openssl builds two separate .a files
 if test "$build_libopenssl" == yes
 then
 	build_libs="$root_dir/deps/lib/libssl.a $root_dir/deps/lib/libcrypto.a $build_libs"
-else
-	if test "$include_libopenssl" == yes
-	then
-		system_libs="$(pkg-config openssl --libs-only-l) $system_libs"
-	fi
 fi
 
 # add -I/usr/local/include/luajit
@@ -2545,6 +2539,51 @@ else
 	libs_cflags="$libs_cflags -I$root_dir/deps/include/luajit-2.0"
 	luajit="$root_dir/deps/luajit/src/luajit"
 fi
+
+
+	if test "$include_libz" == yes
+	then
+		if test "$build_libz" == yes
+		then
+			link_build_deps="$link_build_deps -lz"
+		else
+			link_build_deps="$link_build_deps $(pkg-config zlib --libs-only-l)"
+		fi
+	fi
+
+
+	if test "$include_libopenssl" == yes
+	then
+		if test "$build_libopenssl" == yes
+		then
+			link_build_deps="$link_build_deps -lssl -lcrypto"
+		else
+			link_build_deps="$link_build_deps $(pkg-config openssl --libs-only-l)"
+		fi
+	fi
+
+
+	if test "$include_libuv" == yes
+	then
+		if test "$build_libuv" == yes
+		then
+			link_build_deps="$link_build_deps -luv -lpthread -ldl"
+		else
+			link_build_deps="$link_build_deps $(pkg-config libuv --libs-only-l)"
+		fi
+	fi
+
+
+	if test "$include_libluajit" == yes
+	then
+		if test "$build_libluajit" == yes
+		then
+			link_build_deps="$link_build_deps -lluajit-5.1"
+		else
+			link_build_deps="$link_build_deps $(pkg-config luajit --libs-only-l)"
+		fi
+	fi
+
 
 lto=
 if test "$enable_lto" == yes
@@ -2635,6 +2674,9 @@ else
 fi
 
 test -z "$LDFLAGS" && LDFLAGS="$libs_ldflags";
+test -z "$LIBS" && LIBS="$system_libs";
+test -z "$BUILD_LIBS" && BUILD_LIBS=""$build_libs"";
+test -z "$LIBTOOLIZE" && LIBTOOLIZE=""libtoolize"";
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -3466,10 +3508,6 @@ if test "x$ac_cv_lib_lua_lua_getglobal" = xyes; then :
   as_fn_error $? "Please uninstall lua before compiling and make sure luajit is installed." "$LINENO" 5
 fi
 
-
-test -z "$LIBS" && LIBS=""$system_libs"";
-test -z "$BUILD_LIBS" && BUILD_LIBS=""$build_libs"";
-test -z "$LIBTOOLIZE" && LIBTOOLIZE=""libtoolize"";
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -5678,6 +5716,8 @@ BUILD_OPENSSL="$build_libopenssl"
 DEVELOP_BUILD="$enable_develop"
 
 LIBS="$LIBS"
+
+EXTRA_LIBS="$link_build_deps"
 
 BUILD_LIBS="$BUILD_LIBS"
 

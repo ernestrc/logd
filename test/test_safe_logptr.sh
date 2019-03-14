@@ -66,6 +66,6 @@ cat $IN | $LOGD_EXEC $SCRIPT 2> $ERR 1> $OUT
 # 	exit 1
 # fi
 
-assert_file_contains "it is not safe to use a logptr outside of logd.on_log's calling thead's context" $ERR
+assert_file_contains "it is not safe to use a logptr" $ERR
 
 exit 0

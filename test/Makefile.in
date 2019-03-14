@@ -1,7 +1,7 @@
 CC=@CC@
 CFLAGS=@CFLAGS@ @EXTRA_CFLAGS@
 LDFLAGS=@LDFLAGS@ @EXTRA_LDFLAGS@
-LIBS=@LIBS@
+LIBS=@EXTRA_LIBS@ @LIBS@
 FUZZFLAGS=@FUZZFLAGS@ # fuzzer flags
 LUAJIT= @LUAJITBIN@
 ROOT_DIR=@ROOT_DIR@
@@ -59,7 +59,7 @@ lua_test: $(LUA_TESTS)
 	@ set -e; for f in $^; do echo "  TEST	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LUA_PATH="$(LUA_PATH)" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done
 
 $(BINDIR)/test_%: test_%.c $(LIB)
-	$(CC) $(LDFLAGS) $(CFLAGS) $(addprefix ../src/,$(patsubst test_%.c, %.c, $<)) $< -o $@ $(LIB)
+	$(CC) $(LDFLAGS) $(CFLAGS) $(addprefix ../src/,$(patsubst test_%.c, %.c, $<)) $< -o $@ $(LIB) $(LIBS)
 
 $(TESTPROFDATA): $(LINK_SO) int_test lua_test unit_test
 	llvm-profdata merge -sparse $(TARGET_TPROFILES) -o $(TESTPROFDATA)

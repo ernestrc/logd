@@ -13,7 +13,7 @@
 #include "./util.h"
 
 #define OPT_DEFAULT_DEBUG false
-#define LINEAL_BACKOFF "lineal"
+#define LINEAL_BACKOFF "linear"
 #define EXP_BACKOFF "exponential"
 
 #define LOGD_HANDLE ((void*)"__LOGD_HANDLE")
