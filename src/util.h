@@ -69,7 +69,7 @@ const char* util_get_time();
 const char* util_get_date();
 int next_attempt_backoff(
   int start_delay, int reopen_retries, int backoff_exponent);
-int parse_non_negative_int(const char* str);
+ssize_t parse_non_negative_int(const char* str);
 
 // TODO
 struct uri_s{

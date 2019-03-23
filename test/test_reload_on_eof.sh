@@ -4,7 +4,6 @@ IN="$DIR/reload_eof.in"
 SCRIPT="$DIR/reload_eof.lua"
 OUT="$DIR/reload_eof.out"
 ERR="$DIR/reload_eof.err"
-LOGD_EXEC="$DIR/../bin/logd"
 PID=
 WRITER_PID=0
 WRITER_PID2=0

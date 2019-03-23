@@ -4,7 +4,6 @@ IN="$DIR/reload.in"
 SCRIPT="$DIR/reload.lua"
 OUT="$DIR/reload.out"
 ERR="$DIR/reload.err"
-LOGD_EXEC="$DIR/../bin/logd"
 PID=
 WRITER_PID=0
 SIGUSR1=10

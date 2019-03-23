@@ -4,7 +4,6 @@ IN="$DIR/eof.in"
 SCRIPT="$DIR/eof.lua"
 OUT="$DIR/eof.out"
 ERR="$DIR/eof.err"
-LOGD_EXEC="$DIR/../bin/logd"
 
 source $DIR/helper.sh
 
@@ -39,7 +38,7 @@ function logd.on_exit(code, reason)
 end
 EOF
 
-cat $IN | $LOGD_EXEC $SCRIPT 2> $ERR 1> $OUT
+invoke_exec
 assert_file_content "2" $OUT
 
 exit 0

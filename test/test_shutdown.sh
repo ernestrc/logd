@@ -4,7 +4,6 @@ IN="$DIR/shutdown.in"
 SCRIPT="$DIR/shutdown.lua"
 OUT="$DIR/shutdown.out"
 ERR="$DIR/shutdown.err"
-LOGD_EXEC="$DIR/../bin/logd"
 PID=
 WRITER_PID=0
 

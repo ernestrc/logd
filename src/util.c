@@ -174,7 +174,7 @@ int next_attempt_backoff(
 	return timeout;
 }
 
-int parse_non_negative_int(const char* str)
+ssize_t parse_non_negative_int(const char* str)
 {
 	char* endptr;
 	long val;

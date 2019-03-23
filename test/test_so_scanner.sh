@@ -3,23 +3,20 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 IN="$DIR/so_scanner.in"
 SCRIPT="$DIR/so_scanner.lua"
 OUT="$DIR/so_scanner.out"
-LOGD_EXEC="$DIR/../bin/logd"
+ERR="$DIR/so_scanner.err"
 PUSH_FILE_ITER=1000
 
 source $DIR/helper.sh
 
 function finish {
 	CODE=$?
-	rm -f $SCRIPT
-	rm -f $IN
-	rm -f $OUT
+	rm -f $SCRIPT $ERR $OUT $IN
 	exit $CODE;
 }
 
 trap finish EXIT
 
-touch $OUT
-touch $IN
+touch $OUT $IN $ERR
 
 push_file $1
 
@@ -40,9 +37,9 @@ end
 EOF
 
 # using SO scanner
-cat $IN | $LOGD_EXEC $SCRIPT --scanner="$DIR/../lib/logd_default_scanner.so" 2>> $OUT 1>> $OUT
+invoke_exec --scanner="$DIR/../lib/logd_default_scanner.so"
 if [ $? -ne 0 ]; then
-	cat $OUT
+	cat $OUT $ERR
 	echo "error processing file with dynamic scanner"
 	exit 1
 fi

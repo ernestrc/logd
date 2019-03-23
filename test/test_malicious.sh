@@ -3,15 +3,13 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 IN="$DIR/malicious.in"
 SCRIPT="$DIR/malicious.lua"
 OUT="$DIR/malicious.out"
-LOGD_EXEC="$DIR/../bin/logd"
+ERR="$DIR/malicious.err"
 
 source $DIR/helper.sh
 
 function finish {
 	CODE=$?
-	rm -f $SCRIPT
-	rm -f $OUT
-	rm -f $IN
+	rm -f $SCRIPT $OUT $IN $ERR
 	exit $CODE;
 }
 
@@ -53,9 +51,10 @@ function logd.on_exit()
 end
 EOF
 
-cat $IN | $LOGD_EXEC $SCRIPT 2>> $OUT 1>> $OUT
+invoke_exec
 if [ $? -ne 0 ]; then
 	cat $OUT
+	cat $ERR
 	exit 1
 fi
 

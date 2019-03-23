@@ -4,7 +4,6 @@ IN="$DIR/signal.in"
 SCRIPT="$DIR/signal.lua"
 OUT="$DIR/signal.out"
 ERR="$DIR/signal.err"
-LOGD_EXEC="$DIR/../bin/logd"
 PID=
 
 source $DIR/helper.sh

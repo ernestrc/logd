@@ -5,9 +5,10 @@ IN_MOVED="$DIR/tail_input_moved.in"
 SCRIPT="$DIR/tail_input.lua"
 OUT="$DIR/tail_input.out"
 ERR="$DIR/tail_input.err"
-LOGD_EXEC="$DIR/../bin/logd"
 PID=
 SIGUSR2=12
+
+source $DIR/helper.sh
 
 if [[ "Darwin" == $(uname) ]]; then
 	SIGUSR2=31

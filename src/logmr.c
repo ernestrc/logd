@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -12,15 +13,32 @@
 #include "./scanner.h"
 #include "./util.h"
 
-// #define DEFAULT_BUF 300
+#define DEFAULT_MAX_FILE_MEM ((size_t)9e+8) /* 900 mb */
+
+enum map_state_e { MAP_MAX, MAP_REMAINING };
+
+typedef struct mmap_s {
+	size_t map_size;
+	size_t real_size;
+	enum map_state_e state;
+} mmap_t;
 
 int pret;
-char* log_start;
 void* scanner;
 void* dlscanner_handle;
 lua_t* lstate;
 uv_loop_t* loop;
 struct uri_s uri;
+
+long PAGE_SIZE_MASK;
+long PAGE_SIZE;
+
+mmap_t mem_map;
+int mapped_fd;
+struct stat* mapped_stat;
+char* mapped_addr;
+off_t mapped_offset;
+off_t log_offset;
 
 scan_res_t (*scan_scanner)(
   void*, char*, size_t) = (scan_res_t(*)(void*, char*, size_t))(&scanner_scan);
@@ -32,47 +50,61 @@ struct args_s {
 	const char* script;
 	const char* target;
 	const char* dlscanner;
+	size_t max_file_mem;
 } args;
 
 void print_version() { printf("logmr %s\n", LOGD_VERSION); }
 
+// TODO skip when line too long: test_malicious.sh should pass
 void print_usage(int argc, char* argv[])
 {
 	printf("usage: %s <script> <target> [options]\n", argv[0]);
 	printf("\narguments:\n");
-	printf("\a  script		Lua script to process log file.\n");
-	printf("\a  target		Target file URI in the form "
-		   "<proto>://[user@]host[:port][/path] where proto can be 'file' or "
-		   "'ssh'\n");
+	printf("  script		Lua script to process log file.\n");
+	printf(
+	  "  target		Target file URI in the form"
+	  "<proto>://[user@]host[:port][/path]\n\t\t\twhere proto can be 'file' or "
+	  "'ssh'\n");
 	printf("\n");
 	printf("\noptions:\n");
-	printf("  -s, --scanner=<scanner_so>	Load shared object "
+	printf("  -s, --scanner=<file>	Load shared object "
 		   "scanner via dlopen [default: "
 		   "%s]\n",
 	  LOGD_BUILTIN_SCANNER);
+	printf("  -m, --max-mem=<num>	Max file size to be mapped in memory"
+		   "[default: %ld bytes]\n",
+	  DEFAULT_MAX_FILE_MEM);
 	printf("  -h, --help		Display this message.\n");
 	printf("  -v, --version		Display logmr version information.\n");
-	// TODO maybe its better to memory map option?? printf("  -M, --max-buffer
-	// Max target file buffer in MB [default: %d .\n", DEFAULT_BUF);
 	printf("\n");
 }
 
 int args_init(int argc, char* argv[])
 {
 	args.dlscanner = NULL;
+	args.max_file_mem = DEFAULT_MAX_FILE_MEM & PAGE_SIZE_MASK;
+
+	ssize_t max_file_mem = 0;
 
 	static struct option long_options[] = {{"help", no_argument, 0, 'h'},
+	  {"max-memory", required_argument, 0, 'm'},
 	  {"scanner", required_argument, 0, 'p'}, {"version", no_argument, 0, 'v'},
 	  {0, 0, 0, 0}};
 
 	int option_index = 0;
 	int c = 0;
-	while ((c = getopt_long(argc, argv, "s:vh", long_options, &option_index)) !=
-	  -1) {
+	while ((c = getopt_long(
+			  argc, argv, "m:s:vh", long_options, &option_index)) != -1) {
 		switch (c) {
 		case 'v':
 			print_version();
 			exit(0);
+		case 'm':
+			if ((max_file_mem = parse_non_negative_int(optarg)) == -1) {
+				return 1;
+			}
+			args.max_file_mem = (size_t)max_file_mem & PAGE_SIZE_MASK;
+			break;
 		case 's':
 			args.dlscanner = optarg;
 			break;
@@ -94,6 +126,10 @@ int args_init(int argc, char* argv[])
 		perror("target");
 		return 1;
 	}
+
+	DEBUG_LOG(
+	  "msg: parsed args, script: %s, target: %s, max_mem: %zu, dlscanner: %s",
+	  args.script, args.target, args.max_file_mem, args.dlscanner);
 
 	return 0;
 }
@@ -162,18 +198,148 @@ error:
 	return 1;
 }
 
-// ret -1 error
+mmap_t next_mmap_size()
+{
+	/* pages remaining */
+	size_t remaining =
+	  (mapped_stat->st_size & PAGE_SIZE_MASK) + PAGE_SIZE - mapped_offset;
+
+	if (remaining > args.max_file_mem) {
+		return (mmap_t){
+		  args.max_file_mem,
+		  args.max_file_mem,
+		  MAP_MAX,
+		};
+	}
+
+	if (remaining > PAGE_SIZE) {
+		return (mmap_t){
+		  remaining,
+		  remaining,
+		  MAP_MAX,
+		};
+	}
+
+	return (mmap_t){
+	  PAGE_SIZE,
+	  mapped_stat->st_size - mapped_offset,
+	  MAP_REMAINING,
+	};
+}
+
+int mmap_next()
+{
+	if (mapped_addr != NULL) {
+		munmap(mapped_addr, mem_map.map_size);
+	}
+
+	mem_map = next_mmap_size();
+	DEBUG_LOG("ready for memory mapping,"
+			  "fd: %d, file_size: %ld, "
+			  "next_map.map_size: %ld, "
+			  "next_map.real_size: %ld, offset: %ld, log_offset: %ld, "
+			  "state: %d",
+	  mapped_fd, mapped_stat->st_size, mem_map.map_size, mem_map.real_size,
+	  mapped_offset, log_offset, mem_map.state);
+
+	if ((mapped_addr = (char*)mmap(NULL, mem_map.map_size,
+		   PROT_READ | PROT_WRITE, MAP_PRIVATE, mapped_fd, mapped_offset)) ==
+	  MAP_FAILED) {
+		perror("mmap");
+		mapped_addr = NULL;
+		return 1;
+	}
+
+	return 0;
+}
+
+// ret -1 err
 // ret 0 done
 // ret 1 not done
 int logmr_file_consume()
 {
-	// TODO
-	return 0;
+	scan_res_t res;
+
+	char* next_addr = mapped_addr + log_offset;
+	size_t next_addr_len = mem_map.real_size - log_offset;
+
+#define ADD_OFFSET                                                             \
+	next_addr += res.consumed;                                                 \
+	next_addr_len -= res.consumed;
+
+	reset_scanner(scanner);
+	while (1) {
+		res = scan_scanner(scanner, next_addr, next_addr_len);
+		switch (res.type) {
+
+		case SCAN_COMPLETE:
+			res.log->is_safe = true;
+			lua_call_on_log(lstate, res.log);
+			res.log->is_safe = false;
+			ADD_OFFSET;
+			reset_scanner(scanner);
+			break;
+
+		case SCAN_ERROR:
+			DEBUG_LOG("scan error: %s", res.error.msg);
+			res.log->is_safe = true;
+			if (lua_on_error_defined(lstate)) {
+				lua_call_on_error(lstate, res.error.msg, res.log, res.error.at);
+			}
+			res.log->is_safe = false;
+			ADD_OFFSET;
+			reset_scanner(scanner);
+			break;
+
+		case SCAN_PARTIAL:
+			switch (mem_map.state) {
+			case MAP_MAX:
+				mapped_offset += (mem_map.map_size - PAGE_SIZE);
+				log_offset = PAGE_SIZE - next_addr_len;
+				if (mmap_next() != 0) {
+					return -1;
+				}
+				return 1;
+			case MAP_REMAINING:
+				return 0;
+			}
+
+			abort();
+		}
+	}
+
+	abort();
 }
 
 int logmr_file_load(const char* pathname)
 {
-	// TODO
+
+	if (mapped_fd == 0) {
+		if ((mapped_fd = open(pathname, 0, O_RDONLY)) < 0) {
+			perror("open");
+			mapped_fd = 0;
+			errno = EINVAL;
+			return 1;
+		}
+		if ((mapped_stat = calloc(1, sizeof(struct stat))) == NULL) {
+			return 1;
+		}
+		if (fstat(mapped_fd, mapped_stat) == -1) {
+			perror("fstat");
+			errno = EINVAL;
+			return 1;
+		}
+		if (!S_ISREG(mapped_stat->st_mode)) {
+			errno = EINVAL;
+			return 1;
+		}
+	}
+
+	if (mmap_next() != 0) {
+		errno = EINVAL;
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -182,6 +348,15 @@ void free_all()
 	if (loop) {
 		uv_loop_close(loop);
 		free(loop);
+	}
+	if (mapped_fd) {
+		close(mapped_fd);
+	}
+	if (mapped_stat) {
+		free(mapped_stat);
+	}
+	if (mapped_addr && (munmap(mapped_addr, mem_map.map_size)) == -1) {
+		perror("munmap");
 	}
 	lua_free(lstate);
 	free_scanner(scanner);
@@ -192,6 +367,13 @@ void free_all()
 
 int main(int argc, char* argv[])
 {
+	int data_left, io_left;
+	const char* reason_str = "reached EOF";
+	enum exit_reason reason = REASON_EOF;
+
+	PAGE_SIZE = sysconf(_SC_PAGE_SIZE);
+	PAGE_SIZE_MASK = ~(PAGE_SIZE - 1);
+
 	if (((pret = args_init(argc, argv)) != 0)) {
 		print_usage(argc, argv);
 		goto exit;
@@ -208,8 +390,6 @@ int main(int argc, char* argv[])
 		pret = 1;
 		goto exit;
 	}
-
-	reset_scanner(scanner);
 
 	if ((pret = loop_create()) != 0) {
 		perror("loop_create");
@@ -236,9 +416,21 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	do {
-		DEBUG_LOG("uv_run: %p, logmr pid: %d", lstate, getpid());
-	} while ((pret = logmr_file_consume()) == 1 || uv_run(loop, UV_RUN_DEFAULT));
+	while ((data_left = logmr_file_consume()) == 1)
+		io_left = uv_run(loop, UV_RUN_NOWAIT);
+
+	if (data_left == -1) {
+		pret = 1;
+		reason_str = strerror(errno);
+		reason = REASON_ERROR;
+	}
+
+	if (lua_on_exit_defined(lstate)) {
+		lua_call_on_exit(lstate, reason, reason_str);
+	}
+
+	while (uv_run(loop, UV_RUN_DEFAULT))
+		;
 
 exit:
 	free_all();

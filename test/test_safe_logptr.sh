@@ -4,16 +4,12 @@ IN="$DIR/safe_logptr.in"
 SCRIPT="$DIR/safe_logptr.lua"
 OUT="$DIR/safe_logptr.out"
 ERR="$DIR/safe_logptr.err"
-LOGD_EXEC="$DIR/../bin/logd"
 
 source $DIR/helper.sh
 
 function finish {
 	CODE=$?
-	rm -f $SCRIPT
-	rm -f $OUT
-	rm -f $ERR
-	rm -f $IN
+	rm -f $SCRIPT $OUT $ERR $IN
 	exit $CODE;
 }
 
@@ -50,11 +46,10 @@ EOF
 	sleep $TESTS_SLEEP
 }
 
-touch $OUT
-touch $IN
+touch $OUT $ERR $IN
 makescript
 pushdata
-cat $IN | $LOGD_EXEC $SCRIPT 2> $ERR 1> $OUT
+invoke_exec
 # TODO exit code should be non-zero
 # RET=$?
 # if [ $? -eq 0 ]; then

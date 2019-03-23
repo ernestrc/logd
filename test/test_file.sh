@@ -3,23 +3,20 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 IN="$DIR/file.in"
 SCRIPT="$DIR/file.lua"
 OUT="$DIR/file.out"
-LOGD_EXEC="$DIR/../bin/logd"
+ERR="$DIR/file.err"
 PUSH_FILE_ITER=1000
 
 source $DIR/helper.sh
 
 function finish {
 	CODE=$?
-	rm -f $SCRIPT
-	rm -f $IN
-	rm -f $OUT
+	rm -f $SCRIPT $IN $OUT $ERR
 	exit $CODE;
 }
 
 trap finish EXIT
 
-touch $OUT
-touch $IN
+touch $OUT $IN $ERR
 
 push_file $1
 
@@ -39,11 +36,10 @@ function logd.on_exit()
 end
 EOF
 
-# stdin
-cat $IN | $LOGD_EXEC $SCRIPT 2>> $OUT 1>> $OUT
+invoke_exec
 if [ $? -ne 0 ]; then
-	cat $OUT
-	echo "error processing file via stdin"
+	cat $OUT $ERR
+	echo "error processing file"
 	exit 1
 fi
 

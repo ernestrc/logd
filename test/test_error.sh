@@ -3,21 +3,20 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 IN="$DIR/errors.in"
 SCRIPT="$DIR/errors.lua"
 OUT="$DIR/errors.out"
-LOGD_EXEC="$DIR/../bin/logd"
+ERR="$DIR/errors.err"
 
 source $DIR/helper.sh
 
 function finish {
 	CODE=$?
-	rm -f $SCRIPT
-	rm -f $OUT
-	rm -f $IN
+	rm -f $SCRIPT $OUT $ERR $IN
 	exit $CODE;
 }
 
 trap finish EXIT
 
 touch $OUT
+touch $ERR
 touch $IN
 
 cat >$IN << EOF
@@ -63,9 +62,10 @@ function logd.on_error(error, logptr, at)
 end
 EOF
 
-cat $IN | $LOGD_EXEC $SCRIPT 2>> $OUT 1>> $OUT
+invoke_exec
 if [ $? -ne 0 ]; then
 	cat $OUT
+	cat $ERR
 	exit 1
 fi
 

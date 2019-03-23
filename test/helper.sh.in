@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 LOGD_SLAB_CAP=@LOGD_SLAB_CAP@
 LOGD_BUF_INIT_CAP=@LOGD_BUF_INIT_CAP@
 LOGD_BUF_MAX_CAP=@LOGD_BUF_MAX_CAP@
+LOGD_EXEC=@ROOT_DIR@/bin/logd
+LOGB_EXEC=@ROOT_DIR@/bin/logmr
 
 if [[ $SED == "" ]]; then
 	SED=sed
@@ -11,6 +14,11 @@ fi
 TESTS_SLEEP="$TESTS_SLEEP"
 if [[ "$TESTS_SLEEP" == "" ]]; then
 	TESTS_SLEEP=1
+fi
+
+EXEC="$EXEC"
+if [[ $EXEC == "" ]]; then
+	EXEC=$LOGD_EXEC
 fi
 
 function assert_file_content {
@@ -134,5 +142,16 @@ function assert_file_contains {
 		fi
 		cat $2
 		exit 1;
+	fi
+}
+
+function invoke_exec {
+	if [[ "$EXEC" == "$LOGD_EXEC" ]]; then
+		cat $IN | $EXEC $SCRIPT $@ 2>> $ERR 1>> $OUT
+	elif [[ "$EXEC" == "$LOGB_EXEC" ]]; then
+		$EXEC $SCRIPT $IN $@ 2>> $ERR 1>> $OUT
+	else
+		echo "EXEC=\"$EXEC\" not recongized"
+		exit 1
 	fi
 }

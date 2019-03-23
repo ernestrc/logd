@@ -11,10 +11,11 @@
 #include "./util.h"
 
 #define AVAIL_CMDS_LEN 1
-#define CMD_RUN "run"
-#define CMD_RUN_LEN sizeof(CMD_RUN) - 1
-char* AVAIL_CMDS_DESC[AVAIL_CMDS_LEN] = {"Run a new collector process."};
-char* AVAIL_CMDS[AVAIL_CMDS_LEN] = {CMD_RUN};
+#define CMD_TAIL "tail"
+#define CMD_TAIL_LEN sizeof(CMD_TAIL) - 1
+char* AVAIL_CMDS_DESC[AVAIL_CMDS_LEN] = {
+  "Run a collector process against a file's appended data."};
+char* AVAIL_CMDS[AVAIL_CMDS_LEN] = {CMD_TAIL};
 
 int pret;
 
@@ -195,7 +196,7 @@ int main(int argc, char* argv[])
 
 	DEBUG_LOG("logctl pid %d", getpid());
 
-	if (strncmp(CMD_RUN, args.command, CMD_RUN_LEN) == 0) {
+	if (strncmp(CMD_TAIL, args.command, CMD_TAIL_LEN) == 0) {
 		pret = exec_sub("logd", argc, argv);
 	} else {
 		// args are checked already by args_init

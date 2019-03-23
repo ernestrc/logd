@@ -3,22 +3,19 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 IN="$DIR/log.in"
 SCRIPT="$DIR/log.lua"
 OUT="$DIR/log.out"
-LOGD_EXEC="$DIR/../bin/logd"
+ERR="$DIR/log.err"
 
 source $DIR/helper.sh
 
 function finish {
 	CODE=$?
-	rm -f $SCRIPT
-	rm -f $OUT
-	rm -f $IN
+	rm -f $SCRIPT $OUT $IN $ERR
 	exit $CODE;
 }
 
 trap finish EXIT
 
-touch $OUT
-touch $IN
+touch $OUT $ERR $IN
 
 cat >$IN << EOF
 2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, 
@@ -71,9 +68,9 @@ function logd.on_exit()
 end
 EOF
 
-cat $IN | $LOGD_EXEC $SCRIPT 2>> $OUT 1>> $OUT
+invoke_exec
 if [ $? -ne 0 ]; then
-	cat $OUT
+	cat $OUT $ERR
 	exit 1
 fi
 

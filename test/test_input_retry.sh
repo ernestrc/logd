@@ -4,7 +4,6 @@ IN="$DIR/input_retry.in"
 SCRIPT="$DIR/input_retry.lua"
 OUT="$DIR/input_retry.out"
 ERR="$DIR/input_retry.err"
-LOGD_EXEC="$DIR/../bin/logd"
 PID=
 
 source $DIR/helper.sh

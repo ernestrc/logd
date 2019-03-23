@@ -5,7 +5,6 @@ IN_MOVED="$DIR/reload_input_moved.in"
 SCRIPT="$DIR/reload_input.lua"
 OUT="$DIR/reload_input.out"
 ERR="$DIR/reload_input.err"
-LOGD_EXEC="$DIR/../bin/logd"
 PID=
 WRITER_PID=0
 WRITER_PID2=0
