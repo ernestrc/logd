@@ -76,7 +76,7 @@ void print_usage(const char* exe)
 	  "  -f, --file=<path>		File to ingest appended data from [default: "
 	  "/dev/stdin]\n");
 	printf("  -s, --scanner=<scanner_so>	Load shared object "
-		   "scanner via dlopen [default: "
+		   "scanner via dlopen [builtin: "
 		   "%s]\n",
 	  LOGD_BUILTIN_SCANNER);
 	printf("  -r, --reopen-retries		Reopen retries on EOF before giving up "

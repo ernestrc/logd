@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -32,8 +33,10 @@ struct uri_s uri;
 
 long PAGE_SIZE_MASK;
 long PAGE_SIZE;
+size_t MAX_FILE_MEM;
 
 mmap_t mem_map;
+int mem_lock_mask;
 int mapped_fd;
 struct stat* mapped_stat;
 char* mapped_addr;
@@ -61,19 +64,17 @@ void print_usage(int argc, char* argv[])
 	printf("usage: %s <script> <target> [options]\n", argv[0]);
 	printf("\narguments:\n");
 	printf("  script		Lua script to process log file.\n");
-	printf(
-	  "  target		Target file URI in the form"
-	  "<proto>://[user@]host[:port][/path]\n\t\t\twhere proto can be 'file' or "
-	  "'ssh'\n");
+	printf("  target		Target file URI <proto>://[user@]host[:port][/path]\n");
 	printf("\n");
 	printf("\noptions:\n");
-	printf("  -s, --scanner=<file>	Load shared object "
-		   "scanner via dlopen [default: "
+	printf("  -s, --scanner=<file>	Load SO scanner via dlopen [builtin: "
 		   "%s]\n",
 	  LOGD_BUILTIN_SCANNER);
-	printf("  -m, --max-mem=<num>	Max file size to be mapped in memory"
-		   "[default: %ld bytes]\n",
-	  DEFAULT_MAX_FILE_MEM);
+	//  that if this is to be raised above this process RLIMIT_MEMLOCK's hard
+	//  limit, the process needs to be privileged or possess CAP_SYS_RESOURCE.
+	printf("  -m, --max-mem=<num>	Max file chunk to be memory mapped"
+		   " [default: %ld b]\n",
+	  MAX_FILE_MEM);
 	printf("  -h, --help		Display this message.\n");
 	printf("  -v, --version		Display logmr version information.\n");
 	printf("\n");
@@ -82,7 +83,7 @@ void print_usage(int argc, char* argv[])
 int args_init(int argc, char* argv[])
 {
 	args.dlscanner = NULL;
-	args.max_file_mem = DEFAULT_MAX_FILE_MEM & PAGE_SIZE_MASK;
+	args.max_file_mem = MAX_FILE_MEM;
 
 	ssize_t max_file_mem = 0;
 
@@ -242,9 +243,9 @@ int mmap_next()
 	  mapped_fd, mapped_stat->st_size, mem_map.map_size, mem_map.real_size,
 	  mapped_offset, log_offset, mem_map.state);
 
-	if ((mapped_addr = (char*)mmap(NULL, mem_map.map_size,
-		   PROT_READ | PROT_WRITE, MAP_PRIVATE, mapped_fd, mapped_offset)) ==
-	  MAP_FAILED) {
+	if ((mapped_addr = (char*)mmap(mapped_addr, mem_map.map_size,
+		   PROT_READ | PROT_WRITE, MAP_PRIVATE | mem_lock_mask, mapped_fd,
+		   mapped_offset)) == MAP_FAILED) {
 		perror("mmap");
 		mapped_addr = NULL;
 		return 1;
@@ -365,6 +366,54 @@ void free_all()
 	}
 }
 
+int set_memlock_limit(rlim_t soft, rlim_t hard)
+{
+	struct rlimit rl;
+	int error = 0;
+
+	rl.rlim_cur = soft;
+	rl.rlim_max = hard;
+
+	if (setrlimit(RLIMIT_MEMLOCK, &rl) != 0) {
+		error = errno;
+		DEBUG_LOG("failed to set new RLIMIT_MEMLOCK soft limit of %ld: %s",
+		  rl.rlim_max, strerror(errno));
+		errno = error;
+		return 1;
+	}
+
+	DEBUG_LOG("set new RLIMIT_MEMLOCK soft limit of %ld and hard limit of %ld",
+	  rl.rlim_cur, rl.rlim_max);
+
+	return 0;
+}
+
+size_t get_raise_memlock_lim()
+{
+	struct rlimit rl;
+
+	mem_lock_mask = MAP_LOCKED;
+
+	if (getrlimit(RLIMIT_MEMLOCK, &rl) != 0) {
+		DEBUG_LOG("disabling locking of memory mapped pages: failed to get "
+				  "RLIMIT_MEMLOCK: %s",
+		  strerror(errno));
+		// if we cannot retrieve RLIMIT_MEMLOCK, then do no
+		// try to lock memory mapped pages
+		mem_lock_mask = 0;
+		return DEFAULT_MAX_FILE_MEM & PAGE_SIZE_MASK;
+	}
+
+	if (rl.rlim_max > rl.rlim_cur) {
+		// try to raise current RLIMIT_MEMLOCK limit but
+		// if we fail, ignore error and use current
+		if (set_memlock_limit(rl.rlim_max, rl.rlim_max) != 0)
+			return rl.rlim_cur;
+	}
+
+	return rl.rlim_max;
+}
+
 int main(int argc, char* argv[])
 {
 	int data_left, io_left;
@@ -373,9 +422,16 @@ int main(int argc, char* argv[])
 
 	PAGE_SIZE = sysconf(_SC_PAGE_SIZE);
 	PAGE_SIZE_MASK = ~(PAGE_SIZE - 1);
+	MAX_FILE_MEM = get_raise_memlock_lim();
 
 	if (((pret = args_init(argc, argv)) != 0)) {
 		print_usage(argc, argv);
+		goto exit;
+	}
+
+	if (set_memlock_limit(args.max_file_mem, args.max_file_mem) != 0) {
+		perror("set_memlock_limit");
+		pret = 1;
 		goto exit;
 	}
 
