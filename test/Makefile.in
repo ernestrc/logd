@@ -58,7 +58,7 @@ logd_int_test: $(INT_TESTS)
 	@ set -e; for f in $^; do echo "  TEST_LOGD	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" ./$$f; done
 
 logb_int_test: $(LOGB_INT_TESTS)
-	@ set -e; for f in $^; do echo "  TEST_LOGB	$$f" && EXEC=$(BINDIR)/logmr LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" ./$$f; done
+	@ set -e; for f in $^; do echo "  TEST_LOGB	$$f" && EXEC=$(BINDIR)/logb LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" ./$$f; done
 
 lua_test: $(LUA_TESTS)
 	@ set -e; for f in $^; do echo "  TEST_LUA	$$f" && LLVM_PROFILE_FILE="$(BINDIR)/$$f.profraw" LUA_PATH="$(LUA_PATH)" $(LUNIT_RUNNER) $(LUNIT_FLAGS) $$f; done

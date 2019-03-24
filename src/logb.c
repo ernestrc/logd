@@ -56,7 +56,7 @@ struct args_s {
 	size_t max_file_mem;
 } args;
 
-void print_version() { printf("logmr %s\n", LOGD_VERSION); }
+void print_version() { printf("logb %s\n", LOGD_VERSION); }
 
 // TODO skip when line too long: test_malicious.sh should pass
 void print_usage(int argc, char* argv[])
@@ -76,7 +76,7 @@ void print_usage(int argc, char* argv[])
 		   " [default: %ld b]\n",
 	  MAX_FILE_MEM);
 	printf("  -h, --help		Display this message.\n");
-	printf("  -v, --version		Display logmr version information.\n");
+	printf("  -v, --version		Display logb version information.\n");
 	printf("\n");
 }
 
@@ -228,7 +228,7 @@ mmap_t next_mmap_size()
 	};
 }
 
-int mmap_next()
+int logb_mmap_next()
 {
 	if (mapped_addr != NULL) {
 		munmap(mapped_addr, mem_map.map_size);
@@ -257,7 +257,7 @@ int mmap_next()
 // ret -1 err
 // ret 0 done
 // ret 1 not done
-int logmr_file_consume()
+int logb_file_consume()
 {
 	scan_res_t res;
 
@@ -297,7 +297,7 @@ int logmr_file_consume()
 			case MAP_MAX:
 				mapped_offset += (mem_map.map_size - PAGE_SIZE);
 				log_offset = PAGE_SIZE - next_addr_len;
-				if (mmap_next() != 0) {
+				if (logb_mmap_next() != 0) {
 					return -1;
 				}
 				return 1;
@@ -312,7 +312,7 @@ int logmr_file_consume()
 	abort();
 }
 
-int logmr_file_load(const char* pathname)
+int logb_file_load(const char* pathname)
 {
 
 	if (mapped_fd == 0) {
@@ -336,7 +336,7 @@ int logmr_file_load(const char* pathname)
 		}
 	}
 
-	if (mmap_next() != 0) {
+	if (logb_mmap_next() != 0) {
 		errno = EINVAL;
 		return 1;
 	}
@@ -466,13 +466,13 @@ int main(int argc, char* argv[])
 	if (uri.is_remote) {
 		// TODO
 		abort();
-	} else if (logmr_file_load(uri.path) != 0) {
+	} else if (logb_file_load(uri.path) != 0) {
 		perror("file_load");
 		pret = 1;
 		goto exit;
 	}
 
-	while ((data_left = logmr_file_consume()) == 1)
+	while ((data_left = logb_file_consume()) == 1)
 		io_left = uv_run(loop, UV_RUN_NOWAIT);
 
 	if (data_left == -1) {
