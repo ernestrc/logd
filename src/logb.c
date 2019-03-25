@@ -89,7 +89,7 @@ int args_init(int argc, char* argv[])
 
 	static struct option long_options[] = {{"help", no_argument, 0, 'h'},
 	  {"max-memory", required_argument, 0, 'm'},
-	  {"scanner", required_argument, 0, 'p'}, {"version", no_argument, 0, 'v'},
+	  {"scanner", required_argument, 0, 's'}, {"version", no_argument, 0, 'v'},
 	  {0, 0, 0, 0}};
 
 	int option_index = 0;

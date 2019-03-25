@@ -109,7 +109,7 @@ char* args_init(int argc, char* argv[])
 	  {"reopen-retries", required_argument, 0, 'r'},
 	  {"reopen-delay", required_argument, 0, 'd'},
 	  {"file", required_argument, 0, 'f'}, {"help", no_argument, 0, 'h'},
-	  {"scanner", required_argument, 0, 'p'}, {"version", no_argument, 0, 'v'},
+	  {"scanner", required_argument, 0, 's'}, {"version", no_argument, 0, 'v'},
 	  {0, 0, 0, 0}};
 
 	int option_index = 0;
