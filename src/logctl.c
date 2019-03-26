@@ -5,7 +5,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <wait.h>
+#include <sys/wait.h>
 
 #include "./config.h"
 #include "./util.h"

@@ -16,7 +16,7 @@
 
 #define DEFAULT_MAX_FILE_MEM ((size_t)9e+8) /* 900 mb */
 
-enum map_state_e { MAP_MAX, MAP_REMAINING };
+enum map_state_e { LOGB_MAP_MAX, LOGB_MAP_REM };
 
 typedef struct mmap_s {
 	size_t map_size;
@@ -31,9 +31,9 @@ lua_t* lstate;
 uv_loop_t* loop;
 struct uri_s uri;
 
-long PAGE_SIZE_MASK;
-long PAGE_SIZE;
-size_t MAX_FILE_MEM;
+long page_size_mask;
+long page_size;
+size_t max_file_mem;
 
 mmap_t mem_map;
 int mem_lock_mask;
@@ -74,7 +74,7 @@ void print_usage(int argc, char* argv[])
 	//  limit, the process needs to be privileged or possess CAP_SYS_RESOURCE.
 	printf("  -m, --max-mem=<num>	Max file chunk to be memory mapped"
 		   " [default: %ld b]\n",
-	  MAX_FILE_MEM);
+	  max_file_mem);
 	printf("  -h, --help		Display this message.\n");
 	printf("  -v, --version		Display logb version information.\n");
 	printf("\n");
@@ -83,7 +83,7 @@ void print_usage(int argc, char* argv[])
 int args_init(int argc, char* argv[])
 {
 	args.dlscanner = NULL;
-	args.max_file_mem = MAX_FILE_MEM;
+	args.max_file_mem = max_file_mem;
 
 	ssize_t max_file_mem = 0;
 
@@ -104,7 +104,7 @@ int args_init(int argc, char* argv[])
 			if ((max_file_mem = parse_non_negative_int(optarg)) == -1) {
 				return 1;
 			}
-			args.max_file_mem = (size_t)max_file_mem & PAGE_SIZE_MASK;
+			args.max_file_mem = (size_t)max_file_mem & page_size_mask;
 			break;
 		case 's':
 			args.dlscanner = optarg;
@@ -203,28 +203,28 @@ mmap_t next_mmap_size()
 {
 	/* pages remaining */
 	size_t remaining =
-	  (mapped_stat->st_size & PAGE_SIZE_MASK) + PAGE_SIZE - mapped_offset;
+	  (mapped_stat->st_size & page_size_mask) + page_size - mapped_offset;
 
 	if (remaining > args.max_file_mem) {
 		return (mmap_t){
 		  args.max_file_mem,
 		  args.max_file_mem,
-		  MAP_MAX,
+		  LOGB_MAP_MAX,
 		};
 	}
 
-	if (remaining > PAGE_SIZE) {
+	if (remaining > page_size) {
 		return (mmap_t){
 		  remaining,
 		  remaining,
-		  MAP_MAX,
+		  LOGB_MAP_MAX,
 		};
 	}
 
 	return (mmap_t){
-	  PAGE_SIZE,
+	  page_size,
 	  mapped_stat->st_size - mapped_offset,
-	  MAP_REMAINING,
+	  LOGB_MAP_REM,
 	};
 }
 
@@ -294,14 +294,14 @@ int logb_file_consume()
 
 		case SCAN_PARTIAL:
 			switch (mem_map.state) {
-			case MAP_MAX:
-				mapped_offset += (mem_map.map_size - PAGE_SIZE);
-				log_offset = PAGE_SIZE - next_addr_len;
+			case LOGB_MAP_MAX:
+				mapped_offset += (mem_map.map_size - page_size);
+				log_offset = page_size - next_addr_len;
 				if (logb_mmap_next() != 0) {
 					return -1;
 				}
 				return 1;
-			case MAP_REMAINING:
+			case LOGB_MAP_REM:
 				return 0;
 			}
 
@@ -401,7 +401,7 @@ size_t get_raise_memlock_lim()
 		// if we cannot retrieve RLIMIT_MEMLOCK, then do no
 		// try to lock memory mapped pages
 		mem_lock_mask = 0;
-		return DEFAULT_MAX_FILE_MEM & PAGE_SIZE_MASK;
+		return DEFAULT_MAX_FILE_MEM & page_size_mask;
 	}
 
 	if (rl.rlim_max > rl.rlim_cur) {
@@ -420,9 +420,9 @@ int main(int argc, char* argv[])
 	const char* reason_str = "reached EOF";
 	enum exit_reason reason = REASON_EOF;
 
-	PAGE_SIZE = sysconf(_SC_PAGE_SIZE);
-	PAGE_SIZE_MASK = ~(PAGE_SIZE - 1);
-	MAX_FILE_MEM = get_raise_memlock_lim();
+	page_size = sysconf(_SC_PAGE_SIZE);
+	page_size_mask = ~(page_size - 1);
+	max_file_mem = get_raise_memlock_lim();
 
 	if (((pret = args_init(argc, argv)) != 0)) {
 		print_usage(argc, argv);
