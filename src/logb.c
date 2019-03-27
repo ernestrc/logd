@@ -1,4 +1,6 @@
 #include <dlfcn.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -6,6 +8,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/resource.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -18,30 +21,42 @@
 
 enum map_state_e { LOGB_MAP_MAX, LOGB_MAP_REM };
 
-typedef struct mmap_s {
+struct mmap_s {
 	size_t map_size;
 	size_t real_size;
 	enum map_state_e state;
-} mmap_t;
+};
+
+struct mmap_file_s {
+
+	const char* pathname;
+	int fd;
+	struct stat fstat;
+
+	struct mmap_s mem_map;
+	char* addr;
+	off_t offset;
+	off_t log_offset;
+};
+
+struct args_s {
+	const char* script;
+	struct mmap_file_s* files;
+	int files_len;
+	const char* dlscanner;
+	size_t max_file_mem;
+} args;
 
 int pret;
 void* scanner;
 void* dlscanner_handle;
 lua_t* lstate;
 uv_loop_t* loop;
-struct uri_s uri;
 
+int mem_lock_mask;
 long page_size_mask;
 long page_size;
 size_t max_file_mem;
-
-mmap_t mem_map;
-int mem_lock_mask;
-int mapped_fd;
-struct stat* mapped_stat;
-char* mapped_addr;
-off_t mapped_offset;
-off_t log_offset;
 
 scan_res_t (*scan_scanner)(
   void*, char*, size_t) = (scan_res_t(*)(void*, char*, size_t))(&scanner_scan);
@@ -49,22 +64,24 @@ void (*free_scanner)(void*) = (void (*)(void*))(&scanner_free);
 void* (*create_scanner)() = (void* (*)())(&scanner_create);
 void (*reset_scanner)(void*) = (void (*)(void*))(&scanner_reset);
 
-struct args_s {
-	const char* script;
-	const char* target;
-	const char* dlscanner;
-	size_t max_file_mem;
-} args;
-
 void print_version() { printf("logb %s\n", LOGD_VERSION); }
 
-// TODO skip when line too long: test_malicious.sh should pass
+// TODO allow take a list of files
+// TODO user circular work-stealing dequeue
+// https://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf.
+// Implement https://github.com/kinghajj/deque
+// TODO use teddy:
+// https://github.com/rust-lang/regex/blob/3de8c44f5357d5b582a80b7282480e38e8b7d50d/src/simd_accel/teddy128.rs.
+//	Substring search with a Boyer-Moore variant and a well placed memchr to
+// quickly skip through the haystack.
+// TODO record Lua script filters and skip the rest of lines to speed up scan
 void print_usage(int argc, char* argv[])
 {
-	printf("usage: %s <script> <target> [options]\n", argv[0]);
+	printf("usage: %s <script> <target> ... [options]\n", argv[0]);
 	printf("\narguments:\n");
 	printf("  script		Lua script to process log file.\n");
-	printf("  target		Target file URI <proto>://[user@]host[:port][/path]\n");
+	printf(
+	  "  target		Target file(s) path\n");
 	printf("\n");
 	printf("\noptions:\n");
 	printf("  -s, --scanner=<file>	Load SO scanner via dlopen [builtin: "
@@ -84,6 +101,8 @@ int args_init(int argc, char* argv[])
 {
 	args.dlscanner = NULL;
 	args.max_file_mem = max_file_mem;
+	args.files_len = 0;
+	args.files = NULL;
 
 	ssize_t max_file_mem = 0;
 
@@ -117,20 +136,19 @@ int args_init(int argc, char* argv[])
 		}
 	}
 
-	if (optind + 2 != argc) {
+	if (argc - 2 < optind) {
 		return 1;
 	}
-	args.script = argv[optind];
-	args.target = argv[optind + 1];
+	args.script = argv[optind++];
+	args.files_len = argc - optind;
+	args.files = calloc(args.files_len, sizeof(struct mmap_file_s));
 
-	if (parse_uri(&uri, args.target) != 0) {
-		perror("target");
-		return 1;
-	}
+	for (int i = 0; i < args.files_len; i++)
+		args.files[i].pathname = argv[optind++];
 
 	DEBUG_LOG(
-	  "msg: parsed args, script: %s, target: %s, max_mem: %zu, dlscanner: %s",
-	  args.script, args.target, args.max_file_mem, args.dlscanner);
+	  "msg: parsed args, script: %s, targets: %d, max_mem: %zu, dlscanner: %s",
+	  args.script, args.files_len, args.max_file_mem, args.dlscanner);
 
 	return 0;
 }
@@ -174,6 +192,90 @@ err:
 	return 1;
 }
 
+INLINE void next_mmap_size(struct mmap_file_s* file)
+{
+	size_t remaining =
+	  (file->fstat.st_size & page_size_mask) + page_size - file->offset;
+
+	if (remaining > max_file_mem) {
+		file->mem_map = (struct mmap_s){
+		  max_file_mem,
+		  max_file_mem,
+		  LOGB_MAP_MAX,
+		};
+		return;
+	}
+
+	if (remaining > page_size) {
+		file->mem_map = (struct mmap_s){
+		  remaining,
+		  remaining,
+		  LOGB_MAP_MAX,
+		};
+		return;
+	}
+
+	file->mem_map = (struct mmap_s){
+	  page_size,
+	  file->fstat.st_size - file->offset,
+	  LOGB_MAP_REM,
+	};
+}
+
+int mmap_file_next(struct mmap_file_s* file)
+{
+	if (file->fd == 0) {
+		if ((file->fd = open(file->pathname, 0, O_RDONLY)) < 0) {
+			perror("open");
+			file->fd = 0;
+			errno = EINVAL;
+			return 1;
+		}
+		if (fstat(file->fd, &file->fstat) == -1) {
+			perror("fstat");
+			errno = EINVAL;
+			return 1;
+		}
+		if (!S_ISREG(file->fstat.st_mode)) {
+			errno = EINVAL;
+			return 1;
+		}
+	}
+
+	if (file->addr != NULL)
+		munmap(file->addr, file->mem_map.map_size);
+
+	next_mmap_size(file);
+
+	DEBUG_LOG("ready for memory mapping,"
+			  "fd: %d, file_size: %ld, "
+			  "next_map.map_size: %ld, "
+			  "next_map.real_size: %ld, offset: %ld, log_offset: %ld, "
+			  "state: %d",
+	  file->fd, file->fstat.st_size, file->mem_map.map_size,
+	  file->mem_map.real_size, file->offset, file->log_offset,
+	  file->mem_map.state);
+
+	if ((file->addr = (char*)mmap(file->addr, file->mem_map.map_size,
+		   PROT_READ | PROT_WRITE, MAP_PRIVATE | mem_lock_mask, file->fd,
+		   file->offset)) == MAP_FAILED) {
+		perror("mmap");
+		file->addr = NULL;
+		return 1;
+	}
+
+	return 0;
+}
+
+void mmap_file_close(struct mmap_file_s* file)
+{
+	if (file->addr != NULL)
+		munmap(file->addr, file->mem_map.map_size);
+
+	if (file->fd != 0)
+		close(file->fd);
+}
+
 int loop_create()
 {
 	int ret;
@@ -199,70 +301,15 @@ error:
 	return 1;
 }
 
-mmap_t next_mmap_size()
-{
-	/* pages remaining */
-	size_t remaining =
-	  (mapped_stat->st_size & page_size_mask) + page_size - mapped_offset;
-
-	if (remaining > args.max_file_mem) {
-		return (mmap_t){
-		  args.max_file_mem,
-		  args.max_file_mem,
-		  LOGB_MAP_MAX,
-		};
-	}
-
-	if (remaining > page_size) {
-		return (mmap_t){
-		  remaining,
-		  remaining,
-		  LOGB_MAP_MAX,
-		};
-	}
-
-	return (mmap_t){
-	  page_size,
-	  mapped_stat->st_size - mapped_offset,
-	  LOGB_MAP_REM,
-	};
-}
-
-int logb_mmap_next()
-{
-	if (mapped_addr != NULL) {
-		munmap(mapped_addr, mem_map.map_size);
-	}
-
-	mem_map = next_mmap_size();
-	DEBUG_LOG("ready for memory mapping,"
-			  "fd: %d, file_size: %ld, "
-			  "next_map.map_size: %ld, "
-			  "next_map.real_size: %ld, offset: %ld, log_offset: %ld, "
-			  "state: %d",
-	  mapped_fd, mapped_stat->st_size, mem_map.map_size, mem_map.real_size,
-	  mapped_offset, log_offset, mem_map.state);
-
-	if ((mapped_addr = (char*)mmap(mapped_addr, mem_map.map_size,
-		   PROT_READ | PROT_WRITE, MAP_PRIVATE | mem_lock_mask, mapped_fd,
-		   mapped_offset)) == MAP_FAILED) {
-		perror("mmap");
-		mapped_addr = NULL;
-		return 1;
-	}
-
-	return 0;
-}
-
 // ret -1 err
 // ret 0 done
 // ret 1 not done
-int logb_file_consume()
+int logb_file_consume(struct mmap_file_s* file)
 {
 	scan_res_t res;
 
-	char* next_addr = mapped_addr + log_offset;
-	size_t next_addr_len = mem_map.real_size - log_offset;
+	char* next_addr = file->addr + file->log_offset;
+	size_t next_addr_len = file->mem_map.real_size - file->log_offset;
 
 #define ADD_OFFSET                                                             \
 	next_addr += res.consumed;                                                 \
@@ -293,11 +340,11 @@ int logb_file_consume()
 			break;
 
 		case SCAN_PARTIAL:
-			switch (mem_map.state) {
+			switch (file->mem_map.state) {
 			case LOGB_MAP_MAX:
-				mapped_offset += (mem_map.map_size - page_size);
-				log_offset = page_size - next_addr_len;
-				if (logb_mmap_next() != 0) {
+				file->offset += (file->mem_map.map_size - page_size);
+				file->log_offset = page_size - next_addr_len;
+				if (mmap_file_next(file) != 0) {
 					return -1;
 				}
 				return 1;
@@ -312,53 +359,13 @@ int logb_file_consume()
 	abort();
 }
 
-int logb_file_load(const char* pathname)
-{
-
-	if (mapped_fd == 0) {
-		if ((mapped_fd = open(pathname, 0, O_RDONLY)) < 0) {
-			perror("open");
-			mapped_fd = 0;
-			errno = EINVAL;
-			return 1;
-		}
-		if ((mapped_stat = calloc(1, sizeof(struct stat))) == NULL) {
-			return 1;
-		}
-		if (fstat(mapped_fd, mapped_stat) == -1) {
-			perror("fstat");
-			errno = EINVAL;
-			return 1;
-		}
-		if (!S_ISREG(mapped_stat->st_mode)) {
-			errno = EINVAL;
-			return 1;
-		}
-	}
-
-	if (logb_mmap_next() != 0) {
-		errno = EINVAL;
-		return 1;
-	}
-
-	return 0;
-}
-
 void free_all()
 {
 	if (loop) {
 		uv_loop_close(loop);
 		free(loop);
 	}
-	if (mapped_fd) {
-		close(mapped_fd);
-	}
-	if (mapped_stat) {
-		free(mapped_stat);
-	}
-	if (mapped_addr && (munmap(mapped_addr, mem_map.map_size)) == -1) {
-		perror("munmap");
-	}
+	free(args.files);
 	lua_free(lstate);
 	free_scanner(scanner);
 	if (dlscanner_handle) {
@@ -463,22 +470,24 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
-	if (uri.is_remote) {
-		// TODO
-		abort();
-	} else if (logb_file_load(uri.path) != 0) {
-		perror("file_load");
-		pret = 1;
-		goto exit;
-	}
-
-	while ((data_left = logb_file_consume()) == 1)
-		io_left = uv_run(loop, UV_RUN_NOWAIT);
-
-	if (data_left == -1) {
-		pret = 1;
-		reason_str = strerror(errno);
-		reason = REASON_ERROR;
+	// TODO implement worker/stealer for file reading, chunking and scanning
+	for (int i = 0; i < args.files_len; i++) {
+		if (mmap_file_next(&args.files[i]) != 0) {
+			pret = 1;
+			reason_str = strerror(errno);
+			reason = REASON_ERROR;
+			break;
+		}
+		while ((data_left = logb_file_consume(&args.files[i])) == 1) {
+			io_left = uv_run(loop, UV_RUN_NOWAIT);
+		}
+		if (data_left == -1) {
+			pret = 1;
+			reason_str = strerror(errno);
+			reason = REASON_ERROR;
+			break;
+		}
+		mmap_file_close(&args.files[i]);
 	}
 
 	if (lua_on_exit_defined(lstate)) {

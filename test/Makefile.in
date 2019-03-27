@@ -10,12 +10,13 @@ BINDIR = $(ROOT_DIR)/bin
 LIBDIR=$(ROOT_DIR)/lib
 SRCDIR=$(ROOT_DIR)/src
 
+LOGB_ONLY_INT_TESTS=test_multiple_files.sh
 LOGD_ONLY_INT_TESTS=test_malicious.sh $(wildcard test_reload*.sh) test_input_retry.sh test_tail.sh test_shutdown.sh test_signal.sh
 COVERAGE_SRC_OBJ=$(SRCDIR)/log.o $(SRCDIR)/prop_scanner.o $(SRCDIR)/default_scanner.o $(SRCDIR)/logd_module.o $(SRCDIR)/util.o $(SRCDIR)/lua.o
 COVERAGE_OBJ=$(addprefix -object , $(COVERAGE_SRC_OBJ))
 TESTS=$(filter-out $(SKIP_C_TESTS), $(wildcard test_*.c))
 LUA_TESTS=$(filter-out $(SKIP_LUA_TESTS), $(wildcard test_*.lua))
-INT_TESTS=$(filter-out $(SKIP_INT_TESTS), $(wildcard test_*.sh))
+INT_TESTS=$(filter-out $(SKIP_INT_TESTS) $(LOGB_ONLY_INT_TESTS), $(wildcard test_*.sh))
 LOGB_INT_TESTS=$(filter-out $(SKIP_INT_TESTS) $(LOGD_ONLY_INT_TESTS), $(wildcard test_*.sh))
 FUZZERS=$(wildcard fuzz_*.c)
 TARGET_TESTS = $(addprefix $(BINDIR)/,$(patsubst %.c,%,$(TESTS)))

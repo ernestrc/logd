@@ -71,10 +71,11 @@ int next_attempt_backoff(
   int start_delay, int reopen_retries, int backoff_exponent);
 ssize_t parse_non_negative_int(const char* str);
 
-// TODO
-struct uri_s{
-	int is_remote;
-	const char* path;
-};
-int parse_uri(struct uri_s*, const char* str);
+// TODO add uri parsing to logctl only
+// struct uri_s{
+// 	int is_remote;
+// 	const char* path;
+// 	struct mmap_file_s file;
+// };
+// int parse_uri(struct uri_s*, const char* str);
 #endif

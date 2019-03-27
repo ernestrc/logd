@@ -197,12 +197,3 @@ error:
 	errno = EINVAL;
 	return -1;
 }
-
-int parse_uri(struct uri_s* uri, const char* str)
-{
-	// TODO
-	// TODO set errno
-	uri->path = str;
-	uri->is_remote = 0;
-	return 0;
-}
