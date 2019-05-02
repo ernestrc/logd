@@ -17,6 +17,8 @@
 #include "./scanner.h"
 #include "./util.h"
 
+#include <slab/slab.h>
+
 #define DEFAULT_MAX_FILE_MEM ((size_t)9e+8) /* 900 mb */
 
 enum map_state_e { LOGB_MAP_MAX, LOGB_MAP_REM };
@@ -52,6 +54,7 @@ void* scanner;
 void* dlscanner_handle;
 lua_t* lstate;
 uv_loop_t* loop;
+slab_t* task_slab;
 
 int mem_lock_mask;
 long page_size_mask;
@@ -66,7 +69,6 @@ void (*reset_scanner)(void*) = (void (*)(void*))(&scanner_reset);
 
 void print_version() { printf("logb %s\n", LOGD_VERSION); }
 
-// TODO allow take a list of files
 // TODO user circular work-stealing dequeue
 // https://www.dre.vanderbilt.edu/~schmidt/PDF/work-stealing-dequeue.pdf.
 // Implement https://github.com/kinghajj/deque
@@ -80,8 +82,7 @@ void print_usage(int argc, char* argv[])
 	printf("usage: %s <script> <target> ... [options]\n", argv[0]);
 	printf("\narguments:\n");
 	printf("  script		Lua script to process log file.\n");
-	printf(
-	  "  target		Target file(s) path\n");
+	printf("  target		Target file(s) path\n");
 	printf("\n");
 	printf("\noptions:\n");
 	printf("  -s, --scanner=<file>	Load SO scanner via dlopen [builtin: "
@@ -359,12 +360,29 @@ int logb_file_consume(struct mmap_file_s* file)
 	abort();
 }
 
+void task_mmap_next(uv_work_t* req)
+{
+	// int n = *(int*)req->data;
+	// if (random() % 2)
+	// 	sleep(1);
+	// else
+	// 	sleep(3);
+	// long fib = fib_(n);
+	// fprintf(stderr, "%dth fibonacci is %lu\n", n, fib);
+}
+
+void done_mmap_next(uv_work_t* req, int status)
+{
+	// TODO
+}
+
 void free_all()
 {
 	if (loop) {
 		uv_loop_close(loop);
 		free(loop);
 	}
+	slab_free(task_slab);
 	free(args.files);
 	lua_free(lstate);
 	free_scanner(scanner);
@@ -442,6 +460,12 @@ int main(int argc, char* argv[])
 		goto exit;
 	}
 
+#define MAX_SLAB_CAP 100
+	if ((task_slab = slab_create(MAX_SLAB_CAP, sizeof(uv_work_t))) != 0) {
+		perror("slab_create");
+		goto exit;
+	}
+
 	if (args.dlscanner != NULL &&
 	  (pret = scanner_dlload(args.dlscanner)) != 0) {
 		perror("scanner_dlload");
@@ -469,25 +493,41 @@ int main(int argc, char* argv[])
 		pret = 1;
 		goto exit;
 	}
+	// LIST OF TASKS:
+	// 1. open file
+	// 2. mmap chunk
+	// 3. scan chunk
+	// 4. munmap chunk
+	// 5. close file
 
-	// TODO implement worker/stealer for file reading, chunking and scanning
+	// WORKERS:
+	// 1 x priority: munmaps chunks then mmap chunks then close files, then open
+	// files n x priority scan chunks until exhaustion then munmap chunks, then
+	// close files
+	//
 	for (int i = 0; i < args.files_len; i++) {
-		if (mmap_file_next(&args.files[i]) != 0) {
-			pret = 1;
-			reason_str = strerror(errno);
-			reason = REASON_ERROR;
-			break;
-		}
-		while ((data_left = logb_file_consume(&args.files[i])) == 1) {
-			io_left = uv_run(loop, UV_RUN_NOWAIT);
-		}
-		if (data_left == -1) {
-			pret = 1;
-			reason_str = strerror(errno);
-			reason = REASON_ERROR;
-			break;
-		}
-		mmap_file_close(&args.files[i]);
+		uv_work_t* task = slab_get(task_slab);
+		DEBUG_ASSERT(task != NULL);
+		uv_queue_work(loop, NULL, task, &task_mmap_next, NULL);
+		// task 1
+		// if (mmap_file_next(&args.files[i]) != 0) {
+		// 	pret = 1;
+		// 	reason_str = strerror(errno);
+		// 	reason = REASON_ERROR;
+		// 	break;
+		// }
+		// task 2
+		// while ((data_left = logb_file_consume(&args.files[i])) == 1) {
+		// 	io_left = uv_run(loop, UV_RUN_NOWAIT);
+		// }
+		// if (data_left == -1) {
+		// 	pret = 1;
+		// 	reason_str = strerror(errno);
+		// 	reason = REASON_ERROR;
+		// 	break;
+		// }
+		// task 3
+		// mmap_file_close(&args.files[i]);
 	}
 
 	if (lua_on_exit_defined(lstate)) {
