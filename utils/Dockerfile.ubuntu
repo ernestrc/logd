@@ -9,6 +9,6 @@ VOLUME /opt/logd/bin
 
 COPY . /opt/logd
 
-RUN ./configure --enable-build-libuv CFLAGS='-I/opt/logd/deps/include -I/usr/include/luajit-2.1 -O3 -DOPENSSL_NO_STDIO'
+RUN ./configure --enable-build-libuv CFLAGS='-I/opt/logd/deps/include -I/usr/include/luajit-2.1 -O3 -DOPENSSL_NO_STDIO -DOPENSSL_NO_SM2'
 
 CMD make
