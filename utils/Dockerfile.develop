@@ -2,7 +2,7 @@ FROM debian:stretch
 
 RUN \
  apt-get update -y && \
- apt-get install -y wget gnupg && \
+ apt-get install -y apt-transport-https ca-certificates wget gnupg && \
  echo "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch-6.0 main" | tee /etc/apt/sources.list.d/clang6.list && \
  echo "deb-src http://apt.llvm.org/stretch/ llvm-toolchain-stretch-6.0 main" | tee /etc/apt/sources.list.d/clang6-src.list && \
  wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key| apt-key add - && \
