@@ -33,16 +33,16 @@ matrix:
         - MATRIX_EVAL="export SKIP_INT_TESTS=test_so_scanner.sh"
         - MATRIX_SCRIPT="docker build . -t logd-build:static -f utils/Dockerfile.static && docker run --env-file env.list --rm -ti -v /tmp/logd_static:/opt/logd/bin logd-build:static sh -c 'make && env && make test && make install'"
 
-    # check that we can build on OSX 10.11
+    # check that we can build on MacOS 10.14.6
     - os: osx
-      osx_image: xcode8
+      osx_image: xcode11.3
       env:
         - MATRIX_EVAL="export LIBTOOLIZE=glibtoolize && export LIBTOOL=glibtool && export SED=gsed"
         - MATRIX_SCRIPT="env && brew update && brew bundle --file=utils/Brewfile && ./configure --enable-build-all && make && make test"
 
-    # check that we can build on OSX 10.12
+    # check that we can build on MacOS 10.15.5
     - os: osx
-      osx_image: xcode9
+      osx_image: xcode12
       env:
         - MATRIX_EVAL="export LIBTOOLIZE=glibtoolize && export LIBTOOL=glibtool && export SED=gsed"
         - MATRIX_SCRIPT="env && brew update && brew bundle --file=utils/Brewfile && ./configure --enable-build-all && make && make test"
