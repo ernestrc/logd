@@ -5,7 +5,7 @@ bindir=@bindir@
 TARGET_SYS=@TARGET_SYS@
 ifeq (Darwin,$(TARGET_SYS))
   ifeq (,$(MACOSX_DEPLOYMENT_TARGET))
-    export MACOSX_DEPLOYMENT_TARGET=10.5
+    export MACOSX_DEPLOYMENT_TARGET=10.15
   endif
 endif
 
