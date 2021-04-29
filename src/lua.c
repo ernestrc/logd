@@ -225,14 +225,15 @@ error:
 	return -1;
 }
 
-void lua_call_on_log(lua_t* l, log_t* log)
+void lua_call_on_log(lua_t* l, const char* data, log_t* log)
 {
 	lua_getglobal(l->state, ON_LOG_INTERNAL);
 	DEBUG_ASSERT(lua_isfunction(l->state, -1));
 
 	lua_pushlightuserdata(l->state, log);
+	lua_pushstring(l->state, data);
 
-	lua_call(l->state, 1, 0);
+	lua_call(l->state, 2, 0);
 }
 
 bool lua_on_error_defined(lua_t* l)
@@ -247,7 +248,7 @@ bool lua_on_error_defined(lua_t* l)
 }
 
 void lua_call_on_error(
-  lua_t* l, const char* err, log_t* partial, const char* at)
+  lua_t* l, const char* err, log_t* partial, const char* data, const char* at)
 {
 	lua_push_on_error(l->state);
 	DEBUG_ASSERT(lua_isfunction(l->state, -1));
@@ -255,8 +256,9 @@ void lua_call_on_error(
 	lua_pushstring(l->state, err);
 	lua_pushlightuserdata(l->state, partial);
 	lua_pushstring(l->state, at);
+	lua_pushstring(l->state, data);
 
-	lua_call(l->state, 3, 0);
+	lua_call(l->state, 4, 0);
 	lua_pop(l->state, 1); // logd module
 }
 

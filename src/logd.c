@@ -145,8 +145,7 @@ char* args_init(int argc, char* argv[])
 				return NULL;
 			}
 			backoff =
-			  strncmp(LINEAL_BACKOFF, optarg, strlen(LINEAL_BACKOFF)) == 0 ? 1 :
-																			 2;
+			  strncmp(LINEAL_BACKOFF, optarg, strlen(LINEAL_BACKOFF)) == 0 ? 1 : 2;
 			break;
 		case 'd':
 			if ((args.reopen_delay = parse_non_negative_int(optarg)) == -1 ||
@@ -465,16 +464,16 @@ bool logd_buf_compact()
 	return 1;
 }
 
-void call_on_error(lua_t* l, const char* err, log_t* partial, const char* at)
+void call_on_error(lua_t* l, const char* err, log_t* partial, const char* data, const char* at)
 {
 	partial->is_safe = true;
-	lua_call_on_error(lstate, err, partial, at);
+	lua_call_on_error(lstate, err, partial, data, at);
 	partial->is_safe = false;
 }
 
-#define CALL_ON_LOG(lstate, res)                                               \
+#define CALL_ON_LOG(lstate, input, res)                                        \
 	res.log->is_safe = true;                                                   \
-	lua_call_on_log(lstate, res.log);                                          \
+	lua_call_on_log(lstate, input, res.log);                                   \
 	buf_consume(b, res.consumed);                                              \
 	logd_reset_scanner();                                                      \
 	res.log->is_safe = false;
@@ -504,14 +503,14 @@ scan:
 	res = scan_scanner(scanner, b->next_read, buf_readable(b));
 	switch (res.type) {
 	case SCAN_COMPLETE:
-		CALL_ON_LOG(lstate, res);
+		CALL_ON_LOG(lstate, b->next_read, res);
 		goto scan;
 	case SCAN_ERROR:
 		DEBUG_LOG("EOF scan error: %s", res.error.msg);
-		buf_ack(b, res.consumed);
 		if (lua_on_error_defined(lstate)) {
-			call_on_error(lstate, res.error.msg, res.log, res.error.at);
+			call_on_error(lstate, res.error.msg, res.log, b->next_read, res.error.at);
 		}
+		buf_ack(b, res.consumed);
 		logd_reset_scanner();
 		goto scan;
 	case SCAN_PARTIAL:
@@ -564,7 +563,7 @@ void on_read_skip(uv_poll_t* req, int status, int events)
 		call_on_error(lstate,
 		  "log line was skipped because it is more than " STR(
 			LOGD_BUF_MAX_CAP) " bytes",
-		  res.log, "");
+		  res.log, b->next_read, "");
 	}
 	buf_ack(b, res.consumed);
 	DEBUG_LOG("successfully skipped line: buffer has now %zu readable bytes "
@@ -593,15 +592,15 @@ scan:
 
 	case SCAN_COMPLETE:
 		// DEBUG_LOG("scanned new log: %p", &res.log);
-		CALL_ON_LOG(lstate, res);
+		CALL_ON_LOG(lstate, b->next_read, res);
 		goto scan;
 
 	case SCAN_ERROR:
 		DEBUG_LOG("scan error: %s", res.error.msg);
-		buf_ack(b, res.consumed);
 		if (lua_on_error_defined(lstate)) {
-			call_on_error(lstate, res.error.msg, res.log, res.error.at);
+			call_on_error(lstate, res.error.msg, res.log, b->next_read, res.error.at);
 		}
+		buf_ack(b, res.consumed);
 		logd_reset_scanner();
 		goto scan;
 
