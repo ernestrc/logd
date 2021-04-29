@@ -15,10 +15,10 @@ typedef struct lua_s {
 
 lua_t* lua_create(uv_loop_t* loop, const char* script);
 int lua_init(lua_t* l, uv_loop_t* loop, const char* script);
-void lua_call_on_log(lua_t*, log_t* log);
+void lua_call_on_log(lua_t*, const char* data, log_t* log);
 bool lua_on_error_defined(lua_t*);
 void lua_call_on_error(
-  lua_t*, const char* err, log_t* partial, const char* remaining);
+  lua_t*, const char* err, log_t* partial, const char* data, const char* remaining);
 bool lua_on_exit_defined(lua_t*);
 void lua_call_on_exit(
   lua_t* l, enum exit_reason reason, const char* reason_str);

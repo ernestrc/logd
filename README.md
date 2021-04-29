@@ -16,9 +16,9 @@ Logd is a log scanner daemon that exposes a Lua API to run arbitrary logic on st
 
 | Hook | Description |
 | --- | --- |
-| `function logd.on_log (logptr)` | Logs are scanned and supplied to this handler. Use `logd.log_*` set of functions to manipulate them. |
+| `function logd.on_log (logptr, logstr)` | Logs are scanned and supplied to this handler. Use `logd.log_*` set of functions to manipulate them. |
 | `function logd.on_exit (code, reason)` | Called when collector is gracefully terminating. |
-| `function logd.on_error (error, logptr, at)` | Called when collector failed to scan a log line. Scanning will resume after this function returns. |
+| `function logd.on_error (error, logptr, at, logstr)` | Called when collector failed to scan a log line. Scanning will resume after this function returns. |
 
 ## Preloaded Lua modules
 - [logd](#logd-module-api)

@@ -58,3 +58,6 @@ src/logdconfig.lua
 src/logdconfig.lua.h
 
 test/helper.sh
+
+# six
+*.swp

@@ -31,31 +31,35 @@ EOF
 cat >$SCRIPT << EOF
 local logd = require("logd")
 local counter = 0
-function logd.on_log(logptr)
+function logd.on_log(logptr, logstr)
 	if counter == 0 then
 		assert("ERROR" == logd.log_get(logptr, "level"))
 		assert("thread1" == logd.log_get(logptr, "thread"))
 		assert("clazz" == logd.log_get(logptr, "class"))
 		assert(nil == logd.log_get(logptr, "callType"))
 		assert("A" == logd.log_get(logptr, "a"))
+		assert("2018-05-12 12:51:28 ERROR	[thread1]	clazz	a: A, ", logstr)
 	elseif counter == 1 then
 		assert("WARN" == logd.log_get(logptr, "level"))
 		assert("thread2" == logd.log_get(logptr, "thread"))
 		assert("clazz" == logd.log_get(logptr, "class"))
 		assert("callType" == logd.log_get(logptr, "callType"))
 		assert("B" == logd.log_get(logptr, "b"))
+		assert("2018-05-12 12:52:22 WARN	[thread2]	clazz	callType: b: B", logstr)
 	elseif counter == 2 then
 		assert("INFO" == logd.log_get(logptr, "level"))
 		assert("thread3" == logd.log_get(logptr, "thread"))
 		assert("clazz" == logd.log_get(logptr, "class"))
 		assert("callType" == logd.log_get(logptr, "callType"))
 		assert("C" == logd.log_get(logptr, "c"))
+		assert("2018-05-12 12:53:22 INFO	[thread3]	clazz	callType: c: C, ", logstr)
 	elseif counter == 3 then
 		assert("DEBUG" == logd.log_get(logptr, "level"))
 		assert("thread4" == logd.log_get(logptr, "thread"))
 		assert("clazz" == logd.log_get(logptr, "class"))
 		assert("callType" == logd.log_get(logptr, "callType"))
 		assert("" == logd.log_get(logptr, "b"))
+		assert("2018-05-12 12:54:22 DEBUG	[thread4]	clazz	callType: b: ,", logstr)
 	else
 		assert("TRACE" == logd.log_get(logptr, "level"))
 		assert("thread5" == logd.log_get(logptr, "thread"))
@@ -63,6 +67,7 @@ function logd.on_log(logptr)
 		assert("callType" == logd.log_get(logptr, "callType"))
 		assert("c: C" == logd.log_get(logptr, "b"))
 		assert(nil == logd.log_get(logptr, "c"))
+		assert("2018-05-12 12:55:22 TRACE	[thread5]	clazz	callType: b: c: C, ", logstr)
 	end
 	counter = counter + 1
 end
