@@ -1,0 +1,13 @@
+# use ubuntu bionic, as we need openssl 1.0.2
+FROM ubuntu:18.04
+
+RUN apt-get update -y
+RUN apt-get install -y apt-transport-https ca-certificates git make gcc libtool zlib1g-dev patch vim-common libluajit-5.1-dev pkg-config autoconf libssl-dev
+
+WORKDIR /opt/logd
+
+COPY . /opt/logd
+
+RUN ./configure --enable-build-libuv CFLAGS='-I/opt/logd/deps/include -I/usr/include/luajit-2.1 -O3 -DOPENSSL_NO_STDIO -DOPENSSL_NO_SM2' && make && make install
+
+CMD /opt/logd/bin/logd
